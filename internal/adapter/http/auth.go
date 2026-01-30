@@ -1,8 +1,11 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/bnema/sharm/internal/adapter/http/ratelimit"
 	"github.com/bnema/sharm/internal/adapter/http/templates"
 	"github.com/bnema/sharm/internal/infrastructure/logger"
 )
@@ -13,6 +16,24 @@ const (
 	CookiePath     = "/"
 	CookieSameSite = http.SameSiteStrictMode
 )
+
+func getClientID(r *http.Request) string {
+	forwarded := r.Header.Get("X-Forwarded-For")
+	if forwarded != "" {
+		return forwarded
+	}
+	return r.RemoteAddr
+}
+
+func formatDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%d seconds", int(d.Seconds()))
+	}
+	if d < time.Hour {
+		return fmt.Sprintf("%d minutes", int(d.Minutes()))
+	}
+	return fmt.Sprintf("%d hours", int(d.Hours()))
+}
 
 type AuthService interface {
 	ValidatePassword(password string) bool
@@ -39,8 +60,10 @@ func AuthMiddleware(authSvc AuthService, next http.HandlerFunc) http.HandlerFunc
 	}
 }
 
-func LoginHandler(authSvc AuthService) http.HandlerFunc {
+func LoginHandler(authSvc AuthService, rateLimiter *ratelimit.LoginRateLimiter, tracker *ratelimit.LoginAttemptTracker, backoff *ratelimit.Backoff) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		clientID := getClientID(r)
+
 		if r.Method == http.MethodGet {
 			renderLogin(w, r, "")
 			return
@@ -49,20 +72,43 @@ func LoginHandler(authSvc AuthService) http.HandlerFunc {
 		if r.Method == http.MethodPost {
 			password := r.FormValue("password")
 			if password == "" {
-				logger.Info.Printf("login attempt: empty password from %s", r.RemoteAddr)
+				logger.Info.Printf("login attempt: empty password from %s", clientID)
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.WriteHeader(http.StatusBadRequest)
 				templates.Login("Password is required").Render(r.Context(), w)
 				return
 			}
 
+			allowed, blockDuration := rateLimiter.Check(clientID)
+			if !allowed {
+				logger.Warn.Printf("login attempt: rate limit exceeded from %s, blocked for %v", clientID, blockDuration)
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Header().Set("Retry-After", fmt.Sprintf("%.0f", blockDuration.Seconds()))
+				w.WriteHeader(http.StatusTooManyRequests)
+				templates.Login(fmt.Sprintf("Too many attempts. Try again in %s", formatDuration(blockDuration))).Render(r.Context(), w)
+				return
+			}
+
 			if !authSvc.ValidatePassword(password) {
-				logger.Info.Printf("login attempt: invalid password from %s", r.RemoteAddr)
+				tracker.RecordFailure(clientID)
+				failedAttempts := tracker.GetFailedAttempts(clientID)
+
+				backoffDuration := backoff.Duration(failedAttempts)
+				if backoffDuration > 0 {
+					logger.Info.Printf("login attempt: invalid password from %s (attempt %d), backing off for %v", clientID, failedAttempts, backoffDuration)
+					time.Sleep(backoffDuration)
+				} else {
+					logger.Info.Printf("login attempt: invalid password from %s (attempt %d)", clientID, failedAttempts)
+				}
+
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.WriteHeader(http.StatusUnauthorized)
 				templates.Login("Invalid password").Render(r.Context(), w)
 				return
 			}
+
+			tracker.RecordSuccess(clientID)
+			rateLimiter.Reset(clientID)
 
 			token := authSvc.GenerateToken()
 			http.SetCookie(w, &http.Cookie{
@@ -75,7 +121,7 @@ func LoginHandler(authSvc AuthService) http.HandlerFunc {
 				SameSite: CookieSameSite,
 			})
 
-			logger.Info.Printf("login successful from %s", r.RemoteAddr)
+			logger.Info.Printf("login successful from %s", clientID)
 
 			if r.Header.Get("HX-Request") == "true" {
 				w.Header().Set("HX-Redirect", "/")
