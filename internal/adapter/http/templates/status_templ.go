@@ -8,7 +8,10 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "github.com/bnema/sharm/internal/domain"
+import (
+	"fmt"
+	"github.com/bnema/sharm/internal/domain"
+)
 
 func StatusPolling(id string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -38,7 +41,7 @@ func StatusPolling(id string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs("/status/" + id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/status.templ`, Line: 6, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/status.templ`, Line: 9, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -80,7 +83,7 @@ func StatusDone(media *domain.Media, shareURL string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(shareURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/status.templ`, Line: 25, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/status.templ`, Line: 28, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -93,7 +96,7 @@ func StatusDone(media *domain.Media, shareURL string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs("/v/" + media.ID + "/raw")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/status.templ`, Line: 31, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/status.templ`, Line: 34, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -106,7 +109,7 @@ func StatusDone(media *domain.Media, shareURL string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs("video/" + media.Codec)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/status.templ`, Line: 31, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/status.templ`, Line: 34, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -119,7 +122,7 @@ func StatusDone(media *domain.Media, shareURL string) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", media.RetentionDays))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/status.templ`, Line: 35, Col: 116}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/status.templ`, Line: 38, Col: 116}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -161,7 +164,7 @@ func StatusFailed(errorMessage string) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(errorMessage)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/status.templ`, Line: 42, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/status.templ`, Line: 45, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
