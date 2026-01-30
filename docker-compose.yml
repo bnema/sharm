@@ -1,0 +1,17 @@
+services:
+  sharm:
+    build: .
+    ports:
+      - "7890:7890"
+    environment:
+      - PORT=7890
+      - DOMAIN=sharm.bnema.dev
+      - AUTH_SECRET=${AUTH_SECRET}
+      - MAX_UPLOAD_SIZE_MB=500
+      - DEFAULT_RETENTION_DAYS=7
+    volumes:
+      - sharm-data:/data
+    restart: unless-stopped
+
+volumes:
+  sharm-data:
