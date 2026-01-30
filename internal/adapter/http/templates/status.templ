@@ -1,6 +1,9 @@
 package templates
 
-import "github.com/bnema/sharm/internal/domain"
+import (
+	"fmt"
+	"github.com/bnema/sharm/internal/domain"
+)
 
 templ StatusPolling(id string) {
 	<div hx-get={"/status/" + id} hx-trigger="every 2s" hx-swap="outerHTML">

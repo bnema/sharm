@@ -1,7 +1,7 @@
 package templates
 
 templ Upload() {
-	@Layout(&LayoutProps{Title: "Upload — Sharm"}) {
+	@Layout(LayoutProps{Title: "Upload — Sharm"}) {
 		<div class="card">
 			<h1 class="text-secondary" style="font-size: var(--text-xl); font-weight: 600; margin-bottom: var(--s-lg);">Upload Video</h1>
 			<form hx-post="/upload" hx-encoding="multipart/form-data" hx-target="#result" hx-indicator="#progress">
