@@ -107,6 +107,24 @@ func (h *Handlers) Status() http.HandlerFunc {
 	}
 }
 
+func (h *Handlers) Media() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+
+		if strings.HasSuffix(path, "/raw") {
+			h.ServeRaw()(w, r)
+			return
+		}
+
+		if strings.HasSuffix(path, "/thumb") {
+			h.ServeThumb()(w, r)
+			return
+		}
+
+		h.SharePage()(w, r)
+	}
+}
+
 func (h *Handlers) SharePage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/v/")

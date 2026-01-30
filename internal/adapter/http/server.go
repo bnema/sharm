@@ -52,9 +52,7 @@ func (s *Server) registerRoutes() {
 		AuthMiddleware(s.authSvc, s.handlers.Status())(w, r)
 	})
 
-	s.mux.HandleFunc("GET /v/", s.handlers.SharePage())
-	s.mux.HandleFunc("GET /v/", s.handlers.ServeRaw())
-	s.mux.HandleFunc("GET /v/", s.handlers.ServeThumb())
+	s.mux.HandleFunc("GET /v/", s.handlers.Media())
 }
 
 func (s *Server) registerStatic() {
