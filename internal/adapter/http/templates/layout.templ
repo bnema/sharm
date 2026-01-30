@@ -1,0 +1,182 @@
+package templates
+
+type LayoutProps struct {
+	Title string
+}
+
+templ Layout(props LayoutProps) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ props.Title }</title>
+			<link rel="preconnect" href="https://fonts.googleapis.com"/>
+			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+			<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+			<style>
+				:root {
+					--s-xs: 0.25rem;
+					--s-sm: 0.5rem;
+					--s-md: 1rem;
+					--s-lg: 1.5rem;
+					--s-xl: 2rem;
+					--s-2xl: 3rem;
+
+					--font-body: "IBM Plex Sans", system-ui, sans-serif;
+					--font-mono: "IBM Plex Mono", ui-monospace, monospace;
+					--text-xs: 0.75rem;
+					--text-sm: 0.875rem;
+					--text-base: 1rem;
+					--text-lg: 1.25rem;
+					--text-xl: 1.5rem;
+					--text-2xl: 2rem;
+
+					--radius-sm: 4px;
+					--radius-md: 8px;
+					--radius-lg: 12px;
+
+					--ease: cubic-bezier(0.4, 0, 0.2, 1);
+					--duration: 200ms;
+
+					--bg-primary: #0a0a0b;
+					--bg-surface: #141416;
+					--bg-elevated: #1c1c20;
+					--bg-hover: #25252a;
+					--border: #2a2a30;
+					--border-focus: #4a9eff;
+					--text-primary: #e8e8ed;
+					--text-secondary: #8e8e96;
+					--text-muted: #5a5a62;
+					--accent: #4a9eff;
+					--accent-hover: #3a8eef;
+					--success: #34d399;
+					--error: #f87171;
+					--progress-bg: #1c1c20;
+					--progress-fill: #4a9eff;
+				}
+
+				@media (prefers-color-scheme: light) {
+					:root {
+						--bg-primary: #fafafa;
+						--bg-surface: #ffffff;
+						--bg-elevated: #f0f0f2;
+						--bg-hover: #e8e8ec;
+						--border: #d4d4d8;
+						--border-focus: #2563eb;
+						--text-primary: #18181b;
+						--text-secondary: #52525b;
+						--text-muted: #a1a1aa;
+						--accent: #2563eb;
+						--accent-hover: #1d4ed8;
+						--success: #059669;
+						--error: #dc2626;
+						--progress-bg: #e8e8ec;
+						--progress-fill: #2563eb;
+					}
+				}
+
+				* {
+					margin: 0;
+					padding: 0;
+					box-sizing: border-box;
+				}
+
+				body {
+					font-family: var(--font-body);
+					font-size: var(--text-base);
+					line-height: 1.5;
+					color: var(--text-primary);
+					background: var(--bg-primary);
+					min-height: 100vh;
+				}
+
+				.container {
+					max-width: 640px;
+					margin: 0 auto;
+					padding: var(--s-md);
+				}
+
+				@media (min-width: 768px) {
+					.container {
+						padding: var(--s-lg);
+					}
+				}
+
+				.card {
+					background: var(--bg-surface);
+					border: 1px solid var(--border);
+					border-radius: var(--radius-lg);
+					padding: var(--s-lg);
+				}
+
+				.button {
+					display: inline-block;
+					width: 100%;
+					padding: var(--s-sm) var(--s-md);
+					font-family: var(--font-body);
+					font-size: var(--text-base);
+					font-weight: 500;
+					color: var(--text-primary);
+					background: var(--accent);
+					border: none;
+					border-radius: var(--radius-md);
+					cursor: pointer;
+					transition: background var(--duration) var(--ease);
+				}
+
+				.button:hover {
+					background: var(--accent-hover);
+				}
+
+				@media (min-width: 768px) {
+					.button {
+						width: auto;
+					}
+				}
+
+				.input {
+					width: 100%;
+					padding: var(--s-sm) var(--s-md);
+					font-family: var(--font-body);
+					font-size: var(--text-base);
+					color: var(--text-primary);
+					background: var(--bg-elevated);
+					border: 1px solid var(--border);
+					border-radius: var(--radius-md);
+					outline: none;
+					transition: border-color var(--duration) var(--ease);
+				}
+
+				.input:focus {
+					border-color: var(--border-focus);
+				}
+
+				.text-secondary {
+					color: var(--text-secondary);
+				}
+
+				.text-muted {
+					color: var(--text-muted);
+				}
+
+				.text-success {
+					color: var(--success);
+				}
+
+				.text-error {
+					color: var(--error);
+				}
+
+				.mt-sm { margin-top: var(--s-sm); }
+				.mt-md { margin-top: var(--s-md); }
+				.mt-lg { margin-top: var(--s-lg); }
+			</style>
+		</head>
+		<body>
+			<div class="container">
+				{ children... }
+			</div>
+		</body>
+	</html>
+}

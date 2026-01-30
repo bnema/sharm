@@ -1,0 +1,44 @@
+package templates
+
+import "github.com/bnema/sharm/internal/domain"
+
+templ StatusPolling(id string) {
+	<div hx-get={"/status/" + id} hx-trigger="every 2s" hx-swap="outerHTML">
+		<div style="display: flex; align-items: center; gap: var(--s-sm);">
+			<div style="width: 16px; height: 16px; border: 2px solid var(--accent); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+			<span class="text-secondary">Converting video...</span>
+		</div>
+		<style>
+			@keyframes spin {
+				to { transform: rotate(360deg); }
+			}
+		</style>
+	</div>
+}
+
+templ StatusDone(media *domain.Media, shareURL string) {
+	<div>
+		<p class="text-success" style="margin-bottom: var(--s-md);">✓ Video converted successfully!</p>
+		<div style="margin-bottom: var(--s-md);">
+			<label class="text-secondary" style="display: block; margin-bottom: var(--s-sm);">Share link</label>
+			<div style="display: flex; gap: var(--s-sm);">
+				<input type="text" value={ shareURL } readonly class="input" style="font-family: var(--font-mono); font-size: var(--text-sm);"/>
+				<button onclick="navigator.clipboard.writeText('{ shareURL }'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000);" class="button" style="width: auto;">Copy</button>
+			</div>
+		</div>
+		<div>
+			<video controls style="width: 100%; border-radius: var(--radius-md);">
+				<source src={ "/v/" + media.ID + "/raw" } type={ "video/" + media.Codec }/>
+				Your browser does not support video playback.
+			</video>
+		</div>
+		<p class="text-muted mt-sm" style="font-size: var(--text-sm);">Expires in { fmt.Sprintf("%d", media.RetentionDays) } days</p>
+	</div>
+}
+
+templ StatusFailed(errorMessage string) {
+	<div>
+		<p class="text-error" style="margin-bottom: var(--s-sm);">✗ Conversion failed</p>
+		<p class="text-muted" style="font-size: var(--text-sm);">{ errorMessage }</p>
+	</div>
+}
