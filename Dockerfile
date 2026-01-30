@@ -21,7 +21,7 @@ FROM golang:1.25-bookworm AS build-stage
 WORKDIR /app
 COPY --from=fetch-stage /go/pkg/mod /go/pkg/mod
 COPY --from=generate-stage /app /app
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /sharm ./cmd/sharm
+RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -ldflags="-s -w" -o /sharm ./cmd/sharm
 
 # =============================================================
 # Stage 4: Final runtime image
