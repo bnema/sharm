@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/bnema/sharm/internal/domain"
+	"github.com/bnema/sharm/internal/infrastructure/logger"
 	"github.com/bnema/sharm/internal/port"
 )
 
@@ -25,11 +26,13 @@ func NewMediaService(store port.MediaStore, converter port.MediaConverter, dataD
 
 func (s *MediaService) Upload(filename string, file *os.File, retentionDays int) (*domain.Media, error) {
 	if err := os.MkdirAll(s.uploadDir, 0755); err != nil {
+		logger.Error.Printf("failed to create upload directory: %v", err)
 		return nil, fmt.Errorf("failed to create upload directory: %w", err)
 	}
 
 	uploadPath := filepath.Join(s.uploadDir, filename)
 	if err := os.Rename(file.Name(), uploadPath); err != nil {
+		logger.Error.Printf("failed to save upload %s: %v", filename, err)
 		return nil, fmt.Errorf("failed to save upload: %w", err)
 	}
 
@@ -37,9 +40,11 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int)
 
 	if err := s.store.Save(media); err != nil {
 		os.Remove(uploadPath)
+		logger.Error.Printf("failed to save media metadata %s: %v", media.ID, err)
 		return nil, fmt.Errorf("failed to save media metadata: %w", err)
 	}
 
+	logger.Info.Printf("media uploaded: id=%s, filename=%s, retention=%d days", media.ID, filename, retentionDays)
 	go s.convert(media)
 
 	return media, nil
