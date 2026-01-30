@@ -1,0 +1,57 @@
+# Binaries
+dist/
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Go
+# Note: go.mod and go.sum are needed for build
+
+# Test files
+*_test.go
+coverage.out
+coverage.html
+*.coverprofile
+
+# Documentation
+*.md
+docs/
+LICENSE
+README.md
+
+# Build files
+Makefile
+.air.toml
+.dockerignore
+Dockerfile
+docker-compose.yml
+.mockery.yml
+
+# Environment
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+*.tmp
