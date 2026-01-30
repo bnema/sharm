@@ -7,24 +7,16 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # =============================================================
-# Stage 2: Generate templ code (official templ image)
-# =============================================================
-FROM ghcr.io/a-h/templ:latest AS generate-stage
-COPY --chown=65532:65532 . /app
-WORKDIR /app
-RUN ["templ", "generate"]
-
-# =============================================================
-# Stage 3: Build Go binary
+# Stage 2: Build Go binary
 # =============================================================
 FROM golang:1.25-bookworm AS build-stage
 WORKDIR /app
 COPY --from=fetch-stage /go/pkg/mod /go/pkg/mod
-COPY --from=generate-stage /app /app
+COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -ldflags="-s -w" -o /sharm ./cmd/sharm
 
 # =============================================================
-# Stage 4: Final runtime image
+# Stage 3: Final runtime image
 # =============================================================
 FROM ubuntu:24.04
 
