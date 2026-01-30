@@ -1,0 +1,128 @@
+package templates
+
+import "github.com/bnema/sharm/internal/domain"
+
+templ Share(media *domain.Media, domain string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ media.OriginalName } — Sharm</title>
+			<meta property="og:type" content="video.other"/>
+			<meta property="og:url" content={ "https://" + domain + "/v/" + media.ID }/>
+			<meta property="og:title" content={ media.OriginalName }/>
+			<meta property="og:description" content="Shared via Sharm"/>
+			<meta property="og:site_name" content="Sharm"/>
+			<meta property="og:video" content={ "https://" + domain + "/v/" + media.ID + "/raw" }/>
+			<meta property="og:video:url" content={ "https://" + domain + "/v/" + media.ID + "/raw" }/>
+			<meta property="og:video:secure_url" content={ "https://" + domain + "/v/" + media.ID + "/raw" }/>
+			<meta property="og:video:type" content={ "video/" + media.Codec }/>
+			<meta property="og:video:width" content={ fmt.Sprintf("%d", media.Width) }/>
+			<meta property="og:video:height" content={ fmt.Sprintf("%d", media.Height) }/>
+			<meta property="og:image" content={ "https://" + domain + "/v/" + media.ID + "/thumb" }/>
+			<meta name="twitter:card" content="player"/>
+			<meta name="twitter:player" content={ "https://" + domain + "/v/" + media.ID + "/raw" }/>
+			<meta name="twitter:player:width" content={ fmt.Sprintf("%d", media.Width) }/>
+			<meta name="twitter:player:height" content={ fmt.Sprintf("%d", media.Height) }/>
+			<link rel="preconnect" href="https://fonts.googleapis.com"/>
+			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+			<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+			<style>
+				:root {
+					--s-md: 1rem;
+					--s-lg: 1.5rem;
+					--s-xl: 2rem;
+					--font-body: "IBM Plex Sans", system-ui, sans-serif;
+					--text-base: 1rem;
+					--text-xl: 1.5rem;
+					--radius-lg: 12px;
+					--bg-primary: #0a0a0b;
+					--bg-surface: #141416;
+					--border: #2a2a30;
+					--text-primary: #e8e8ed;
+					--text-secondary: #8e8e96;
+					--text-muted: #5a5a62;
+				}
+
+				@media (prefers-color-scheme: light) {
+					:root {
+						--bg-primary: #fafafa;
+						--bg-surface: #ffffff;
+						--border: #d4d4d8;
+						--text-primary: #18181b;
+						--text-secondary: #52525b;
+						--text-muted: #a1a1aa;
+					}
+				}
+
+				* {
+					margin: 0;
+					padding: 0;
+					box-sizing: border-box;
+				}
+
+				body {
+					font-family: var(--font-body);
+					font-size: var(--text-base);
+					line-height: 1.5;
+					color: var(--text-primary);
+					background: var(--bg-primary);
+					min-height: 100vh;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					padding: var(--s-md);
+				}
+
+				.container {
+					max-width: 960px;
+					width: 100%;
+				}
+
+				.video-wrapper {
+					background: var(--bg-surface);
+					border: 1px solid var(--border);
+					border-radius: var(--radius-lg);
+					overflow: hidden;
+					margin-bottom: var(--s-lg);
+				}
+
+				video {
+					width: 100%;
+					display: block;
+				}
+
+				.info {
+					text-align: center;
+				}
+
+				.info h1 {
+					font-size: var(--text-xl);
+					font-weight: 600;
+					color: var(--text-primary);
+					margin-bottom: var(--s-md);
+				}
+
+				.info p {
+					font-size: var(--text-base);
+					color: var(--text-muted);
+				}
+			</style>
+		</head>
+		<body>
+			<div class="container">
+				<div class="video-wrapper">
+					<video controls autoplay>
+						<source src={ "/v/" + media.ID + "/raw" } type={ "video/" + media.Codec }/>
+						Your browser does not support video playback.
+					</video>
+				</div>
+				<div class="info">
+					<h1>{ media.OriginalName }</h1>
+					<p>Shared via Sharm • Expires in { fmt.Sprintf("%d", media.RetentionDays) } days</p>
+				</div>
+			</div>
+		</body>
+	</html>
+}
