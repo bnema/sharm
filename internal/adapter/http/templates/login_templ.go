@@ -8,7 +8,7 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func Login() templ.Component {
+func Login(errorMsg string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -41,7 +41,30 @@ func Login() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"card\"><h1 class=\"text-secondary\" style=\"font-size: var(--text-xl); font-weight: 600; margin-bottom: var(--s-md);\">Sharm</h1><p class=\"text-muted\" style=\"margin-bottom: var(--s-lg);\">Enter your password to continue</p><form method=\"post\" action=\"/login\"><input type=\"password\" name=\"password\" class=\"input\" placeholder=\"Password\" required autofocus> <button type=\"submit\" class=\"button mt-md\">Login</button></form></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"card\" hx-ext=\"response-targets\"><h1 class=\"text-secondary\" style=\"font-size: var(--text-xl); font-weight: 600; margin-bottom: var(--s-md);\">Sharm</h1><p class=\"text-muted\" style=\"margin-bottom: var(--s-md);\">Enter your password to continue</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if errorMsg != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<p class=\"text-error\" style=\"margin-bottom: var(--s-md);\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var3 string
+				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(errorMsg)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/login.templ`, Line: 9, Col: 72}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form method=\"post\" action=\"/login\" hx-post=\"/login\" hx-target=\"#login-form\" hx-target-error=\"#error-message\" hx-swap=\"outerHTML\"><div id=\"login-form\"><input type=\"password\" name=\"password\" class=\"input\" placeholder=\"Password\" required autofocus> <button type=\"submit\" class=\"button mt-md\">Login</button></div></form><div id=\"error-message\" class=\"text-error\" style=\"margin-top: var(--s-md);\"></div></div><script>\n\t\t\tdocument.body.addEventListener('htmx:beforeSwap', function(evt) {\n\t\t\t\tif (evt.detail.xhr.status === 401) {\n\t\t\t\t\tevt.detail.shouldSwap = true;\n\t\t\t\t\tevt.detail.isError = false;\n\t\t\t\t}\n\t\t\t});\n\t\t</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -1,14 +1,28 @@
 package templates
 
-templ Login() {
+templ Login(errorMsg string) {
 	@Layout(LayoutProps{Title: "Login — Sharm"}) {
-		<div class="card">
+		<div class="card" hx-ext="response-targets">
 			<h1 class="text-secondary" style="font-size: var(--text-xl); font-weight: 600; margin-bottom: var(--s-md);">Sharm</h1>
-			<p class="text-muted" style="margin-bottom: var(--s-lg);">Enter your password to continue</p>
-			<form method="post" action="/login">
-				<input type="password" name="password" class="input" placeholder="Password" required autofocus/>
-				<button type="submit" class="button mt-md">Login</button>
+			<p class="text-muted" style="margin-bottom: var(--s-md);">Enter your password to continue</p>
+			if errorMsg != "" {
+				<p class="text-error" style="margin-bottom: var(--s-md);">{ errorMsg }</p>
+			}
+			<form method="post" action="/login" hx-post="/login" hx-target="#login-form" hx-target-error="#error-message" hx-swap="outerHTML">
+				<div id="login-form">
+					<input type="password" name="password" class="input" placeholder="Password" required autofocus/>
+					<button type="submit" class="button mt-md">Login</button>
+				</div>
 			</form>
+			<div id="error-message" class="text-error" style="margin-top: var(--s-md);"></div>
 		</div>
+		<script>
+			document.body.addEventListener('htmx:beforeSwap', function(evt) {
+				if (evt.detail.xhr.status === 401) {
+					evt.detail.shouldSwap = true;
+					evt.detail.isError = false;
+				}
+			});
+		</script>
 	}
 }
