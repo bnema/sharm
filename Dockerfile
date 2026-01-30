@@ -16,16 +16,16 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -ldflags="-s -w" -o /sharm ./cmd/sharm
 
 # =============================================================
-# Stage 3: Final runtime image
+# Stage 3: Final runtime image (Alpine Linux)
 # =============================================================
-FROM ubuntu:24.04
+FROM alpine:3.23
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+# Install FFmpeg and ca-certificates
+RUN apk add --no-cache ffmpeg ca-certificates
 
-# Non-root user
-RUN useradd -m -s /bin/bash appuser
+# Create non-root user
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser
 
 # Data directory structure (persisted via volume)
 RUN mkdir -p /data/uploads /data/converted && \
