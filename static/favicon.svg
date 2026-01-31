@@ -1,5 +1,34 @@
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" rx="8" fill="#3b82f6"/>
-  <path d="M10 21C10 21 12 19.5 16 19.5S22 21 22 21" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-  <path d="M22 11C22 11 20 12.5 16 12.5S10 11 10 11" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#5B9BF0"/>
+      <stop offset="50%" stop-color="#3478E5"/>
+      <stop offset="100%" stop-color="#1D5FD6"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="80" y1="80" x2="320" y2="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="108" fill="url(#shine)"/>
+
+  <!--
+    Sharm S — single continuous flowing stroke.
+    Balanced, centered, charming wave-like S.
+  -->
+  <path
+    d="M 348 148
+       C 280 128, 152 136, 152 196
+       C 152 256, 280 252, 320 276
+       C 372 306, 368 376, 296 384
+       C 232 390, 164 372, 164 372"
+    stroke="#fff"
+    stroke-width="44"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
 </svg>
