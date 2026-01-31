@@ -54,14 +54,14 @@ func Layout(props LayoutProps) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if props.ShowNav {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<nav class=\"nav\"><a href=\"/\" class=\"nav-brand\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\"><rect width=\"24\" height=\"24\" rx=\"6\" fill=\"var(--accent)\"></rect> <path d=\"M7.5 15.5C7.5 15.5 9 14 12 14s4.5 1.5 4.5 1.5\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\"></path> <path d=\"M16.5 8.5C16.5 8.5 15 10 12 10S7.5 8.5 7.5 8.5\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\"></path></svg> Sharm <span class=\"tag\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<nav class=\"nav\"><a href=\"/\" class=\"nav-brand\"><img src=\"/static/favicon.svg\" width=\"24\" height=\"24\" alt=\"\" style=\"border-radius:5px;\"> Sharm <span class=\"tag\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(props.Version)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/layout.templ`, Line: 364, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/layout.templ`, Line: 360, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
