@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	"github.com/bnema/sharm/internal/domain"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -109,6 +110,90 @@ func (_c *MediaConverterMock_Convert_Call) Return(outputPath string, codec strin
 }
 
 func (_c *MediaConverterMock_Convert_Call) RunAndReturn(run func(inputPath string, outputDir string, id string) (string, string, error)) *MediaConverterMock_Convert_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ConvertCodec provides a mock function for the type MediaConverterMock
+func (_mock *MediaConverterMock) ConvertCodec(inputPath string, outputDir string, id string, codec domain.Codec, fps int) (string, error) {
+	ret := _mock.Called(inputPath, outputDir, id, codec, fps)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ConvertCodec")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, string, string, domain.Codec, int) (string, error)); ok {
+		return returnFunc(inputPath, outputDir, id, codec, fps)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, string, string, domain.Codec, int) string); ok {
+		r0 = returnFunc(inputPath, outputDir, id, codec, fps)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, string, string, domain.Codec, int) error); ok {
+		r1 = returnFunc(inputPath, outputDir, id, codec, fps)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MediaConverterMock_ConvertCodec_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ConvertCodec'
+type MediaConverterMock_ConvertCodec_Call struct {
+	*mock.Call
+}
+
+// ConvertCodec is a helper method to define mock.On call
+//   - inputPath string
+//   - outputDir string
+//   - id string
+//   - codec domain.Codec
+//   - fps int
+func (_e *MediaConverterMock_Expecter) ConvertCodec(inputPath interface{}, outputDir interface{}, id interface{}, codec interface{}, fps interface{}) *MediaConverterMock_ConvertCodec_Call {
+	return &MediaConverterMock_ConvertCodec_Call{Call: _e.mock.On("ConvertCodec", inputPath, outputDir, id, codec, fps)}
+}
+
+func (_c *MediaConverterMock_ConvertCodec_Call) Run(run func(inputPath string, outputDir string, id string, codec domain.Codec, fps int)) *MediaConverterMock_ConvertCodec_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 domain.Codec
+		if args[3] != nil {
+			arg3 = args[3].(domain.Codec)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MediaConverterMock_ConvertCodec_Call) Return(outputPath string, err error) *MediaConverterMock_ConvertCodec_Call {
+	_c.Call.Return(outputPath, err)
+	return _c
+}
+
+func (_c *MediaConverterMock_ConvertCodec_Call) RunAndReturn(run func(inputPath string, outputDir string, id string, codec domain.Codec, fps int) (string, error)) *MediaConverterMock_ConvertCodec_Call {
 	_c.Call.Return(run)
 	return _c
 }
