@@ -3,7 +3,7 @@
 </p>
 
 <h3 align="center">Sharm</h3>
-<p align="center">Self-hosted media sharing with temporary links and social media embeds.</p>
+<p align="center">Self-hosted ephemeral media sharing with auto-transcoding and rich embeds.</p>
 
 ---
 
