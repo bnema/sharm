@@ -81,12 +81,12 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 	logger.Info.Printf("media uploaded: id=%s, type=%s, filename=%s, retention=%d days, codecs=%v", media.ID, mediaType, filename, retentionDays, codecs)
 
 	if mediaType == domain.MediaTypeImage {
-		fileInfo, _ := os.Stat(uploadPath)
+		fileInfo, _ := os.Stat(finalUploadPath)
 		var fileSize int64
 		if fileInfo != nil {
 			fileSize = fileInfo.Size()
 		}
-		media.MarkAsDone(uploadPath, "", 0, 0, "", fileSize)
+		media.MarkAsDone(finalUploadPath, "", 0, 0, "", fileSize)
 		if err := s.store.UpdateDone(media); err != nil {
 			logger.Error.Printf("failed to update image as done: %v", err)
 		}
@@ -94,12 +94,12 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 	}
 
 	if len(codecs) == 0 {
-		fileInfo, _ := os.Stat(uploadPath)
+		fileInfo, _ := os.Stat(finalUploadPath)
 		var fileSize int64
 		if fileInfo != nil {
 			fileSize = fileInfo.Size()
 		}
-		media.MarkAsDone(uploadPath, "", 0, 0, "", fileSize)
+		media.MarkAsDone(finalUploadPath, "", 0, 0, "", fileSize)
 		if err := s.store.UpdateDone(media); err != nil {
 			logger.Error.Printf("failed to update media as done: %v", err)
 		}

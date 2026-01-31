@@ -108,6 +108,9 @@ templ Layout(props LayoutProps) {
 					max-width: 720px;
 					margin: 0 auto;
 					padding: var(--s-md);
+					min-height: 100vh;
+					display: flex;
+					flex-direction: column;
 				}
 				@media (min-width: 768px) {
 					.container { padding: var(--s-xl) var(--s-lg); }
@@ -313,13 +316,35 @@ templ Layout(props LayoutProps) {
 				::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 				.tag {
-					font-size: var(--text-xs);
+					font-family: var(--font-mono);
+					font-size: 0.5625rem;
+					font-weight: 500;
 					color: var(--text-muted);
 					background: var(--bg-hover);
 					border: 1px solid var(--border);
-					border-radius: var(--radius-sm);
-					padding: 0.125rem 0.375rem;
+					border-radius: var(--radius-full);
+					padding: 0.0625rem 0.375rem;
+					letter-spacing: 0.02em;
 				}
+
+				.footer {
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					gap: var(--s-sm);
+					padding: var(--s-lg) 0 var(--s-sm);
+					margin-top: auto;
+					border-top: 1px solid var(--border);
+					font-size: 0.6875rem;
+					color: var(--text-muted);
+				}
+				.footer a {
+					color: var(--text-secondary);
+					text-decoration: none;
+					transition: color var(--duration) var(--ease);
+				}
+				.footer a:hover { color: var(--text-primary); }
+				.footer .sep { opacity: 0.3; }
 			</style>
 		</head>
 		<body hx-ext="response-targets">
@@ -360,6 +385,15 @@ templ Layout(props LayoutProps) {
 					</dialog>
 				}
 				{ children... }
+				if props.ShowNav {
+					<footer class="footer">
+						<span>MIT</span>
+						<span class="sep">&middot;</span>
+						<a href="https://bnema.dev" target="_blank" rel="noopener">bnema</a>
+						<span class="sep">&middot;</span>
+						<a href="https://github.com/bnema/sharm" target="_blank" rel="noopener">GitHub</a>
+					</footer>
+				}
 			</div>
 		</body>
 	</html>
