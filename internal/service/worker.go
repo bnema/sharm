@@ -148,39 +148,40 @@ func (wp *WorkerPool) handleConvert(job *domain.Job) error {
 }
 
 func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media, convertedDir string) error {
-	// Find the variant
 	variant, err := wp.store.GetVariantByMediaAndCodec(media.ID, job.Codec)
 	if err != nil {
 		return fmt.Errorf("get variant: %w", err)
 	}
 
-	// Mark variant as processing
 	_ = wp.store.UpdateVariantStatus(variant.ID, domain.VariantStatusProcessing, "")
 	wp.publishEvent(media.ID, "status", string(domain.MediaStatusProcessing), "")
 
-	// Convert
 	outputPath, err := wp.converter.ConvertCodec(media.OriginalPath, convertedDir, media.ID, job.Codec, job.Fps)
 	if err != nil {
 		return fmt.Errorf("convert %s: %w", job.Codec, err)
 	}
 
-	// Probe dimensions (for video)
 	var width, height int
+	var probeJSON string
 	if media.Type == domain.MediaTypeVideo {
-		width, height, err = wp.converter.Probe(outputPath)
-		if err != nil {
-			logger.Error.Printf("probe failed for variant %s: %v", job.Codec, err)
+		probeResult, probeErr := wp.converter.Probe(outputPath)
+		if probeErr != nil {
+			logger.Error.Printf("probe failed for variant %s: %v", job.Codec, probeErr)
+		} else {
+			width, height = probeResult.Dimensions()
+			probeJSON = probeResult.RawJSON
+			if media.ProbeJSON == "" {
+				_ = wp.store.UpdateProbeJSON(media.ID, probeJSON)
+			}
 		}
 	}
 
-	// Get file size
 	fileInfo, _ := os.Stat(outputPath)
 	var fileSize int64
 	if fileInfo != nil {
 		fileSize = fileInfo.Size()
 	}
 
-	// Update variant as done
 	variant.Path = outputPath
 	variant.FileSize = fileSize
 	variant.Width = width
@@ -190,7 +191,6 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 		return fmt.Errorf("update variant done: %w", err)
 	}
 
-	// Generate thumbnail if this is the first done video variant and no thumb exists
 	if media.Type == domain.MediaTypeVideo && media.ThumbPath == "" {
 		thumbPath := filepath.Join(convertedDir, media.ID+"_thumb.jpg")
 		if err := wp.converter.Thumbnail(outputPath, thumbPath); err != nil {
@@ -200,20 +200,16 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 		}
 	}
 
-	// Re-fetch media to check all variants
 	media, err = wp.store.Get(media.ID)
 	if err != nil {
 		return fmt.Errorf("re-fetch media: %w", err)
 	}
 
-	// Check if all variants are in terminal state
 	if media.AllVariantsTerminal() {
-		// Use the best variant's info for the media record
 		best := media.BestVariant()
 		if best != nil {
 			media.MarkAsDone(best.Path, best.Codec, best.Width, best.Height, media.ThumbPath, best.FileSize)
 		} else {
-			// All variants failed, mark media as failed
 			media.Status = domain.MediaStatusFailed
 			media.ErrorMessage = "all conversions failed"
 			_ = wp.store.UpdateStatus(media.ID, domain.MediaStatusFailed, "all conversions failed")
@@ -225,7 +221,6 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 		}
 		wp.publishEvent(media.ID, "status", string(domain.MediaStatusDone), "")
 	} else {
-		// Not all done yet, publish update for partial progress
 		wp.publishEvent(media.ID, "status", string(domain.MediaStatusProcessing), "")
 	}
 
@@ -238,13 +233,12 @@ func (wp *WorkerPool) handleLegacyConvert(job *domain.Job, media *domain.Media, 
 		return fmt.Errorf("convert: %w", err)
 	}
 
-	// Probe dimensions
-	width, height, err := wp.converter.Probe(convertedPath)
+	probeResult, err := wp.converter.Probe(convertedPath)
 	if err != nil {
 		return fmt.Errorf("probe: %w", err)
 	}
+	width, height := probeResult.Dimensions()
 
-	// Generate thumbnail
 	thumbPath := filepath.Join(convertedDir, media.ID+"_thumb.jpg")
 	if err := wp.converter.Thumbnail(convertedPath, thumbPath); err != nil {
 		return fmt.Errorf("thumbnail: %w", err)
@@ -257,7 +251,6 @@ func (wp *WorkerPool) handleLegacyConvert(job *domain.Job, media *domain.Media, 
 		return fmt.Errorf("update media done: %w", err)
 	}
 
-	// Remove original file (legacy behavior)
 	_ = os.Remove(media.OriginalPath)
 
 	wp.publishEvent(media.ID, "status", string(domain.MediaStatusDone), "")
@@ -328,11 +321,12 @@ func (wp *WorkerPool) handleProbe(job *domain.Job) error {
 		sourcePath = media.OriginalPath
 	}
 
-	width, height, err := wp.converter.Probe(sourcePath)
+	probeResult, err := wp.converter.Probe(sourcePath)
 	if err != nil {
 		return fmt.Errorf("probe: %w", err)
 	}
 
+	width, height := probeResult.Dimensions()
 	media.Width = width
 	media.Height = height
 	return wp.store.UpdateDone(media)

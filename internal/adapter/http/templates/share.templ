@@ -224,7 +224,7 @@ templ Share(media *domain.Media, d string) {
 									</svg>
 									{ codecLabel(v.Codec) }
 									if v.FileSize > 0 {
-										<span style="color:var(--text-muted);">({ formatSize(v.FileSize) })</span>
+										<span style="color:var(--text-muted);">({ domain.FormatSize(v.FileSize) })</span>
 									}
 								</a>
 							}

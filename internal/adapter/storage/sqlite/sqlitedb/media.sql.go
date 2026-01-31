@@ -10,6 +10,15 @@ import (
 	"time"
 )
 
+const deleteJobsByMedia = `-- name: DeleteJobsByMedia :exec
+DELETE FROM jobs WHERE media_id = ?
+`
+
+func (q *Queries) DeleteJobsByMedia(ctx context.Context, mediaID string) error {
+	_, err := q.db.ExecContext(ctx, deleteJobsByMedia, mediaID)
+	return err
+}
+
 const deleteMedia = `-- name: DeleteMedia :exec
 DELETE FROM media WHERE id = ?
 `
@@ -20,7 +29,7 @@ func (q *Queries) DeleteMedia(ctx context.Context, id string) error {
 }
 
 const getMedia = `-- name: GetMedia :one
-SELECT id, type, original_name, original_path, converted_path, status, codec, error_message, retention_days, file_size, width, height, thumb_path, created_at, expires_at FROM media WHERE id = ? LIMIT 1
+SELECT id, type, original_name, original_path, converted_path, status, codec, error_message, retention_days, file_size, width, height, thumb_path, created_at, expires_at, probe_json FROM media WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetMedia(ctx context.Context, id string) (Medium, error) {
@@ -42,6 +51,7 @@ func (q *Queries) GetMedia(ctx context.Context, id string) (Medium, error) {
 		&i.ThumbPath,
 		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.ProbeJson,
 	)
 	return i, err
 }
@@ -50,8 +60,8 @@ const insertMedia = `-- name: InsertMedia :exec
 INSERT INTO media (
     id, type, original_name, original_path, converted_path,
     status, codec, error_message, retention_days, file_size,
-    width, height, thumb_path, created_at, expires_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    width, height, thumb_path, created_at, expires_at, probe_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertMediaParams struct {
@@ -70,6 +80,7 @@ type InsertMediaParams struct {
 	ThumbPath     string
 	CreatedAt     time.Time
 	ExpiresAt     time.Time
+	ProbeJson     string
 }
 
 func (q *Queries) InsertMedia(ctx context.Context, arg InsertMediaParams) error {
@@ -89,12 +100,13 @@ func (q *Queries) InsertMedia(ctx context.Context, arg InsertMediaParams) error 
 		arg.ThumbPath,
 		arg.CreatedAt,
 		arg.ExpiresAt,
+		arg.ProbeJson,
 	)
 	return err
 }
 
 const listAllMedia = `-- name: ListAllMedia :many
-SELECT id, type, original_name, original_path, converted_path, status, codec, error_message, retention_days, file_size, width, height, thumb_path, created_at, expires_at FROM media ORDER BY created_at DESC
+SELECT id, type, original_name, original_path, converted_path, status, codec, error_message, retention_days, file_size, width, height, thumb_path, created_at, expires_at, probe_json FROM media ORDER BY created_at DESC
 `
 
 func (q *Queries) ListAllMedia(ctx context.Context) ([]Medium, error) {
@@ -122,6 +134,7 @@ func (q *Queries) ListAllMedia(ctx context.Context) ([]Medium, error) {
 			&i.ThumbPath,
 			&i.CreatedAt,
 			&i.ExpiresAt,
+			&i.ProbeJson,
 		); err != nil {
 			return nil, err
 		}
@@ -137,7 +150,7 @@ func (q *Queries) ListAllMedia(ctx context.Context) ([]Medium, error) {
 }
 
 const listExpiredMedia = `-- name: ListExpiredMedia :many
-SELECT id, type, original_name, original_path, converted_path, status, codec, error_message, retention_days, file_size, width, height, thumb_path, created_at, expires_at FROM media WHERE expires_at < datetime('now')
+SELECT id, type, original_name, original_path, converted_path, status, codec, error_message, retention_days, file_size, width, height, thumb_path, created_at, expires_at, probe_json FROM media WHERE expires_at < datetime('now')
 `
 
 func (q *Queries) ListExpiredMedia(ctx context.Context) ([]Medium, error) {
@@ -165,6 +178,7 @@ func (q *Queries) ListExpiredMedia(ctx context.Context) ([]Medium, error) {
 			&i.ThumbPath,
 			&i.CreatedAt,
 			&i.ExpiresAt,
+			&i.ProbeJson,
 		); err != nil {
 			return nil, err
 		}
@@ -180,7 +194,7 @@ func (q *Queries) ListExpiredMedia(ctx context.Context) ([]Medium, error) {
 }
 
 const listMediaByStatus = `-- name: ListMediaByStatus :many
-SELECT id, type, original_name, original_path, converted_path, status, codec, error_message, retention_days, file_size, width, height, thumb_path, created_at, expires_at FROM media WHERE status = ? ORDER BY created_at DESC
+SELECT id, type, original_name, original_path, converted_path, status, codec, error_message, retention_days, file_size, width, height, thumb_path, created_at, expires_at, probe_json FROM media WHERE status = ? ORDER BY created_at DESC
 `
 
 func (q *Queries) ListMediaByStatus(ctx context.Context, status string) ([]Medium, error) {
@@ -208,6 +222,7 @@ func (q *Queries) ListMediaByStatus(ctx context.Context, status string) ([]Mediu
 			&i.ThumbPath,
 			&i.CreatedAt,
 			&i.ExpiresAt,
+			&i.ProbeJson,
 		); err != nil {
 			return nil, err
 		}
@@ -254,6 +269,20 @@ func (q *Queries) UpdateMediaDone(ctx context.Context, arg UpdateMediaDoneParams
 		arg.FileSize,
 		arg.ID,
 	)
+	return err
+}
+
+const updateMediaProbeJSON = `-- name: UpdateMediaProbeJSON :exec
+UPDATE media SET probe_json = ? WHERE id = ?
+`
+
+type UpdateMediaProbeJSONParams struct {
+	ProbeJson string
+	ID        string
+}
+
+func (q *Queries) UpdateMediaProbeJSON(ctx context.Context, arg UpdateMediaProbeJSONParams) error {
+	_, err := q.db.ExecContext(ctx, updateMediaProbeJSON, arg.ProbeJson, arg.ID)
 	return err
 }
 

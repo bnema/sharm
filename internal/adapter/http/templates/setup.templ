@@ -1,0 +1,54 @@
+package templates
+
+templ Setup(errorMsg string, version string) {
+	@Layout(LayoutProps{Title: "Setup — Sharm", Version: version}) {
+		<div style="max-width:360px;margin:var(--s-2xl) auto;">
+			@Card() {
+				<div style="text-align:center;margin-bottom:var(--s-lg);">
+					<svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="margin:0 auto var(--s-sm);">
+						<rect width="24" height="24" rx="6" fill="var(--accent)"></rect>
+						<path d="M7.5 15.5C7.5 15.5 9 14 12 14s4.5 1.5 4.5 1.5" stroke="#fff" stroke-width="2" stroke-linecap="round"></path>
+						<path d="M16.5 8.5C7.5 8.5 15 10 12 10S7.5 8.5 7.5 8.5" stroke="#fff" stroke-width="2" stroke-linecap="round"></path>
+					</svg>
+					<h1 style="font-size:var(--text-lg);font-weight:600;">Sharm Setup</h1>
+					<p class="text-muted" style="font-size:var(--text-sm);margin-top:var(--s-xs);">Create your admin account</p>
+				</div>
+				<div id="setup-errors"></div>
+				<form hx-post="/setup" hx-target-error="#setup-errors" hx-swap="innerHTML">
+					<div style="display:flex;flex-direction:column;gap:var(--s-sm);margin-bottom:var(--s-md);">
+						<input type="text" name="username" class="input" placeholder="Username" required autofocus/>
+						<input type="password" name="password" class="input" placeholder="Password" required/>
+						<input type="password" name="confirm_password" class="input" placeholder="Confirm password" required/>
+					</div>
+					<button type="submit" class="button" style="width:100%;">Create Account</button>
+				</form>
+			}
+		</div>
+	}
+}
+
+templ ChangePassword(errorMsg string) {
+	<div id="change-password-errors"></div>
+	<form id="change-password-form" hx-post="/change-password" hx-target-error="#change-password-errors" hx-swap="innerHTML" style="display:flex;flex-direction:column;gap:var(--s-sm);">
+		<input type="password" name="old_password" class="input" placeholder="Current password" required autofocus/>
+		<input type="password" name="new_password" class="input" placeholder="New password" required/>
+		<input type="password" name="confirm_password" class="input" placeholder="Confirm new password" required/>
+		<div style="display:flex;gap:var(--s-xs);margin-top:var(--s-xs);">
+			<button type="submit" class="button" style="flex:1;">Change Password</button>
+			<button type="button" class="button-outline" onclick="this.closest('dialog').close()">Cancel</button>
+		</div>
+	</form>
+}
+
+templ FormError(msg string) {
+	<div style="margin-bottom:var(--s-md);">
+		@Toast(msg, ToastError)
+	</div>
+}
+
+templ ChangePasswordSuccess() {
+	<div style="text-align:center;padding:var(--s-md);">
+		<p style="color:var(--success);margin-bottom:var(--s-sm);">Password changed successfully!</p>
+		<button class="button" onclick="this.closest('dialog').close()">Close</button>
+	</div>
+}

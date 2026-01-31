@@ -199,35 +199,31 @@ func (_c *MediaConverterMock_ConvertCodec_Call) RunAndReturn(run func(inputPath 
 }
 
 // Probe provides a mock function for the type MediaConverterMock
-func (_mock *MediaConverterMock) Probe(inputPath string) (int, int, error) {
+func (_mock *MediaConverterMock) Probe(inputPath string) (*domain.ProbeResult, error) {
 	ret := _mock.Called(inputPath)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Probe")
 	}
 
-	var r0 int
-	var r1 int
-	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(string) (int, int, error)); ok {
+	var r0 *domain.ProbeResult
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string) (*domain.ProbeResult, error)); ok {
 		return returnFunc(inputPath)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) int); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) *domain.ProbeResult); ok {
 		r0 = returnFunc(inputPath)
 	} else {
-		r0 = ret.Get(0).(int)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.ProbeResult)
+		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string) int); ok {
+	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
 		r1 = returnFunc(inputPath)
 	} else {
-		r1 = ret.Get(1).(int)
+		r1 = ret.Error(1)
 	}
-	if returnFunc, ok := ret.Get(2).(func(string) error); ok {
-		r2 = returnFunc(inputPath)
-	} else {
-		r2 = ret.Error(2)
-	}
-	return r0, r1, r2
+	return r0, r1
 }
 
 // MediaConverterMock_Probe_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Probe'
@@ -254,12 +250,12 @@ func (_c *MediaConverterMock_Probe_Call) Run(run func(inputPath string)) *MediaC
 	return _c
 }
 
-func (_c *MediaConverterMock_Probe_Call) Return(width int, height int, err error) *MediaConverterMock_Probe_Call {
-	_c.Call.Return(width, height, err)
+func (_c *MediaConverterMock_Probe_Call) Return(probeResult *domain.ProbeResult, err error) *MediaConverterMock_Probe_Call {
+	_c.Call.Return(probeResult, err)
 	return _c
 }
 
-func (_c *MediaConverterMock_Probe_Call) RunAndReturn(run func(inputPath string) (int, int, error)) *MediaConverterMock_Probe_Call {
+func (_c *MediaConverterMock_Probe_Call) RunAndReturn(run func(inputPath string) (*domain.ProbeResult, error)) *MediaConverterMock_Probe_Call {
 	_c.Call.Return(run)
 	return _c
 }

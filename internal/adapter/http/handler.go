@@ -19,19 +19,22 @@ type MediaService interface {
 	Get(id string) (*domain.Media, error)
 	ListAll() ([]*domain.Media, error)
 	Delete(id string) error
+	ProbeFile(filePath string) (*domain.ProbeResult, error)
 }
 
 type Handlers struct {
 	mediaSvc  MediaService
 	domain    string
 	maxSizeMB int
+	version   string
 }
 
-func NewHandlers(mediaSvc MediaService, domain string, maxSizeMB int) *Handlers {
+func NewHandlers(mediaSvc MediaService, domain string, maxSizeMB int, version string) *Handlers {
 	return &Handlers{
 		mediaSvc:  mediaSvc,
 		domain:    domain,
 		maxSizeMB: maxSizeMB,
+		version:   version,
 	}
 }
 
@@ -44,14 +47,14 @@ func (h *Handlers) Dashboard() http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = templates.Dashboard(media, h.domain).Render(r.Context(), w)
+		_ = templates.Dashboard(media, h.domain, h.version).Render(r.Context(), w)
 	}
 }
 
 func (h *Handlers) UploadPage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = templates.Upload().Render(r.Context(), w)
+		_ = templates.Upload(h.version).Render(r.Context(), w)
 	}
 }
 
@@ -82,7 +85,14 @@ func (h *Handlers) Upload() http.HandlerFunc {
 			_ = templates.ErrorInline("Failed to process upload").Render(r.Context(), w)
 			return
 		}
-		defer tmpFile.Close() //nolint:errcheck
+		defer func() {
+			if err := tmpFile.Close(); err != nil {
+				logger.Error.Printf("failed to close temp file: %v", err)
+			}
+			if err := os.Remove(tmpFile.Name()); err != nil {
+				logger.Error.Printf("failed to remove temp file: %v", err)
+			}
+		}()
 
 		if _, err := io.Copy(tmpFile, file); err != nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -142,7 +152,7 @@ func (h *Handlers) StatusPage() http.HandlerFunc {
 			if r.Header.Get("HX-Request") == "true" {
 				_ = templates.ErrorInline("Media not found").Render(r.Context(), w)
 			} else {
-				_ = templates.ErrorPage("404", "Media not found").Render(r.Context(), w)
+				_ = templates.ErrorPage("404", "Media not found", h.version).Render(r.Context(), w)
 			}
 			return
 		}
@@ -169,7 +179,7 @@ func (h *Handlers) StatusPage() http.HandlerFunc {
 			return
 		}
 
-		_ = templates.StatusPage(media.ID).Render(r.Context(), w)
+		_ = templates.StatusPage(media.ID, h.version).Render(r.Context(), w)
 	}
 }
 
@@ -185,6 +195,91 @@ func (h *Handlers) DeleteMedia() http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (h *Handlers) ProbeUpload() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, int64(h.maxSizeMB)*1024*1024)
+
+		if err := r.ParseMultipartForm(32 << 20); err != nil {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = templates.ErrorInline("Invalid file upload").Render(r.Context(), w)
+			return
+		}
+
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = templates.ErrorInline("Invalid file upload").Render(r.Context(), w)
+			return
+		}
+		defer func() {
+			if err := file.Close(); err != nil {
+				logger.Error.Printf("failed to close uploaded file: %v", err)
+			}
+		}()
+
+		tmpFile, err := os.CreateTemp("", "probe-*.tmp")
+		if err != nil {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = templates.ErrorInline("Failed to process file").Render(r.Context(), w)
+			return
+		}
+		defer func() {
+			if err := tmpFile.Close(); err != nil {
+				logger.Error.Printf("failed to close temp file: %v", err)
+			}
+			if err := os.Remove(tmpFile.Name()); err != nil {
+				logger.Error.Printf("failed to remove temp file: %v", err)
+			}
+		}()
+
+		if _, err := io.Copy(tmpFile, file); err != nil {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = templates.ErrorInline("Failed to read file").Render(r.Context(), w)
+			return
+		}
+
+		probeResult, err := h.mediaSvc.ProbeFile(tmpFile.Name())
+		if err != nil {
+			logger.Error.Printf("probe error for %s: %v", header.Filename, err)
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = templates.ErrorInline("Failed to probe file").Render(r.Context(), w)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = templates.ProbeResult(probeResult, header.Filename).Render(r.Context(), w)
+	}
+}
+
+func (h *Handlers) MediaInfo() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/media/")
+		id = strings.TrimSuffix(id, "/info")
+		id = strings.TrimSuffix(id, "/")
+
+		media, err := h.mediaSvc.Get(id)
+		if err != nil {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusNotFound)
+			_ = templates.ErrorInline("Media not found").Render(r.Context(), w)
+			return
+		}
+
+		var probe *domain.ProbeResult
+		if media.ProbeJSON != "" {
+			probe, _ = media.ParseProbe()
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = templates.MediaInfoDialog(media, probe).Render(r.Context(), w)
 	}
 }
 
@@ -229,7 +324,7 @@ func (h *Handlers) SharePage() http.HandlerFunc {
 		if err != nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusNotFound)
-			_ = templates.ErrorPage("404", "Media not found").Render(r.Context(), w)
+			_ = templates.ErrorPage("404", "Media not found", h.version).Render(r.Context(), w)
 			return
 		}
 

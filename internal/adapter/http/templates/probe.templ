@@ -1,0 +1,162 @@
+package templates
+
+import (
+	"fmt"
+	"github.com/bnema/sharm/internal/domain"
+)
+
+templ ProbeResult(probe *domain.ProbeResult, filename string) {
+	if probe != nil {
+		<div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--s-md);background:var(--bg-elevated);">
+			<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s-sm);">
+				<span style="font-size:var(--text-sm);font-weight:600;color:var(--text-primary);">{ filename }</span>
+				<span class="text-muted" style="font-size:var(--text-xs);">{ probe.Format.FormatLong }</span>
+			</div>
+			<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:var(--s-sm);font-size:var(--text-xs);">
+				if domain.ParseDuration(probe.Format.Duration) > 0 {
+					<div>
+						<span class="text-muted">Duration:</span>
+						<span style="color:var(--text-primary);">{ fmt.Sprintf("%.0f", domain.ParseDuration(probe.Format.Duration)) }s</span>
+					</div>
+				}
+				if probe.Format.Size != "" {
+					<div>
+						<span class="text-muted">Size:</span>
+						<span style="color:var(--text-primary);">{ domain.FormatSize(domain.ParseSize(probe.Format.Size)) }</span>
+					</div>
+				}
+				if probe.Format.BitRate != "" {
+					<div>
+						<span class="text-muted">Bitrate:</span>
+						<span style="color:var(--text-primary);">{ domain.FormatBitrate(probe.Format.BitRate) }</span>
+					</div>
+				}
+			</div>
+			for _, stream := range probe.Streams {
+				if stream.CodecType == "video" {
+					<div style="margin-top:var(--s-sm);padding-top:var(--s-sm);border-top:1px solid var(--border);">
+						<span style="font-size:var(--text-xs);font-weight:600;color:var(--text-primary);">Video</span>
+						<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:var(--s-xs);margin-top:var(--s-xs);font-size:var(--text-xs);">
+							if stream.CodecLong != "" {
+								<div><span class="text-muted">Codec:</span> { stream.CodecLong }</div>
+							}
+							if stream.Width > 0 && stream.Height > 0 {
+								<div><span class="text-muted">Resolution:</span> { fmt.Sprintf("%dx%d", stream.Width, stream.Height) }</div>
+							}
+							if stream.RFrameRate != "" {
+								<div><span class="text-muted">FPS:</span> { domain.FormatFrameRate(stream.RFrameRate) }</div>
+							}
+							if stream.PixFmt != "" {
+								<div><span class="text-muted">Pixel:</span> { stream.PixFmt }</div>
+							}
+							if stream.ColorSpace != "" {
+								<div><span class="text-muted">Color:</span> { stream.ColorSpace }</div>
+							}
+						</div>
+					</div>
+				}
+				if stream.CodecType == "audio" {
+					<div style="margin-top:var(--s-sm);padding-top:var(--s-sm);border-top:1px solid var(--border);">
+						<span style="font-size:var(--text-xs);font-weight:600;color:var(--text-primary);">Audio</span>
+						<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:var(--s-xs);margin-top:var(--s-xs);font-size:var(--text-xs);">
+							if stream.CodecLong != "" {
+								<div><span class="text-muted">Codec:</span> { stream.CodecLong }</div>
+							}
+							if stream.SampleRate != "" {
+								<div><span class="text-muted">Sample Rate:</span> { domain.FormatSampleRate(stream.SampleRate) }</div>
+							}
+							if stream.Channels > 0 {
+								<div><span class="text-muted">Channels:</span> { fmt.Sprintf("%d", stream.Channels) }</div>
+							}
+							if stream.BitRate != "" {
+								<div><span class="text-muted">Bitrate:</span> { domain.FormatBitrate(stream.BitRate) }</div>
+							}
+						</div>
+					</div>
+				}
+			}
+		</div>
+	}
+}
+
+templ MediaInfoDialog(media *domain.Media, probe *domain.ProbeResult) {
+	<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s-md);">
+		<h3 style="font-size:var(--text-sm);font-weight:600;margin:0;">Media Info</h3>
+		<button onclick="document.getElementById('info-dialog').close()" class="button-ghost" style="padding:0.25rem 0.5rem;">&times;</button>
+	</div>
+	if probe != nil {
+		<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--s-sm);font-size:var(--text-sm);">
+			<div>
+				<span class="text-muted" style="font-size:var(--text-xs);display:block;">Name</span>
+				<span style="color:var(--text-primary);word-break:break-all;">{ media.OriginalName }</span>
+			</div>
+			<div>
+				<span class="text-muted" style="font-size:var(--text-xs);display:block;">Type</span>
+				<span style="color:var(--text-primary);">{ string(media.Type) }</span>
+			</div>
+			if media.FileSize > 0 {
+				<div>
+					<span class="text-muted" style="font-size:var(--text-xs);display:block;">Size</span>
+					<span style="color:var(--text-primary);">{ domain.FormatSize(media.FileSize) }</span>
+				</div>
+			}
+			if domain.ParseDuration(probe.Format.Duration) > 0 {
+				<div>
+					<span class="text-muted" style="font-size:var(--text-xs);display:block;">Duration</span>
+					<span style="color:var(--text-primary);">{ fmt.Sprintf("%.1f seconds", domain.ParseDuration(probe.Format.Duration)) }</span>
+				</div>
+			}
+			for _, stream := range probe.Streams {
+				if stream.CodecType == "video" {
+					if stream.Width > 0 && stream.Height > 0 {
+						<div>
+							<span class="text-muted" style="font-size:var(--text-xs);display:block;">Resolution</span>
+							<span style="color:var(--text-primary);">{ fmt.Sprintf("%d x %d", stream.Width, stream.Height) }</span>
+						</div>
+					}
+					if stream.RFrameRate != "" {
+						<div>
+							<span class="text-muted" style="font-size:var(--text-xs);display:block;">Frame Rate</span>
+							<span style="color:var(--text-primary);">{ domain.FormatFrameRate(stream.RFrameRate) }</span>
+						</div>
+					}
+					if stream.CodecLong != "" {
+						<div>
+							<span class="text-muted" style="font-size:var(--text-xs);display:block;">Video Codec</span>
+							<span style="color:var(--text-primary);">{ stream.CodecLong }</span>
+						</div>
+					}
+				}
+				if stream.CodecType == "audio" {
+					if stream.CodecLong != "" {
+						<div>
+							<span class="text-muted" style="font-size:var(--text-xs);display:block;">Audio Codec</span>
+							<span style="color:var(--text-primary);">{ stream.CodecLong }</span>
+						</div>
+					}
+					if stream.SampleRate != "" {
+						<div>
+							<span class="text-muted" style="font-size:var(--text-xs);display:block;">Sample Rate</span>
+							<span style="color:var(--text-primary);">{ domain.FormatSampleRate(stream.SampleRate) }</span>
+						</div>
+					}
+					if stream.Channels > 0 {
+						<div>
+							<span class="text-muted" style="font-size:var(--text-xs);display:block;">Channels</span>
+							<span style="color:var(--text-primary);">{ fmt.Sprintf("%d", stream.Channels) }</span>
+						</div>
+					}
+				}
+			}
+		</div>
+	} else {
+		<div style="font-size:var(--text-sm);">
+			<p><span class="text-muted">Name:</span> { media.OriginalName }</p>
+			<p><span class="text-muted">Type:</span> { string(media.Type) }</p>
+			if media.FileSize > 0 {
+				<p><span class="text-muted">Size:</span> { domain.FormatSize(media.FileSize) }</p>
+			}
+			<p class="text-muted" style="font-size:var(--text-xs);margin-top:var(--s-sm);">No detailed metadata available.</p>
+		</div>
+	}
+}

@@ -34,7 +34,7 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 		return nil, fmt.Errorf("failed to create upload directory: %w", err)
 	}
 
-	uploadPath := filepath.Join(s.uploadDir, filename)
+	uploadPath := filepath.Join(s.uploadDir, filepath.Base(filename))
 
 	err := os.Rename(file.Name(), uploadPath)
 	if err != nil {
@@ -52,6 +52,26 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 
 	media := domain.NewMedia(mediaType, filename, uploadPath, retentionDays)
 
+	finalUploadPath := filepath.Join(s.uploadDir, fmt.Sprintf("%s_%s", media.ID, filepath.Base(filename)))
+	if err := os.Rename(uploadPath, finalUploadPath); err != nil {
+		logger.Error.Printf("failed to rename upload with ID prefix: %v", err)
+		_ = os.Remove(uploadPath)
+		return nil, fmt.Errorf("failed to finalize upload: %w", err)
+	}
+	media.OriginalPath = finalUploadPath
+
+	probeResult, _ := s.converter.Probe(finalUploadPath)
+	if probeResult != nil {
+		rawJSON := probeResult.RawJSON
+		if len(rawJSON) > 1*1024*1024 {
+			rawJSON = rawJSON[:1*1024*1024]
+		}
+		media.ProbeJSON = rawJSON
+		width, height := probeResult.Dimensions()
+		media.Width = width
+		media.Height = height
+	}
+
 	if err := s.store.Save(media); err != nil {
 		_ = os.Remove(uploadPath)
 		logger.Error.Printf("failed to save media metadata %s: %v", media.ID, err)
@@ -60,7 +80,6 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 
 	logger.Info.Printf("media uploaded: id=%s, type=%s, filename=%s, retention=%d days, codecs=%v", media.ID, mediaType, filename, retentionDays, codecs)
 
-	// For images, mark as done immediately (no conversion needed)
 	if mediaType == domain.MediaTypeImage {
 		fileInfo, _ := os.Stat(uploadPath)
 		var fileSize int64
@@ -74,7 +93,6 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 		return media, nil
 	}
 
-	// No conversions requested → mark done immediately with original
 	if len(codecs) == 0 {
 		fileInfo, _ := os.Stat(uploadPath)
 		var fileSize int64
@@ -86,7 +104,6 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 			logger.Error.Printf("failed to update media as done: %v", err)
 		}
 
-		// Still try to generate a thumbnail for video
 		if mediaType == domain.MediaTypeVideo && s.jobQueue != nil {
 			if _, err := s.jobQueue.Enqueue(media.ID, domain.JobTypeThumbnail, "", 0); err != nil {
 				logger.Error.Printf("failed to enqueue thumbnail job for %s: %v", media.ID, err)
@@ -96,7 +113,6 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 		return media, nil
 	}
 
-	// Create variant rows and enqueue conversion jobs per codec
 	if s.jobQueue != nil {
 		for _, codec := range codecs {
 			v := &domain.Variant{
@@ -180,6 +196,10 @@ func (s *MediaService) Cleanup() error {
 	}
 
 	return nil
+}
+
+func (s *MediaService) ProbeFile(filePath string) (*domain.ProbeResult, error) {
+	return s.converter.Probe(filePath)
 }
 
 func isCrossDeviceError(err error) bool {

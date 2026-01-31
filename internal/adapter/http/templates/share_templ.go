@@ -425,9 +425,9 @@ func Share(media *domain.Media, d string) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var26 string
-					templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(formatSize(v.FileSize))
+					templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(domain.FormatSize(v.FileSize))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 227, Col: 74}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 227, Col: 81}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 					if templ_7745c5c3_Err != nil {

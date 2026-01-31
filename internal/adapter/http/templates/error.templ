@@ -7,8 +7,8 @@ templ ErrorInline(message string) {
 }
 
 // ErrorPage renders a full-page error (404, 500, etc.)
-templ ErrorPage(code string, message string) {
-	@Layout(LayoutProps{Title: message + " — Sharm"}) {
+templ ErrorPage(code string, message string, version string) {
+	@Layout(LayoutProps{Title: message + " — Sharm", Version: version}) {
 		<div style="text-align:center;padding:var(--s-2xl) 0;">
 			<p style="font-size:var(--text-2xl);font-weight:600;font-family:var(--font-mono);color:var(--text-muted);margin-bottom:var(--s-sm);">{ code }</p>
 			<p style="font-size:var(--text-base);color:var(--text-secondary);margin-bottom:var(--s-lg);">{ message }</p>

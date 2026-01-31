@@ -17,6 +17,12 @@ import (
 	"github.com/bnema/sharm/internal/service"
 )
 
+var (
+	Version   = "dev"
+	Commit    = "unknown"
+	BuildTime = "unknown"
+)
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -43,7 +49,7 @@ func main() {
 	eventBus := service.NewEventBus()
 
 	mediaSvc := service.NewMediaService(store, converter, jobQueue, cfg.DataDir)
-	authSvc := service.NewAuthService(cfg.AuthSecret)
+	authSvc := service.NewAuthService(store, cfg.SecretKey)
 
 	// Worker pool for async jobs (conversion, thumbnails)
 	workerCtx, workerCancel := context.WithCancel(context.Background())
@@ -52,7 +58,7 @@ func main() {
 	workerPool := service.NewWorkerPool(jobQueue, store, converter, eventBus, cfg.DataDir, 2)
 	workerPool.Start(workerCtx)
 
-	server := HTTPAdapter.NewServer(authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB)
+	server := HTTPAdapter.NewServer(authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB, Version, cfg.BehindProxy)
 
 	// Periodic cleanup of expired media
 	go func() {

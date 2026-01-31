@@ -104,6 +104,7 @@ func (s *Store) Save(m *domain.Media) error {
 		ThumbPath:     m.ThumbPath,
 		CreatedAt:     m.CreatedAt,
 		ExpiresAt:     m.ExpiresAt,
+		ProbeJson:     m.ProbeJSON,
 	})
 }
 
@@ -130,6 +131,12 @@ func (s *Store) Get(id string) (*domain.Media, error) {
 
 func (s *Store) Delete(id string) error {
 	ctx := context.Background()
+	if err := s.queries.DeleteJobsByMedia(ctx, id); err != nil {
+		return fmt.Errorf("delete jobs: %w", err)
+	}
+	if err := s.queries.DeleteVariantsByMedia(ctx, id); err != nil {
+		return fmt.Errorf("delete variants: %w", err)
+	}
 	return s.queries.DeleteMedia(ctx, id)
 }
 
@@ -170,6 +177,14 @@ func (s *Store) UpdateDone(m *domain.Media) error {
 		ThumbPath:     m.ThumbPath,
 		FileSize:      m.FileSize,
 		ID:            m.ID,
+	})
+}
+
+func (s *Store) UpdateProbeJSON(id string, probeJSON string) error {
+	ctx := context.Background()
+	return s.queries.UpdateMediaProbeJSON(ctx, sqlitedb.UpdateMediaProbeJSONParams{
+		ProbeJson: probeJSON,
+		ID:        id,
 	})
 }
 
@@ -271,6 +286,7 @@ func mediumToMedia(row sqlitedb.Medium) *domain.Media {
 		ThumbPath:     row.ThumbPath,
 		CreatedAt:     row.CreatedAt,
 		ExpiresAt:     row.ExpiresAt,
+		ProbeJSON:     row.ProbeJson,
 	}
 }
 
@@ -311,4 +327,81 @@ func (s *Store) mediaListWithVariants(ctx context.Context, rows []sqlitedb.Mediu
 	return result, nil
 }
 
+func (s *Store) HasUser() (bool, error) {
+	ctx := context.Background()
+	count, err := s.queries.CountUsers(ctx)
+	return count > 0, err
+}
+
+func (s *Store) GetUser(username string) (*domain.User, error) {
+	ctx := context.Background()
+	row, err := s.queries.GetUser(ctx, username)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
+	}
+	return &domain.User{
+		ID:           row.ID,
+		Username:     row.Username,
+		PasswordHash: row.PasswordHash,
+		CreatedAt:    row.CreatedAt,
+		UpdatedAt:    row.UpdatedAt,
+	}, nil
+}
+
+func (s *Store) GetFirstUser() (*domain.User, error) {
+	ctx := context.Background()
+	row, err := s.queries.GetFirstUser(ctx)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
+	}
+	return &domain.User{
+		ID:           row.ID,
+		Username:     row.Username,
+		PasswordHash: row.PasswordHash,
+		CreatedAt:    row.CreatedAt,
+		UpdatedAt:    row.UpdatedAt,
+	}, nil
+}
+
+func (s *Store) GetUserByID(id int64) (*domain.User, error) {
+	ctx := context.Background()
+	row, err := s.queries.GetUserByID(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
+	}
+	return &domain.User{
+		ID:           row.ID,
+		Username:     row.Username,
+		PasswordHash: row.PasswordHash,
+		CreatedAt:    row.CreatedAt,
+		UpdatedAt:    row.UpdatedAt,
+	}, nil
+}
+
+func (s *Store) CreateUser(username, passwordHash string) error {
+	ctx := context.Background()
+	return s.queries.InsertUser(ctx, sqlitedb.InsertUserParams{
+		Username:     username,
+		PasswordHash: passwordHash,
+	})
+}
+
+func (s *Store) UpdatePassword(id int64, passwordHash string) error {
+	ctx := context.Background()
+	return s.queries.UpdateUserPassword(ctx, sqlitedb.UpdateUserPasswordParams{
+		PasswordHash: passwordHash,
+		ID:           id,
+	})
+}
+
 var _ port.MediaStore = (*Store)(nil)
+var _ port.UserStore = (*Store)(nil)

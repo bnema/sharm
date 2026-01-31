@@ -1,0 +1,3 @@
+- You must respect hexagonal architecture
+- Run make lint make test after each major milestone (if undefined add configure Makefile)
+- You must never edit mocks manually there are auto gen see mockery config

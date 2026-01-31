@@ -6,8 +6,8 @@ import (
 )
 
 // StatusPage is a full page for tracking upload/conversion progress.
-templ StatusPage(id string) {
-	@Layout(LayoutProps{Title: "Processing — Sharm", ShowNav: true, ActiveRoute: ""}) {
+templ StatusPage(id string, version string) {
+	@Layout(LayoutProps{Title: "Processing — Sharm", ShowNav: true, ActiveRoute: "", Version: version}) {
 		@Card() {
 			@CardHeader("Processing") {
 				<span class="text-muted" style="font-size:var(--text-xs);">Your file is being processed</span>

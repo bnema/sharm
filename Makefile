@@ -173,7 +173,11 @@ benchmark:
 .PHONY: docker-build
 docker-build:
 	$(info Building Docker image...)
-	$(DOCKER) build -t $(REGISTRY)/$(IMAGE_NAME):$(VERSION) .
+	$(DOCKER) build \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg BUILD_TIME=$(BUILD_TIME) \
+		-t $(REGISTRY)/$(IMAGE_NAME):$(VERSION) .
 	$(DOCKER) tag $(REGISTRY)/$(IMAGE_NAME):$(VERSION) $(REGISTRY)/$(IMAGE_NAME):latest
 
 ## docker-buildx: Build Docker image for current platform using buildx
@@ -183,6 +187,8 @@ docker-buildx:
 	$(DOCKER) buildx build \
 		--platform linux/amd64 \
 		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg BUILD_TIME=$(BUILD_TIME) \
 		-t $(REGISTRY)/$(IMAGE_NAME):$(VERSION) \
 		-t $(REGISTRY)/$(IMAGE_NAME):latest \
 		--load \
@@ -195,6 +201,8 @@ docker-buildx-multi:
 	$(DOCKER) buildx build \
 		--platform $(PLATFORMS) \
 		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg BUILD_TIME=$(BUILD_TIME) \
 		-t $(REGISTRY)/$(IMAGE_NAME):$(VERSION) \
 		-t $(REGISTRY)/$(IMAGE_NAME):latest \
 		--load \
@@ -207,6 +215,8 @@ docker-buildx-push:
 	$(DOCKER) buildx build \
 		--platform $(PLATFORMS) \
 		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg BUILD_TIME=$(BUILD_TIME) \
 		-t $(REGISTRY)/$(IMAGE_NAME):$(VERSION) \
 		-t $(REGISTRY)/$(IMAGE_NAME):latest \
 		--push \

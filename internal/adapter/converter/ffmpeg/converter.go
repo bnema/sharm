@@ -120,7 +120,7 @@ func (c *Converter) Thumbnail(inputPath, outputPath string) error {
 	return cmd.Run()
 }
 
-func (c *Converter) Probe(inputPath string) (width int, height int, err error) {
+func (c *Converter) Probe(inputPath string) (*domain.ProbeResult, error) {
 	args := []string{
 		"-v", "quiet",
 		"-print_format", "json",
@@ -132,28 +132,18 @@ func (c *Converter) Probe(inputPath string) (width int, height int, err error) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		return 0, 0, fmt.Errorf("ffprobe failed: %w", err)
+		return nil, fmt.Errorf("ffprobe failed: %w", err)
 	}
 
-	var probe struct {
-		Streams []struct {
-			CodecType string `json:"codec_type"`
-			Width     int    `json:"width"`
-			Height    int    `json:"height"`
-		} `json:"streams"`
+	rawJSON := string(output)
+	var result domain.ProbeResult
+
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse ffprobe output: %w", err)
 	}
 
-	if err := json.Unmarshal(output, &probe); err != nil {
-		return 0, 0, fmt.Errorf("failed to parse ffprobe output: %w", err)
-	}
-
-	for _, stream := range probe.Streams {
-		if stream.CodecType == "video" {
-			return stream.Width, stream.Height, nil
-		}
-	}
-
-	return 0, 0, fmt.Errorf("no video stream found")
+	result.RawJSON = rawJSON
+	return &result, nil
 }
 
 var _ port.MediaConverter = (*Converter)(nil)

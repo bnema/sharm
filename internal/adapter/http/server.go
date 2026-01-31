@@ -18,11 +18,13 @@ type Server struct {
 	rateLimiter    *ratelimit.LoginRateLimiter
 	backoffTracker *ratelimit.LoginAttemptTracker
 	backoff        *ratelimit.Backoff
+	behindProxy    bool
+	version        string
 }
 
-func NewServer(authSvc *service.AuthService, mediaSvc MediaService, eventBus *service.EventBus, domain string, maxSizeMB int) *Server {
+func NewServer(authSvc AuthService, mediaSvc MediaService, eventBus *service.EventBus, domain string, maxSizeMB int, version string, behindProxy bool) *Server {
 	mux := http.NewServeMux()
-	handlers := NewHandlers(mediaSvc, domain, maxSizeMB)
+	handlers := NewHandlers(mediaSvc, domain, maxSizeMB, version)
 	sseHandler := NewSSEHandler(eventBus, mediaSvc, domain)
 
 	rateLimiter := ratelimit.NewLoginRateLimiter(
@@ -48,6 +50,8 @@ func NewServer(authSvc *service.AuthService, mediaSvc MediaService, eventBus *se
 		rateLimiter:    rateLimiter,
 		backoffTracker: backoffTracker,
 		backoff:        backoff,
+		behindProxy:    behindProxy,
+		version:        version,
 	}
 
 	s.registerRoutes()
@@ -57,45 +61,34 @@ func NewServer(authSvc *service.AuthService, mediaSvc MediaService, eventBus *se
 }
 
 func (s *Server) registerRoutes() {
-	// Dashboard (library) is the root page
-	s.mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		AuthMiddleware(s.authSvc, s.handlers.Dashboard())(w, r)
-	})
+	setupHandler := SetupHandler(s.authSvc, s.version, s.behindProxy)
+	s.mux.HandleFunc("GET /setup", setupHandler)
+	s.mux.HandleFunc("POST /setup", setupHandler)
 
-	// Upload page
-	s.mux.HandleFunc("GET /upload", func(w http.ResponseWriter, r *http.Request) {
-		AuthMiddleware(s.authSvc, s.handlers.UploadPage())(w, r)
-	})
+	loginHandler := LoginHandler(s.authSvc, s.rateLimiter, s.backoffTracker, s.backoff, s.version, s.behindProxy)
+	s.mux.HandleFunc("GET /login", loginHandler)
+	s.mux.HandleFunc("POST /login", loginHandler)
 
-	// Login
-	s.mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
-		LoginHandler(s.authSvc, s.rateLimiter, s.backoffTracker, s.backoff)(w, r)
-	})
-	s.mux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
-		LoginHandler(s.authSvc, s.rateLimiter, s.backoffTracker, s.backoff)(w, r)
-	})
+	s.mux.HandleFunc("POST /logout", AuthMiddleware(s.authSvc, LogoutHandler(s.behindProxy)))
 
-	// Upload
-	s.mux.HandleFunc("POST /upload", func(w http.ResponseWriter, r *http.Request) {
-		AuthMiddleware(s.authSvc, s.handlers.Upload())(w, r)
-	})
+	s.mux.HandleFunc("POST /change-password", AuthMiddleware(s.authSvc, ChangePasswordHandler(s.authSvc)))
 
-	// Status page (full page for browser navigation)
-	s.mux.HandleFunc("GET /status/", func(w http.ResponseWriter, r *http.Request) {
-		AuthMiddleware(s.authSvc, s.handlers.StatusPage())(w, r)
-	})
+	s.mux.HandleFunc("GET /{$}", AuthMiddleware(s.authSvc, s.handlers.Dashboard()))
 
-	// SSE events (authenticated)
-	s.mux.HandleFunc("GET /events/", func(w http.ResponseWriter, r *http.Request) {
-		AuthMiddleware(s.authSvc, s.sseHandler.Events())(w, r)
-	})
+	s.mux.HandleFunc("GET /upload", AuthMiddleware(s.authSvc, s.handlers.UploadPage()))
 
-	// Delete media (authenticated)
-	s.mux.HandleFunc("DELETE /media/", func(w http.ResponseWriter, r *http.Request) {
-		AuthMiddleware(s.authSvc, s.handlers.DeleteMedia())(w, r)
-	})
+	s.mux.HandleFunc("POST /upload", AuthMiddleware(s.authSvc, s.handlers.Upload()))
 
-	// Public share/raw/thumb
+	s.mux.HandleFunc("POST /probe", AuthMiddleware(s.authSvc, s.handlers.ProbeUpload()))
+
+	s.mux.HandleFunc("GET /status/", AuthMiddleware(s.authSvc, s.handlers.StatusPage()))
+
+	s.mux.HandleFunc("GET /events/", AuthMiddleware(s.authSvc, s.sseHandler.Events()))
+
+	s.mux.HandleFunc("DELETE /media/", AuthMiddleware(s.authSvc, s.handlers.DeleteMedia()))
+
+	s.mux.HandleFunc("GET /media/", AuthMiddleware(s.authSvc, s.handlers.MediaInfo()))
+
 	s.mux.HandleFunc("GET /v/", s.handlers.Media())
 }
 

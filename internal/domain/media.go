@@ -3,6 +3,7 @@ package domain
 import (
 	"crypto/rand"
 	"encoding/base32"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"time"
@@ -72,6 +73,7 @@ type Media struct {
 	CreatedAt     time.Time   `json:"created_at"`
 	ExpiresAt     time.Time   `json:"expires_at"`
 	Variants      []Variant   `json:"variants"`
+	ProbeJSON     string      `json:"probe_json"`
 }
 
 func NewMedia(mediaType MediaType, originalName, originalPath string, retentionDays int) *Media {
@@ -154,6 +156,17 @@ func (m *Media) VariantByCodec(codec Codec) *Variant {
 		}
 	}
 	return nil
+}
+
+func (m *Media) ParseProbe() (*ProbeResult, error) {
+	if m.ProbeJSON == "" {
+		return nil, nil
+	}
+	var result ProbeResult
+	if err := json.Unmarshal([]byte(m.ProbeJSON), &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 var imageExts = map[string]bool{

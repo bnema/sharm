@@ -27,6 +27,13 @@ func TestMediaService_Upload_VideoNoCodecs(t *testing.T) {
 	defer os.Remove(tmpFile.Name()) //nolint:errcheck
 	_, _ = tmpFile.WriteString("test content")
 
+	probeResult := &domain.ProbeResult{
+		RawJSON: "{}",
+	}
+	mockConverter.EXPECT().Probe(mock.AnythingOfType("string")).
+		Return(probeResult, nil).
+		Once()
+
 	mockStore.EXPECT().Save(mock.AnythingOfType("*domain.Media")).
 		Return(nil).
 		Once()
@@ -35,7 +42,6 @@ func TestMediaService_Upload_VideoNoCodecs(t *testing.T) {
 		Return(nil).
 		Once()
 
-	// Video with no codecs still enqueues a thumbnail job
 	mockJobQueue.EXPECT().Enqueue(mock.AnythingOfType("string"), domain.JobTypeThumbnail, domain.Codec(""), 0).
 		Return(&domain.Job{}, nil).
 		Once()
@@ -50,8 +56,7 @@ func TestMediaService_Upload_VideoNoCodecs(t *testing.T) {
 	assert.Equal(t, 7, result.RetentionDays)
 	assert.WithinDuration(t, time.Now().AddDate(0, 0, 7), result.ExpiresAt, time.Second)
 
-	uploadPath := filepath.Join(tempDir, "uploads", "test.mp4")
-	_, err = os.Stat(uploadPath)
+	_, err = os.Stat(result.OriginalPath)
 	assert.NoError(t, err, "file should exist at upload path")
 }
 
@@ -67,6 +72,13 @@ func TestMediaService_Upload_VideoWithCodecs(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name()) //nolint:errcheck
 	_, _ = tmpFile.WriteString("test content")
+
+	probeResult := &domain.ProbeResult{
+		RawJSON: "{}",
+	}
+	mockConverter.EXPECT().Probe(mock.AnythingOfType("string")).
+		Return(probeResult, nil).
+		Once()
 
 	mockStore.EXPECT().Save(mock.AnythingOfType("*domain.Media")).
 		Return(nil).
@@ -143,6 +155,13 @@ func TestMediaService_Upload_StoreSaveFails(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name()) //nolint:errcheck
 	_, _ = tmpFile.WriteString("test content")
+
+	probeResult := &domain.ProbeResult{
+		RawJSON: "{}",
+	}
+	mockConverter.EXPECT().Probe(mock.AnythingOfType("string")).
+		Return(probeResult, nil).
+		Once()
 
 	mockStore.EXPECT().Save(mock.AnythingOfType("*domain.Media")).
 		Return(errors.New("store save failed")).

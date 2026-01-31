@@ -3,6 +3,6 @@ package domain
 import "errors"
 
 var (
-	ErrNotFound = errors.New("media not found")
+	ErrNotFound = errors.New("resource not found")
 	ErrExpired  = errors.New("media has expired")
 )

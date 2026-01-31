@@ -1,18 +1,22 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
 type Config struct {
 	Port                 int
 	Domain               string
-	AuthSecret           string
 	MaxUploadSizeMB      int
 	DefaultRetentionDays int
 	DataDir              string
+	SecretKey            string
+	BehindProxy          bool
 }
 
 func Load() (*Config, error) {
@@ -31,19 +35,40 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("invalid DEFAULT_RETENTION_DAYS: %w", err)
 	}
 
-	authSecret := os.Getenv("AUTH_SECRET")
-	if authSecret == "" {
-		return nil, fmt.Errorf("AUTH_SECRET is required")
+	secretKey := getEnv("SECRET_KEY", getEnv("AUTH_SECRET", ""))
+	if secretKey == "" {
+		dataDir := getEnv("DATA_DIR", "/data")
+		secretKeyFile := filepath.Join(dataDir, ".secret_key")
+
+		if keyBytes, err := os.ReadFile(secretKeyFile); err == nil {
+			secretKey = string(keyBytes)
+		} else {
+			secretKey = generateSecretKey()
+			if err := os.MkdirAll(dataDir, 0755); err == nil {
+				_ = os.WriteFile(secretKeyFile, []byte(secretKey), 0600)
+			}
+		}
 	}
+
+	behindProxy := getEnv("BEHIND_PROXY", "false") == "true"
 
 	return &Config{
 		Port:                 port,
 		Domain:               getEnv("DOMAIN", "localhost:7890"),
-		AuthSecret:           authSecret,
 		MaxUploadSizeMB:      maxUploadSizeMB,
 		DefaultRetentionDays: defaultRetentionDays,
 		DataDir:              getEnv("DATA_DIR", "/data"),
+		SecretKey:            secretKey,
+		BehindProxy:          behindProxy,
 	}, nil
+}
+
+func generateSecretKey() string {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Errorf("failed to generate secret key: %w", err))
+	}
+	return base64.StdEncoding.EncodeToString(b)
 }
 
 func getEnv(key, defaultValue string) string {

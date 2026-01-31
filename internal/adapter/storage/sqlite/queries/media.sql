@@ -14,8 +14,8 @@ SELECT * FROM media WHERE status = ? ORDER BY created_at DESC;
 INSERT INTO media (
     id, type, original_name, original_path, converted_path,
     status, codec, error_message, retention_days, file_size,
-    width, height, thumb_path, created_at, expires_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    width, height, thumb_path, created_at, expires_at, probe_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateMediaStatus :exec
 UPDATE media SET status = ?, error_message = ? WHERE id = ?;
@@ -31,5 +31,11 @@ UPDATE media SET
     file_size = ?
 WHERE id = ?;
 
+-- name: DeleteJobsByMedia :exec
+DELETE FROM jobs WHERE media_id = ?;
+
 -- name: DeleteMedia :exec
 DELETE FROM media WHERE id = ?;
+
+-- name: UpdateMediaProbeJSON :exec
+UPDATE media SET probe_json = ? WHERE id = ?;

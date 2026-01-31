@@ -10,6 +10,7 @@ type MediaStore interface {
 	ListAll() ([]*domain.Media, error)
 	UpdateStatus(id string, status domain.MediaStatus, errMsg string) error
 	UpdateDone(m *domain.Media) error
+	UpdateProbeJSON(id string, probeJSON string) error
 
 	// Variant methods
 	SaveVariant(v *domain.Variant) error

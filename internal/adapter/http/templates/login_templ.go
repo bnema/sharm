@@ -8,7 +8,7 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func Login(errorMsg string) templ.Component {
+func Login(errorMsg string, version string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -57,25 +57,7 @@ func Login(errorMsg string) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div style=\"text-align:center;margin-bottom:var(--s-lg);\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"margin:0 auto var(--s-sm);\"><rect width=\"24\" height=\"24\" rx=\"6\" fill=\"var(--accent)\"></rect> <path d=\"M7.5 15.5C7.5 15.5 9 14 12 14s4.5 1.5 4.5 1.5\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\"></path> <path d=\"M16.5 8.5C16.5 8.5 15 10 12 10S7.5 8.5 7.5 8.5\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\"></path></svg><h1 style=\"font-size:var(--text-lg);font-weight:600;\">Sharm</h1><p class=\"text-muted\" style=\"font-size:var(--text-sm);margin-top:var(--s-xs);\">Enter your password to continue</p></div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				if errorMsg != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div style=\"margin-bottom:var(--s-md);\">")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = Toast(errorMsg, ToastError).Render(ctx, templ_7745c5c3_Buffer)
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div>")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " <form method=\"post\" action=\"/login\" hx-post=\"/login\" hx-target=\"#login-form\" hx-target-error=\"#error-message\" hx-swap=\"outerHTML\" hx-ext=\"response-targets\"><div id=\"login-form\"><input type=\"password\" name=\"password\" class=\"input\" placeholder=\"Password\" required autofocus> <button type=\"submit\" class=\"button mt-md\" style=\"width:100%;\">Login</button></div></form><div id=\"error-message\" style=\"margin-top:var(--s-md);\"></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div style=\"text-align:center;margin-bottom:var(--s-lg);\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"margin:0 auto var(--s-sm);\"><rect width=\"24\" height=\"24\" rx=\"6\" fill=\"var(--accent)\"></rect> <path d=\"M7.5 15.5C7.5 15.5 9 14 12 14s4.5 1.5 4.5 1.5\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\"></path> <path d=\"M16.5 8.5C7.5 8.5 15 10 12 10S7.5 8.5 7.5 8.5\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\"></path></svg><h1 style=\"font-size:var(--text-lg);font-weight:600;\">Sharm</h1><p class=\"text-muted\" style=\"font-size:var(--text-sm);margin-top:var(--s-xs);\">Enter your credentials to continue</p></div><div id=\"login-errors\"></div><form hx-post=\"/login\" hx-target-error=\"#login-errors\" hx-swap=\"innerHTML\"><div style=\"display:flex;flex-direction:column;gap:var(--s-sm);\"><input type=\"text\" name=\"username\" class=\"input\" placeholder=\"Username\" required autofocus> <input type=\"password\" name=\"password\" class=\"input\" placeholder=\"Password\" required> <button type=\"submit\" class=\"button\" style=\"width:100%;\">Login</button></div></form>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -85,13 +67,13 @@ func Login(errorMsg string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><script>\n\t\t\tdocument.body.addEventListener('htmx:beforeSwap', function(evt) {\n\t\t\t\tif (evt.detail.xhr.status === 401) {\n\t\t\t\t\tevt.detail.shouldSwap = true;\n\t\t\t\t\tevt.detail.isError = false;\n\t\t\t\t}\n\t\t\t});\n\t\t</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Layout(LayoutProps{Title: "Login — Sharm"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout(LayoutProps{Title: "Login — Sharm", Version: version}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

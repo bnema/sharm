@@ -52,4 +52,13 @@ type Medium struct {
 	ThumbPath     string
 	CreatedAt     time.Time
 	ExpiresAt     time.Time
+	ProbeJson     string
+}
+
+type User struct {
+	ID           int64
+	Username     string
+	PasswordHash string
+	CreatedAt    string
+	UpdatedAt    string
 }

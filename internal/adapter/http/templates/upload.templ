@@ -1,7 +1,7 @@
 package templates
 
-templ Upload() {
-	@Layout(LayoutProps{Title: "Upload — Sharm", ShowNav: true, ActiveRoute: "upload"}) {
+templ Upload(version string) {
+	@Layout(LayoutProps{Title: "Upload — Sharm", ShowNav: true, ActiveRoute: "upload", Version: version}) {
 		@Card() {
 			@CardHeader("Upload") {
 				<span class="text-muted" style="font-size:var(--text-xs);">Images, videos, audio</span>
@@ -64,6 +64,7 @@ templ Upload() {
 				</div>
 			</form>
 			@ProgressBar("upload-progress")
+			<div id="probe-result" class="mt-md"></div>
 			<div id="result" class="mt-md"></div>
 		}
 		<script>
@@ -82,7 +83,6 @@ templ Upload() {
 				}
 			});
 
-			// Show codec options based on file type
 			const fileInput = document.querySelector('input[name="file"]');
 			if (fileInput) {
 				const origOnchange = fileInput.getAttribute('onchange');
@@ -95,6 +95,7 @@ templ Upload() {
 				const h264 = document.getElementById('codec-h264');
 				const opus = document.getElementById('codec-opus');
 				const fpsOpts = document.getElementById('fps-options');
+				const probeResult = document.getElementById('probe-result');
 				if (!input.files[0]) {
 					opts.style.display = 'none';
 					fpsOpts.style.display = 'none';
@@ -122,6 +123,19 @@ templ Upload() {
 					opts.style.display = 'none';
 					fpsOpts.style.display = 'none';
 				}
+
+				if (probeResult) {
+					probeResult.innerHTML = '<div style="text-align:center;padding:var(--s-md);"><svg width="24" height="24" viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" style="animation:spin 0.8s linear infinite;margin:0 auto;"><circle cx="19" cy="19" r="16" stroke="var(--border)" stroke-width="3" fill="none"/><path d="M34 19a15 15 0 0 1-15 15" stroke="var(--accent)" stroke-width="3" fill="none" stroke-linecap="round"/></svg><span class="text-muted" style="font-size:var(--text-xs);margin-top:var(--s-sm);display:block;">Probing file...</span></div>';
+					const fd = new FormData();
+					fd.append('file', input.files[0]);
+					fetch('/probe', {method:'POST', body:fd}).then(function(resp) {
+						return resp.text();
+					}).then(function(html) {
+						probeResult.innerHTML = html;
+					}).catch(function() {
+						probeResult.innerHTML = '';
+					});
+				}
 			};
 
 			window._updateFpsVisibility = function() {
@@ -131,7 +145,6 @@ templ Upload() {
 				fpsOpts.style.display = (av1Checked || h264Checked) ? 'block' : 'none';
 			};
 
-			// Listen for codec checkbox changes to toggle FPS options
 			document.querySelectorAll('#codec-av1 input, #codec-h264 input').forEach(function(cb) {
 				cb.addEventListener('change', window._updateFpsVisibility);
 			});

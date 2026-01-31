@@ -13,7 +13,14 @@ FROM golang:1.25-bookworm AS build-stage
 WORKDIR /app
 COPY --from=fetch-stage /go/pkg/mod /go/pkg/mod
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -ldflags="-s -w" -o /sharm ./cmd/sharm
+
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_TIME=unknown
+
+RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false \
+    -ldflags="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME}" \
+    -o /sharm ./cmd/sharm
 
 # =============================================================
 # Stage 3: Final runtime image (Alpine Linux)
