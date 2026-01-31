@@ -5,8 +5,8 @@ services:
       - "7890:7890"
     environment:
       - PORT=7890
-      - DOMAIN=sharm.bnema.dev
-      - AUTH_SECRET=${AUTH_SECRET}
+      - DOMAIN=${DOMAIN:-localhost:7890}
+      - SECRET_KEY=${SECRET_KEY:-}
       - MAX_UPLOAD_SIZE_MB=500
       - DEFAULT_RETENTION_DAYS=7
     volumes:

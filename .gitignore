@@ -8,6 +8,9 @@
 *.so
 *.dylib
 bin/
+dist/
+/main
+/sharm
 
 # Test binary, built with `go test -c`
 *.test
@@ -27,6 +30,12 @@ go.work.sum
 
 # env file
 .env
+
+# Runtime data
+*.db
+*.sqlite*
+.secret_key
+data/
 
 # Editor/IDE
 # .idea/
