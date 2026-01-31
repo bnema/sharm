@@ -299,7 +299,7 @@ func Share(media *domain.Media, d string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\"><link rel=\"preconnect\" href=\"https://fonts.googleapis.com\"><link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin><link href=\"https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500;600&display=swap\" rel=\"stylesheet\"><style>\n\t\t\t\t:root {\n\t\t\t\t\t--s-sm: 0.5rem;\n\t\t\t\t\t--s-md: 1rem;\n\t\t\t\t\t--s-lg: 1.5rem;\n\t\t\t\t\t--s-xl: 2rem;\n\t\t\t\t\t--font-body: \"IBM Plex Sans\", system-ui, sans-serif;\n\t\t\t\t\t--font-mono: \"IBM Plex Mono\", ui-monospace, monospace;\n\t\t\t\t\t--text-xs: 0.6875rem;\n\t\t\t\t\t--text-sm: 0.8125rem;\n\t\t\t\t\t--text-base: 0.9375rem;\n\t\t\t\t\t--text-lg: 1.125rem;\n\t\t\t\t\t--radius-md: 8px;\n\t\t\t\t\t--radius-lg: 12px;\n\t\t\t\t\t--bg-primary: #09090b;\n\t\t\t\t\t--bg-surface: #111113;\n\t\t\t\t\t--bg-elevated: #1a1a1e;\n\t\t\t\t\t--border: #27272a;\n\t\t\t\t\t--text-primary: #e4e4e7;\n\t\t\t\t\t--text-secondary: #a1a1aa;\n\t\t\t\t\t--text-muted: #52525b;\n\t\t\t\t\t--accent: #3b82f6;\n\t\t\t\t\t--ease: cubic-bezier(0.4, 0, 0.2, 1);\n\t\t\t\t}\n\n\t\t\t\t@media (prefers-color-scheme: light) {\n\t\t\t\t\t:root {\n\t\t\t\t\t\t--bg-primary: #fafafa;\n\t\t\t\t\t\t--bg-surface: #ffffff;\n\t\t\t\t\t\t--bg-elevated: #f4f4f5;\n\t\t\t\t\t\t--border: #d4d4d8;\n\t\t\t\t\t\t--text-primary: #09090b;\n\t\t\t\t\t\t--text-secondary: #52525b;\n\t\t\t\t\t\t--text-muted: #a1a1aa;\n\t\t\t\t\t\t--accent: #2563eb;\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\t* { margin: 0; padding: 0; box-sizing: border-box; }\n\n\t\t\t\tbody {\n\t\t\t\t\tfont-family: var(--font-body);\n\t\t\t\t\tfont-size: var(--text-base);\n\t\t\t\t\tline-height: 1.6;\n\t\t\t\t\tcolor: var(--text-primary);\n\t\t\t\t\tbackground: var(--bg-primary);\n\t\t\t\t\tmin-height: 100vh;\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\talign-items: center;\n\t\t\t\t\tjustify-content: center;\n\t\t\t\t\tpadding: var(--s-md);\n\t\t\t\t\t-webkit-font-smoothing: antialiased;\n\t\t\t\t}\n\n\t\t\t\t.container { max-width: 960px; width: 100%; }\n\n\t\t\t\t.media-wrapper {\n\t\t\t\t\tbackground: var(--bg-surface);\n\t\t\t\t\tborder: 1px solid var(--border);\n\t\t\t\t\tborder-radius: var(--radius-lg);\n\t\t\t\t\toverflow: hidden;\n\t\t\t\t\tmargin-bottom: var(--s-lg);\n\t\t\t\t}\n\n\t\t\t\tvideo, img { width: 100%; display: block; }\n\n\t\t\t\taudio { width: 100%; display: block; padding: var(--s-lg); }\n\n\t\t\t\t.audio-placeholder {\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\talign-items: center;\n\t\t\t\t\tjustify-content: center;\n\t\t\t\t\tpadding: var(--s-xl);\n\t\t\t\t\tcolor: var(--text-muted);\n\t\t\t\t}\n\n\t\t\t\t.info { text-align: center; }\n\n\t\t\t\t.info h1 {\n\t\t\t\t\tfont-size: var(--text-lg);\n\t\t\t\t\tfont-weight: 600;\n\t\t\t\t\tmargin-bottom: var(--s-sm);\n\t\t\t\t\tword-break: break-all;\n\t\t\t\t}\n\n\t\t\t\t.info p {\n\t\t\t\t\tfont-size: var(--text-sm);\n\t\t\t\t\tcolor: var(--text-muted);\n\t\t\t\t}\n\n\t\t\t\t.download-links {\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\tflex-wrap: wrap;\n\t\t\t\t\tjustify-content: center;\n\t\t\t\t\tgap: var(--s-sm);\n\t\t\t\t\tmargin-top: var(--s-md);\n\t\t\t\t}\n\n\t\t\t\t.download-link {\n\t\t\t\t\tdisplay: inline-flex;\n\t\t\t\t\talign-items: center;\n\t\t\t\t\tgap: 0.25rem;\n\t\t\t\t\tpadding: 0.375rem 0.75rem;\n\t\t\t\t\tcolor: var(--text-secondary);\n\t\t\t\t\ttext-decoration: none;\n\t\t\t\t\tborder: 1px solid var(--border);\n\t\t\t\t\tborder-radius: var(--radius-md);\n\t\t\t\t\tfont-size: var(--text-xs);\n\t\t\t\t\tfont-weight: 500;\n\t\t\t\t\ttransition: all 150ms var(--ease);\n\t\t\t\t}\n\n\t\t\t\t.download-link:hover {\n\t\t\t\t\tcolor: var(--text-primary);\n\t\t\t\t\tbackground: var(--bg-elevated);\n\t\t\t\t\tborder-color: var(--text-muted);\n\t\t\t\t}\n\t\t\t</style></head><body><div class=\"container\"><div class=\"media-wrapper\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\"><link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/static/favicon-32x32.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/static/favicon-16x16.png\"><link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/static/apple-touch-icon.png\"><link rel=\"preconnect\" href=\"https://fonts.googleapis.com\"><link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin><link href=\"https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500;600&display=swap\" rel=\"stylesheet\"><style>\n\t\t\t\t:root {\n\t\t\t\t\t--s-sm: 0.5rem;\n\t\t\t\t\t--s-md: 1rem;\n\t\t\t\t\t--s-lg: 1.5rem;\n\t\t\t\t\t--s-xl: 2rem;\n\t\t\t\t\t--font-body: \"IBM Plex Sans\", system-ui, sans-serif;\n\t\t\t\t\t--font-mono: \"IBM Plex Mono\", ui-monospace, monospace;\n\t\t\t\t\t--text-xs: 0.6875rem;\n\t\t\t\t\t--text-sm: 0.8125rem;\n\t\t\t\t\t--text-base: 0.9375rem;\n\t\t\t\t\t--text-lg: 1.125rem;\n\t\t\t\t\t--radius-md: 8px;\n\t\t\t\t\t--radius-lg: 12px;\n\t\t\t\t\t--bg-primary: #09090b;\n\t\t\t\t\t--bg-surface: #111113;\n\t\t\t\t\t--bg-elevated: #1a1a1e;\n\t\t\t\t\t--border: #27272a;\n\t\t\t\t\t--text-primary: #e4e4e7;\n\t\t\t\t\t--text-secondary: #a1a1aa;\n\t\t\t\t\t--text-muted: #52525b;\n\t\t\t\t\t--accent: #3b82f6;\n\t\t\t\t\t--ease: cubic-bezier(0.4, 0, 0.2, 1);\n\t\t\t\t}\n\n\t\t\t\t@media (prefers-color-scheme: light) {\n\t\t\t\t\t:root {\n\t\t\t\t\t\t--bg-primary: #fafafa;\n\t\t\t\t\t\t--bg-surface: #ffffff;\n\t\t\t\t\t\t--bg-elevated: #f4f4f5;\n\t\t\t\t\t\t--border: #d4d4d8;\n\t\t\t\t\t\t--text-primary: #09090b;\n\t\t\t\t\t\t--text-secondary: #52525b;\n\t\t\t\t\t\t--text-muted: #a1a1aa;\n\t\t\t\t\t\t--accent: #2563eb;\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\t* { margin: 0; padding: 0; box-sizing: border-box; }\n\n\t\t\t\tbody {\n\t\t\t\t\tfont-family: var(--font-body);\n\t\t\t\t\tfont-size: var(--text-base);\n\t\t\t\t\tline-height: 1.6;\n\t\t\t\t\tcolor: var(--text-primary);\n\t\t\t\t\tbackground: var(--bg-primary);\n\t\t\t\t\tmin-height: 100vh;\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\talign-items: center;\n\t\t\t\t\tjustify-content: center;\n\t\t\t\t\tpadding: var(--s-md);\n\t\t\t\t\t-webkit-font-smoothing: antialiased;\n\t\t\t\t}\n\n\t\t\t\t.container { max-width: 960px; width: 100%; }\n\n\t\t\t\t.media-wrapper {\n\t\t\t\t\tbackground: var(--bg-surface);\n\t\t\t\t\tborder: 1px solid var(--border);\n\t\t\t\t\tborder-radius: var(--radius-lg);\n\t\t\t\t\toverflow: hidden;\n\t\t\t\t\tmargin-bottom: var(--s-lg);\n\t\t\t\t}\n\n\t\t\t\tvideo, img { width: 100%; display: block; }\n\n\t\t\t\taudio { width: 100%; display: block; padding: var(--s-lg); }\n\n\t\t\t\t.audio-placeholder {\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\talign-items: center;\n\t\t\t\t\tjustify-content: center;\n\t\t\t\t\tpadding: var(--s-xl);\n\t\t\t\t\tcolor: var(--text-muted);\n\t\t\t\t}\n\n\t\t\t\t.info { text-align: center; }\n\n\t\t\t\t.info h1 {\n\t\t\t\t\tfont-size: var(--text-lg);\n\t\t\t\t\tfont-weight: 600;\n\t\t\t\t\tmargin-bottom: var(--s-sm);\n\t\t\t\t\tword-break: break-all;\n\t\t\t\t}\n\n\t\t\t\t.info p {\n\t\t\t\t\tfont-size: var(--text-sm);\n\t\t\t\t\tcolor: var(--text-muted);\n\t\t\t\t}\n\n\t\t\t\t.download-links {\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\tflex-wrap: wrap;\n\t\t\t\t\tjustify-content: center;\n\t\t\t\t\tgap: var(--s-sm);\n\t\t\t\t\tmargin-top: var(--s-md);\n\t\t\t\t}\n\n\t\t\t\t.download-link {\n\t\t\t\t\tdisplay: inline-flex;\n\t\t\t\t\talign-items: center;\n\t\t\t\t\tgap: 0.25rem;\n\t\t\t\t\tpadding: 0.375rem 0.75rem;\n\t\t\t\t\tcolor: var(--text-secondary);\n\t\t\t\t\ttext-decoration: none;\n\t\t\t\t\tborder: 1px solid var(--border);\n\t\t\t\t\tborder-radius: var(--radius-md);\n\t\t\t\t\tfont-size: var(--text-xs);\n\t\t\t\t\tfont-weight: 500;\n\t\t\t\t\ttransition: all 150ms var(--ease);\n\t\t\t\t}\n\n\t\t\t\t.download-link:hover {\n\t\t\t\t\tcolor: var(--text-primary);\n\t\t\t\t\tbackground: var(--bg-elevated);\n\t\t\t\t\tborder-color: var(--text-muted);\n\t\t\t\t}\n\t\t\t</style></head><body><div class=\"container\"><div class=\"media-wrapper\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -317,7 +317,7 @@ func Share(media *domain.Media, d string) templ.Component {
 					var templ_7745c5c3_Var17 string
 					templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs("/v/" + media.ID + "/" + string(v.Codec))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 213, Col: 63}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 216, Col: 63}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 					if templ_7745c5c3_Err != nil {
@@ -330,7 +330,7 @@ func Share(media *domain.Media, d string) templ.Component {
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(codecMIME(v.Codec))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 213, Col: 91}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 216, Col: 91}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -349,7 +349,7 @@ func Share(media *domain.Media, d string) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs("/v/" + media.ID + "/raw")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 216, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 219, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -367,7 +367,7 @@ func Share(media *domain.Media, d string) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs("/v/" + media.ID + "/raw")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 220, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 223, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
@@ -380,7 +380,7 @@ func Share(media *domain.Media, d string) templ.Component {
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(media.OriginalName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 220, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 223, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -398,7 +398,7 @@ func Share(media *domain.Media, d string) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs("/v/" + media.ID + "/raw")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 230, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 233, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -416,7 +416,7 @@ func Share(media *domain.Media, d string) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(media.OriginalName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 236, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 239, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -429,7 +429,7 @@ func Share(media *domain.Media, d string) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", media.RetentionDays))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 237, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 240, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -442,7 +442,7 @@ func Share(media *domain.Media, d string) templ.Component {
 		var templ_7745c5c3_Var25 templ.SafeURL
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/v/" + media.ID + "/original"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 240, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 243, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -461,7 +461,7 @@ func Share(media *domain.Media, d string) templ.Component {
 				var templ_7745c5c3_Var26 templ.SafeURL
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/v/" + media.ID + "/" + string(v.Codec)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 251, Col: 73}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 254, Col: 73}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 				if templ_7745c5c3_Err != nil {
@@ -474,7 +474,7 @@ func Share(media *domain.Media, d string) templ.Component {
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(codecLabel(v.Codec))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 257, Col: 30}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 260, Col: 30}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -492,7 +492,7 @@ func Share(media *domain.Media, d string) templ.Component {
 					var templ_7745c5c3_Var28 string
 					templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(domain.FormatSize(v.FileSize))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 259, Col: 81}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/share.templ`, Line: 262, Col: 81}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 					if templ_7745c5c3_Err != nil {
