@@ -11,40 +11,55 @@ Upload videos, audio, and images. Get shareable links that expire. Videos are au
 
 Single-user, single-binary, single Docker container. SQLite for storage, FFmpeg for conversion.
 
-## Quick Start
+## Deploy
+
+Sharm needs to run on a server with a public domain for share links and embeds to work.
+
+Create a `docker-compose.yml` on your server:
+
+```yaml
+services:
+  sharm:
+    image: ghcr.io/bnema/sharm:latest
+    ports:
+      - "7890:7890"
+    environment:
+      - DOMAIN=sharm.example.com
+      - BEHIND_PROXY=true
+    volumes:
+      - sharm-data:/data
+    restart: unless-stopped
+
+volumes:
+  sharm-data:
+```
 
 ```bash
-git clone https://github.com/bnema/sharm.git
-cd sharm
-cp .env.example .env
-# edit .env if you want to change defaults
 docker compose up -d
 ```
 
-Open `http://localhost:7890`. On first launch you'll be prompted to create an account (username and password). Only one user can be registered.
+Point your reverse proxy at port 7890 and open `https://sharm.example.com`. On first launch you'll be prompted to create an account. Only one user can be registered.
 
 ## Configuration
 
-All config lives in environment variables (or a `.env` file):
-
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `7890` | HTTP port |
 | `DOMAIN` | `localhost:7890` | Domain used in share URLs and embeds |
+| `PORT` | `7890` | HTTP port |
 | `MAX_UPLOAD_SIZE_MB` | `500` | Max upload size in MB |
 | `DEFAULT_RETENTION_DAYS` | `7` | Days before shared links expire |
 | `DATA_DIR` | `/data` | Where uploads, converted files, and the DB live |
 | `BEHIND_PROXY` | `false` | Set to `true` when running behind a reverse proxy |
 | `SECRET_KEY` | (auto-generated) | Key for signing session tokens. Generated and persisted to `DATA_DIR/.secret_key` if not set |
 
-## Reverse Proxy
+### Reverse Proxy
 
-If running behind nginx or similar:
+Nginx example:
 
 ```nginx
 server {
     listen 80;
-    server_name your-domain.com;
+    server_name sharm.example.com;
 
     location / {
         proxy_pass http://localhost:7890;
