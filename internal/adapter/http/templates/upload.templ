@@ -1,39 +1,139 @@
 package templates
 
 templ Upload() {
-	@Layout(LayoutProps{Title: "Upload — Sharm"}) {
-		<div class="card">
-			<h1 class="text-secondary" style="font-size: var(--text-xl); font-weight: 600; margin-bottom: var(--s-lg);">Upload Video</h1>
-			<form hx-post="/upload" hx-encoding="multipart/form-data" hx-target="#result" hx-indicator="#progress">
-				<div id="dropzone" style="border: 2px dashed var(--border); border-radius: var(--radius-md); padding: var(--s-2xl); text-align: center; cursor: pointer; transition: border-color var(--duration) var(--ease);" ondragover="this.style.borderColor='var(--border-focus)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="this.style.borderColor='var(--border)'; this.querySelector('input').files=event.dataTransfer.files; this.querySelector('input').dispatchEvent(new Event('change'))" onclick="this.querySelector('input').click()">
-					<input type="file" name="video" accept="video/*" required style="display: none;" onchange="document.getElementById('filename').textContent = this.files[0]?.name || 'Choose a file...'"/>
-					<p class="text-secondary" style="margin-bottom: var(--s-sm);">Drag and drop a video here, or click to browse</p>
-					<p id="filename" class="text-muted" style="font-size: var(--text-sm);">Choose a file...</p>
+	@Layout(LayoutProps{Title: "Upload — Sharm", ShowNav: true, ActiveRoute: "upload"}) {
+		@Card() {
+			@CardHeader("Upload") {
+				<span class="text-muted" style="font-size:var(--text-xs);">Images, videos, audio</span>
+			}
+			<form
+				hx-post="/upload"
+				hx-encoding="multipart/form-data"
+				hx-target="#result"
+				hx-target-error="#result"
+				hx-ext="response-targets"
+			>
+				@Dropzone("file", "video/*,image/*,audio/*")
+				<!-- Codec selection (shown dynamically based on file type) -->
+				<div id="codec-options" style="display:none;margin-top:var(--s-md);">
+					<label class="text-muted" style="display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);">Conversion formats</label>
+					<div style="display:flex;flex-direction:column;gap:var(--s-xs);">
+						<label style="display:flex;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-muted);cursor:default;">
+							<input type="checkbox" checked disabled/>
+							<span>Original (always kept)</span>
+						</label>
+						<label id="codec-av1" style="display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;">
+							<input type="checkbox" name="codecs" value="av1"/>
+							<span>WebM (AV1)</span>
+						</label>
+						<label id="codec-h264" style="display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;">
+							<input type="checkbox" name="codecs" value="h264"/>
+							<span>MP4 (H264)</span>
+						</label>
+						<label id="codec-opus" style="display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;">
+							<input type="checkbox" name="codecs" value="opus"/>
+							<span>OGG (Opus)</span>
+						</label>
+					</div>
+					<div id="fps-options" style="display:none;margin-top:var(--s-sm);">
+						<label class="text-muted" style="display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);">Frame rate</label>
+						<div style="display:flex;gap:var(--s-md);">
+							<label style="display:flex;align-items:center;gap:var(--s-xs);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;">
+								<input type="radio" name="fps" value="30" checked/>
+								<span>30 FPS</span>
+							</label>
+							<label style="display:flex;align-items:center;gap:var(--s-xs);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;">
+								<input type="radio" name="fps" value="60"/>
+								<span>60 FPS</span>
+							</label>
+						</div>
+					</div>
 				</div>
-				<div class="mt-md">
-					<label class="text-secondary" style="display: block; margin-bottom: var(--s-sm);">Retention</label>
-					<select name="retention" class="input">
-						<option value="1">1 day</option>
-						<option value="3">3 days</option>
-						<option value="7" selected>7 days</option>
-						<option value="14">14 days</option>
-						<option value="30">30 days</option>
-					</select>
+				<div class="mt-md" style="display:flex;align-items:flex-end;gap:var(--s-sm);">
+					<div style="flex:1;">
+						<label class="text-muted" style="display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);">Retention</label>
+						<select name="retention" class="input">
+							<option value="1">1 day</option>
+							<option value="3">3 days</option>
+							<option value="7" selected>7 days</option>
+							<option value="14">14 days</option>
+							<option value="30">30 days</option>
+						</select>
+					</div>
+					<button type="submit" class="button">Upload</button>
 				</div>
-				<button type="submit" class="button mt-lg">Upload</button>
 			</form>
-			<progress id="progress" value="0" max="100" style="display: none; width: 100%; margin-top: var(--s-lg); height: 4px; appearance: none; background: var(--progress-bg); border-radius: var(--radius-sm);" />
-			<div id="result" class="mt-lg"></div>
-		</div>
+			@ProgressBar("upload-progress")
+			<div id="result" class="mt-md"></div>
+		}
 		<script>
 			document.body.addEventListener('htmx:xhr:progress', function(e) {
-				const progress = document.getElementById('progress');
-				if (e.detail.percent === 100) {
-					progress.style.display = 'none';
-				} else {
-					progress.style.display = 'block';
-					progress.value = e.detail.percent;
+				if (!e.detail.lengthComputable) return;
+				const bar = document.getElementById('upload-progress');
+				const fill = document.getElementById('upload-progress-fill');
+				const pct = document.getElementById('upload-progress-pct');
+				if (!bar) return;
+				const percent = (e.detail.loaded / e.detail.total) * 100;
+				bar.style.display = 'block';
+				fill.style.width = percent + '%';
+				pct.textContent = Math.round(percent) + '%';
+				if (percent >= 100) {
+					pct.textContent = 'Processing...';
 				}
+			});
+
+			// Show codec options based on file type
+			const fileInput = document.querySelector('input[name="file"]');
+			if (fileInput) {
+				const origOnchange = fileInput.getAttribute('onchange');
+				fileInput.setAttribute('onchange', origOnchange + ';window._updateCodecOptions(this)');
+			}
+
+			window._updateCodecOptions = function(input) {
+				const opts = document.getElementById('codec-options');
+				const av1 = document.getElementById('codec-av1');
+				const h264 = document.getElementById('codec-h264');
+				const opus = document.getElementById('codec-opus');
+				const fpsOpts = document.getElementById('fps-options');
+				if (!input.files[0]) {
+					opts.style.display = 'none';
+					fpsOpts.style.display = 'none';
+					return;
+				}
+				const name = input.files[0].name.toLowerCase();
+				const videoExts = ['.mp4','.webm','.mov','.avi','.mkv','.flv','.wmv','.m4v'];
+				const audioExts = ['.mp3','.wav','.ogg','.flac','.aac','.m4a','.wma','.opus'];
+				const isVideo = videoExts.some(e => name.endsWith(e));
+				const isAudio = audioExts.some(e => name.endsWith(e));
+
+				if (isVideo) {
+					opts.style.display = 'block';
+					av1.style.display = 'flex';
+					h264.style.display = 'flex';
+					opus.style.display = 'none';
+					window._updateFpsVisibility();
+				} else if (isAudio) {
+					opts.style.display = 'block';
+					av1.style.display = 'none';
+					h264.style.display = 'none';
+					opus.style.display = 'flex';
+					fpsOpts.style.display = 'none';
+				} else {
+					opts.style.display = 'none';
+					fpsOpts.style.display = 'none';
+				}
+			};
+
+			window._updateFpsVisibility = function() {
+				const fpsOpts = document.getElementById('fps-options');
+				const av1Checked = document.querySelector('#codec-av1 input')?.checked;
+				const h264Checked = document.querySelector('#codec-h264 input')?.checked;
+				fpsOpts.style.display = (av1Checked || h264Checked) ? 'block' : 'none';
+			};
+
+			// Listen for codec checkbox changes to toggle FPS options
+			document.querySelectorAll('#codec-av1 input, #codec-h264 input').forEach(function(cb) {
+				cb.addEventListener('change', window._updateFpsVisibility);
 			});
 		</script>
 	}

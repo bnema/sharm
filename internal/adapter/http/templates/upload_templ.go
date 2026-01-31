@@ -41,13 +41,73 @@ func Upload() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"card\"><h1 class=\"text-secondary\" style=\"font-size: var(--text-xl); font-weight: 600; margin-bottom: var(--s-lg);\">Upload Video</h1><form hx-post=\"/upload\" hx-encoding=\"multipart/form-data\" hx-target=\"#result\" hx-indicator=\"#progress\"><div id=\"dropzone\" style=\"border: 2px dashed var(--border); border-radius: var(--radius-md); padding: var(--s-2xl); text-align: center; cursor: pointer; transition: border-color var(--duration) var(--ease);\" ondragover=\"this.style.borderColor='var(--border-focus)'\" ondragleave=\"this.style.borderColor='var(--border)'\" ondrop=\"this.style.borderColor='var(--border)'; this.querySelector('input').files=event.dataTransfer.files; this.querySelector('input').dispatchEvent(new Event('change'))\" onclick=\"this.querySelector('input').click()\"><input type=\"file\" name=\"video\" accept=\"video/*\" required style=\"display: none;\" onchange=\"document.getElementById('filename').textContent = this.files[0]?.name || 'Choose a file...'\"><p class=\"text-secondary\" style=\"margin-bottom: var(--s-sm);\">Drag and drop a video here, or click to browse</p><p id=\"filename\" class=\"text-muted\" style=\"font-size: var(--text-sm);\">Choose a file...</p></div><div class=\"mt-md\"><label class=\"text-secondary\" style=\"display: block; margin-bottom: var(--s-sm);\">Retention</label> <select name=\"retention\" class=\"input\"><option value=\"1\">1 day</option> <option value=\"3\">3 days</option> <option value=\"7\" selected>7 days</option> <option value=\"14\">14 days</option> <option value=\"30\">30 days</option></select></div><button type=\"submit\" class=\"button mt-lg\">Upload</button></form><progress id=\"progress\" value=\"0\" max=\"100\" style=\"display: none; width: 100%; margin-top: var(--s-lg); height: 4px; appearance: none; background: var(--progress-bg); border-radius: var(--radius-sm);\"></progress><div id=\"result\" class=\"mt-lg\"></div></div><script>\n\t\t\tdocument.body.addEventListener('htmx:xhr:progress', function(e) {\n\t\t\t\tconst progress = document.getElementById('progress');\n\t\t\t\tif (e.detail.percent === 100) {\n\t\t\t\t\tprogress.style.display = 'none';\n\t\t\t\t} else {\n\t\t\t\t\tprogress.style.display = 'block';\n\t\t\t\t\tprogress.value = e.detail.percent;\n\t\t\t\t}\n\t\t\t});\n\t\t</script>")
+			templ_7745c5c3_Var3 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+				if !templ_7745c5c3_IsBuffer {
+					defer func() {
+						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+						if templ_7745c5c3_Err == nil {
+							templ_7745c5c3_Err = templ_7745c5c3_BufErr
+						}
+					}()
+				}
+				ctx = templ.InitializeContext(ctx)
+				templ_7745c5c3_Var4 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+					if !templ_7745c5c3_IsBuffer {
+						defer func() {
+							templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+							if templ_7745c5c3_Err == nil {
+								templ_7745c5c3_Err = templ_7745c5c3_BufErr
+							}
+						}()
+					}
+					ctx = templ.InitializeContext(ctx)
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<span class=\"text-muted\" style=\"font-size:var(--text-xs);\">Images, videos, audio</span>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					return nil
+				})
+				templ_7745c5c3_Err = CardHeader("Upload").Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " <form hx-post=\"/upload\" hx-encoding=\"multipart/form-data\" hx-target=\"#result\" hx-target-error=\"#result\" hx-ext=\"response-targets\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = Dropzone("file", "video/*,image/*,audio/*").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<!-- Codec selection (shown dynamically based on file type) --><div id=\"codec-options\" style=\"display:none;margin-top:var(--s-md);\"><label class=\"text-muted\" style=\"display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);\">Conversion formats</label><div style=\"display:flex;flex-direction:column;gap:var(--s-xs);\"><label style=\"display:flex;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-muted);cursor:default;\"><input type=\"checkbox\" checked disabled> <span>Original (always kept)</span></label> <label id=\"codec-av1\" style=\"display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"checkbox\" name=\"codecs\" value=\"av1\"> <span>WebM (AV1)</span></label> <label id=\"codec-h264\" style=\"display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"checkbox\" name=\"codecs\" value=\"h264\"> <span>MP4 (H264)</span></label> <label id=\"codec-opus\" style=\"display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"checkbox\" name=\"codecs\" value=\"opus\"> <span>OGG (Opus)</span></label></div><div id=\"fps-options\" style=\"display:none;margin-top:var(--s-sm);\"><label class=\"text-muted\" style=\"display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);\">Frame rate</label><div style=\"display:flex;gap:var(--s-md);\"><label style=\"display:flex;align-items:center;gap:var(--s-xs);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"radio\" name=\"fps\" value=\"30\" checked> <span>30 FPS</span></label> <label style=\"display:flex;align-items:center;gap:var(--s-xs);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"radio\" name=\"fps\" value=\"60\"> <span>60 FPS</span></label></div></div></div><div class=\"mt-md\" style=\"display:flex;align-items:flex-end;gap:var(--s-sm);\"><div style=\"flex:1;\"><label class=\"text-muted\" style=\"display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);\">Retention</label> <select name=\"retention\" class=\"input\"><option value=\"1\">1 day</option> <option value=\"3\">3 days</option> <option value=\"7\" selected>7 days</option> <option value=\"14\">14 days</option> <option value=\"30\">30 days</option></select></div><button type=\"submit\" class=\"button\">Upload</button></div></form>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = ProgressBar("upload-progress").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " <div id=\"result\" class=\"mt-md\"></div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				return nil
+			})
+			templ_7745c5c3_Err = Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " <script>\n\t\t\tdocument.body.addEventListener('htmx:xhr:progress', function(e) {\n\t\t\t\tif (!e.detail.lengthComputable) return;\n\t\t\t\tconst bar = document.getElementById('upload-progress');\n\t\t\t\tconst fill = document.getElementById('upload-progress-fill');\n\t\t\t\tconst pct = document.getElementById('upload-progress-pct');\n\t\t\t\tif (!bar) return;\n\t\t\t\tconst percent = (e.detail.loaded / e.detail.total) * 100;\n\t\t\t\tbar.style.display = 'block';\n\t\t\t\tfill.style.width = percent + '%';\n\t\t\t\tpct.textContent = Math.round(percent) + '%';\n\t\t\t\tif (percent >= 100) {\n\t\t\t\t\tpct.textContent = 'Processing...';\n\t\t\t\t}\n\t\t\t});\n\n\t\t\t// Show codec options based on file type\n\t\t\tconst fileInput = document.querySelector('input[name=\"file\"]');\n\t\t\tif (fileInput) {\n\t\t\t\tconst origOnchange = fileInput.getAttribute('onchange');\n\t\t\t\tfileInput.setAttribute('onchange', origOnchange + ';window._updateCodecOptions(this)');\n\t\t\t}\n\n\t\t\twindow._updateCodecOptions = function(input) {\n\t\t\t\tconst opts = document.getElementById('codec-options');\n\t\t\t\tconst av1 = document.getElementById('codec-av1');\n\t\t\t\tconst h264 = document.getElementById('codec-h264');\n\t\t\t\tconst opus = document.getElementById('codec-opus');\n\t\t\t\tconst fpsOpts = document.getElementById('fps-options');\n\t\t\t\tif (!input.files[0]) {\n\t\t\t\t\topts.style.display = 'none';\n\t\t\t\t\tfpsOpts.style.display = 'none';\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tconst name = input.files[0].name.toLowerCase();\n\t\t\t\tconst videoExts = ['.mp4','.webm','.mov','.avi','.mkv','.flv','.wmv','.m4v'];\n\t\t\t\tconst audioExts = ['.mp3','.wav','.ogg','.flac','.aac','.m4a','.wma','.opus'];\n\t\t\t\tconst isVideo = videoExts.some(e => name.endsWith(e));\n\t\t\t\tconst isAudio = audioExts.some(e => name.endsWith(e));\n\n\t\t\t\tif (isVideo) {\n\t\t\t\t\topts.style.display = 'block';\n\t\t\t\t\tav1.style.display = 'flex';\n\t\t\t\t\th264.style.display = 'flex';\n\t\t\t\t\topus.style.display = 'none';\n\t\t\t\t\twindow._updateFpsVisibility();\n\t\t\t\t} else if (isAudio) {\n\t\t\t\t\topts.style.display = 'block';\n\t\t\t\t\tav1.style.display = 'none';\n\t\t\t\t\th264.style.display = 'none';\n\t\t\t\t\topus.style.display = 'flex';\n\t\t\t\t\tfpsOpts.style.display = 'none';\n\t\t\t\t} else {\n\t\t\t\t\topts.style.display = 'none';\n\t\t\t\t\tfpsOpts.style.display = 'none';\n\t\t\t\t}\n\t\t\t};\n\n\t\t\twindow._updateFpsVisibility = function() {\n\t\t\t\tconst fpsOpts = document.getElementById('fps-options');\n\t\t\t\tconst av1Checked = document.querySelector('#codec-av1 input')?.checked;\n\t\t\t\tconst h264Checked = document.querySelector('#codec-h264 input')?.checked;\n\t\t\t\tfpsOpts.style.display = (av1Checked || h264Checked) ? 'block' : 'none';\n\t\t\t};\n\n\t\t\t// Listen for codec checkbox changes to toggle FPS options\n\t\t\tdocument.querySelectorAll('#codec-av1 input, #codec-h264 input').forEach(function(cb) {\n\t\t\t\tcb.addEventListener('change', window._updateFpsVisibility);\n\t\t\t});\n\t\t</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Layout(LayoutProps{Title: "Upload — Sharm"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout(LayoutProps{Title: "Upload — Sharm", ShowNav: true, ActiveRoute: "upload"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

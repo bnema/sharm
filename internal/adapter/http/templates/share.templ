@@ -5,70 +5,102 @@ import (
 	"github.com/bnema/sharm/internal/domain"
 )
 
-templ Share(media *domain.Media, domain string) {
+func codecLabel(codec domain.Codec) string {
+	switch codec {
+	case domain.CodecAV1:
+		return "WebM (AV1)"
+	case domain.CodecH264:
+		return "MP4 (H264)"
+	case domain.CodecOpus:
+		return "OGG (Opus)"
+	default:
+		return string(codec)
+	}
+}
+
+templ Share(media *domain.Media, d string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ media.OriginalName } — Sharm</title>
-			<meta property="og:type" content="video.other"/>
-			<meta property="og:url" content={ "https://" + domain + "/v/" + media.ID }/>
+			if media.Type == domain.MediaTypeVideo {
+				<meta property="og:type" content="video.other"/>
+				<meta property="og:video" content={ "https://" + d + "/v/" + media.ID + "/raw" }/>
+				<meta property="og:video:url" content={ "https://" + d + "/v/" + media.ID + "/raw" }/>
+				<meta property="og:video:secure_url" content={ "https://" + d + "/v/" + media.ID + "/raw" }/>
+				<meta property="og:video:type" content={ "video/" + string(media.Codec) }/>
+				<meta property="og:video:width" content={ fmt.Sprintf("%d", media.Width) }/>
+				<meta property="og:video:height" content={ fmt.Sprintf("%d", media.Height) }/>
+				<meta name="twitter:card" content="player"/>
+				<meta name="twitter:player" content={ "https://" + d + "/v/" + media.ID + "/raw" }/>
+				<meta name="twitter:player:width" content={ fmt.Sprintf("%d", media.Width) }/>
+				<meta name="twitter:player:height" content={ fmt.Sprintf("%d", media.Height) }/>
+			} else if media.Type == domain.MediaTypeImage {
+				<meta property="og:type" content="article"/>
+				<meta property="og:image" content={ "https://" + d + "/v/" + media.ID + "/raw" }/>
+				<meta name="twitter:card" content="summary_large_image"/>
+				<meta name="twitter:image" content={ "https://" + d + "/v/" + media.ID + "/raw" }/>
+			} else {
+				<meta property="og:type" content="music.song"/>
+				<meta name="twitter:card" content="summary"/>
+			}
+			<meta property="og:url" content={ "https://" + d + "/v/" + media.ID }/>
 			<meta property="og:title" content={ media.OriginalName }/>
 			<meta property="og:description" content="Shared via Sharm"/>
 			<meta property="og:site_name" content="Sharm"/>
-			<meta property="og:video" content={ "https://" + domain + "/v/" + media.ID + "/raw" }/>
-			<meta property="og:video:url" content={ "https://" + domain + "/v/" + media.ID + "/raw" }/>
-			<meta property="og:video:secure_url" content={ "https://" + domain + "/v/" + media.ID + "/raw" }/>
-			<meta property="og:video:type" content={ "video/" + media.Codec }/>
-			<meta property="og:video:width" content={ fmt.Sprintf("%d", media.Width) }/>
-			<meta property="og:video:height" content={ fmt.Sprintf("%d", media.Height) }/>
-			<meta property="og:image" content={ "https://" + domain + "/v/" + media.ID + "/thumb" }/>
-			<meta name="twitter:card" content="player"/>
-			<meta name="twitter:player" content={ "https://" + domain + "/v/" + media.ID + "/raw" }/>
-			<meta name="twitter:player:width" content={ fmt.Sprintf("%d", media.Width) }/>
-			<meta name="twitter:player:height" content={ fmt.Sprintf("%d", media.Height) }/>
+			if media.ThumbPath != "" {
+				<meta property="og:image" content={ "https://" + d + "/v/" + media.ID + "/thumb" }/>
+			}
+			<link rel="icon" type="image/svg+xml" href="/static/favicon.svg"/>
 			<link rel="preconnect" href="https://fonts.googleapis.com"/>
 			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 			<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 			<style>
 				:root {
+					--s-sm: 0.5rem;
 					--s-md: 1rem;
 					--s-lg: 1.5rem;
 					--s-xl: 2rem;
 					--font-body: "IBM Plex Sans", system-ui, sans-serif;
-					--text-base: 1rem;
-					--text-xl: 1.5rem;
+					--font-mono: "IBM Plex Mono", ui-monospace, monospace;
+					--text-xs: 0.6875rem;
+					--text-sm: 0.8125rem;
+					--text-base: 0.9375rem;
+					--text-lg: 1.125rem;
+					--radius-md: 8px;
 					--radius-lg: 12px;
-					--bg-primary: #0a0a0b;
-					--bg-surface: #141416;
-					--border: #2a2a30;
-					--text-primary: #e8e8ed;
-					--text-secondary: #8e8e96;
-					--text-muted: #5a5a62;
+					--bg-primary: #09090b;
+					--bg-surface: #111113;
+					--bg-elevated: #1a1a1e;
+					--border: #27272a;
+					--text-primary: #e4e4e7;
+					--text-secondary: #a1a1aa;
+					--text-muted: #52525b;
+					--accent: #3b82f6;
+					--ease: cubic-bezier(0.4, 0, 0.2, 1);
 				}
 
 				@media (prefers-color-scheme: light) {
 					:root {
 						--bg-primary: #fafafa;
 						--bg-surface: #ffffff;
+						--bg-elevated: #f4f4f5;
 						--border: #d4d4d8;
-						--text-primary: #18181b;
+						--text-primary: #09090b;
 						--text-secondary: #52525b;
 						--text-muted: #a1a1aa;
+						--accent: #2563eb;
 					}
 				}
 
-				* {
-					margin: 0;
-					padding: 0;
-					box-sizing: border-box;
-				}
+				* { margin: 0; padding: 0; box-sizing: border-box; }
 
 				body {
 					font-family: var(--font-body);
 					font-size: var(--text-base);
-					line-height: 1.5;
+					line-height: 1.6;
 					color: var(--text-primary);
 					background: var(--bg-primary);
 					min-height: 100vh;
@@ -76,14 +108,12 @@ templ Share(media *domain.Media, domain string) {
 					align-items: center;
 					justify-content: center;
 					padding: var(--s-md);
+					-webkit-font-smoothing: antialiased;
 				}
 
-				.container {
-					max-width: 960px;
-					width: 100%;
-				}
+				.container { max-width: 960px; width: 100%; }
 
-				.video-wrapper {
+				.media-wrapper {
 					background: var(--bg-surface);
 					border: 1px solid var(--border);
 					border-radius: var(--radius-lg);
@@ -91,39 +121,115 @@ templ Share(media *domain.Media, domain string) {
 					margin-bottom: var(--s-lg);
 				}
 
-				video {
-					width: 100%;
-					display: block;
+				video, img { width: 100%; display: block; }
+
+				audio { width: 100%; display: block; padding: var(--s-lg); }
+
+				.audio-placeholder {
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					padding: var(--s-xl);
+					color: var(--text-muted);
 				}
 
-				.info {
-					text-align: center;
-				}
+				.info { text-align: center; }
 
 				.info h1 {
-					font-size: var(--text-xl);
+					font-size: var(--text-lg);
 					font-weight: 600;
-					color: var(--text-primary);
-					margin-bottom: var(--s-md);
+					margin-bottom: var(--s-sm);
+					word-break: break-all;
 				}
 
 				.info p {
-					font-size: var(--text-base);
+					font-size: var(--text-sm);
 					color: var(--text-muted);
+				}
+
+				.download-links {
+					display: flex;
+					flex-wrap: wrap;
+					justify-content: center;
+					gap: var(--s-sm);
+					margin-top: var(--s-md);
+				}
+
+				.download-link {
+					display: inline-flex;
+					align-items: center;
+					gap: 0.25rem;
+					padding: 0.375rem 0.75rem;
+					color: var(--text-secondary);
+					text-decoration: none;
+					border: 1px solid var(--border);
+					border-radius: var(--radius-md);
+					font-size: var(--text-xs);
+					font-weight: 500;
+					transition: all 150ms var(--ease);
+				}
+
+				.download-link:hover {
+					color: var(--text-primary);
+					background: var(--bg-elevated);
+					border-color: var(--text-muted);
 				}
 			</style>
 		</head>
 		<body>
 			<div class="container">
-				<div class="video-wrapper">
-					<video controls autoplay>
-						<source src={ "/v/" + media.ID + "/raw" } type={ "video/" + media.Codec }/>
-						Your browser does not support video playback.
-					</video>
+				<div class="media-wrapper">
+					if media.Type == domain.MediaTypeVideo {
+						<video controls autoplay>
+							<source src={ "/v/" + media.ID + "/raw" }/>
+							Your browser does not support video playback.
+						</video>
+					} else if media.Type == domain.MediaTypeImage {
+						<img src={ "/v/" + media.ID + "/raw" } alt={ media.OriginalName }/>
+					} else if media.Type == domain.MediaTypeAudio {
+						<div class="audio-placeholder">
+							<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+								<path d="M9 18V5l12-2v13"></path>
+								<circle cx="6" cy="18" r="3"></circle>
+								<circle cx="18" cy="16" r="3"></circle>
+							</svg>
+						</div>
+						<audio controls autoplay>
+							<source src={ "/v/" + media.ID + "/raw" }/>
+							Your browser does not support audio playback.
+						</audio>
+					}
 				</div>
 				<div class="info">
 					<h1>{ media.OriginalName }</h1>
-					<p>Shared via Sharm • Expires in { fmt.Sprintf("%d", media.RetentionDays) } days</p>
+					<p>Shared via Sharm &bull; Expires in { fmt.Sprintf("%d", media.RetentionDays) } days</p>
+					<div class="download-links">
+						<!-- Original -->
+						<a href={ templ.SafeURL("/v/" + media.ID + "/original") } download class="download-link">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+								<polyline points="7 10 12 15 17 10"></polyline>
+								<line x1="12" y1="15" x2="12" y2="3"></line>
+							</svg>
+							Original
+						</a>
+						<!-- Variant download links -->
+						for _, v := range media.Variants {
+							if v.Status == domain.VariantStatusDone {
+								<a href={ templ.SafeURL("/v/" + media.ID + "/" + string(v.Codec)) } download class="download-link">
+									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+										<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+										<polyline points="7 10 12 15 17 10"></polyline>
+										<line x1="12" y1="15" x2="12" y2="3"></line>
+									</svg>
+									{ codecLabel(v.Codec) }
+									if v.FileSize > 0 {
+										<span style="color:var(--text-muted);">({ formatSize(v.FileSize) })</span>
+									}
+								</a>
+							}
+						}
+					</div>
 				</div>
 			</div>
 		</body>

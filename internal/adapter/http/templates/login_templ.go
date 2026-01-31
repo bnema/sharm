@@ -41,30 +41,51 @@ func Login(errorMsg string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"card\" hx-ext=\"response-targets\"><h1 class=\"text-secondary\" style=\"font-size: var(--text-xl); font-weight: 600; margin-bottom: var(--s-md);\">Sharm</h1><p class=\"text-muted\" style=\"margin-bottom: var(--s-md);\">Enter your password to continue</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div style=\"max-width:360px;margin:var(--s-2xl) auto;\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if errorMsg != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<p class=\"text-error\" style=\"margin-bottom: var(--s-md);\">")
+			templ_7745c5c3_Var3 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+				if !templ_7745c5c3_IsBuffer {
+					defer func() {
+						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+						if templ_7745c5c3_Err == nil {
+							templ_7745c5c3_Err = templ_7745c5c3_BufErr
+						}
+					}()
+				}
+				ctx = templ.InitializeContext(ctx)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div style=\"text-align:center;margin-bottom:var(--s-lg);\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"margin:0 auto var(--s-sm);\"><rect width=\"24\" height=\"24\" rx=\"6\" fill=\"var(--accent)\"></rect> <path d=\"M7.5 15.5C7.5 15.5 9 14 12 14s4.5 1.5 4.5 1.5\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\"></path> <path d=\"M16.5 8.5C16.5 8.5 15 10 12 10S7.5 8.5 7.5 8.5\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\"></path></svg><h1 style=\"font-size:var(--text-lg);font-weight:600;\">Sharm</h1><p class=\"text-muted\" style=\"font-size:var(--text-sm);margin-top:var(--s-xs);\">Enter your password to continue</p></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var3 string
-				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(errorMsg)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/login.templ`, Line: 9, Col: 72}
+				if errorMsg != "" {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div style=\"margin-bottom:var(--s-md);\">")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = Toast(errorMsg, ToastError).Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " <form method=\"post\" action=\"/login\" hx-post=\"/login\" hx-target=\"#login-form\" hx-target-error=\"#error-message\" hx-swap=\"outerHTML\" hx-ext=\"response-targets\"><div id=\"login-form\"><input type=\"password\" name=\"password\" class=\"input\" placeholder=\"Password\" required autofocus> <button type=\"submit\" class=\"button mt-md\" style=\"width:100%;\">Login</button></div></form><div id=\"error-message\" style=\"margin-top:var(--s-md);\"></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
+				return nil
+			})
+			templ_7745c5c3_Err = Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form method=\"post\" action=\"/login\" hx-post=\"/login\" hx-target=\"#login-form\" hx-target-error=\"#error-message\" hx-swap=\"outerHTML\"><div id=\"login-form\"><input type=\"password\" name=\"password\" class=\"input\" placeholder=\"Password\" required autofocus> <button type=\"submit\" class=\"button mt-md\">Login</button></div></form><div id=\"error-message\" class=\"text-error\" style=\"margin-top: var(--s-md);\"></div></div><script>\n\t\t\tdocument.body.addEventListener('htmx:beforeSwap', function(evt) {\n\t\t\t\tif (evt.detail.xhr.status === 401) {\n\t\t\t\t\tevt.detail.shouldSwap = true;\n\t\t\t\t\tevt.detail.isError = false;\n\t\t\t\t}\n\t\t\t});\n\t\t</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><script>\n\t\t\tdocument.body.addEventListener('htmx:beforeSwap', function(evt) {\n\t\t\t\tif (evt.detail.xhr.status === 401) {\n\t\t\t\t\tevt.detail.shouldSwap = true;\n\t\t\t\t\tevt.detail.isError = false;\n\t\t\t\t}\n\t\t\t});\n\t\t</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

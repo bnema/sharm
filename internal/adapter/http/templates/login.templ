@@ -2,19 +2,30 @@ package templates
 
 templ Login(errorMsg string) {
 	@Layout(LayoutProps{Title: "Login — Sharm"}) {
-		<div class="card" hx-ext="response-targets">
-			<h1 class="text-secondary" style="font-size: var(--text-xl); font-weight: 600; margin-bottom: var(--s-md);">Sharm</h1>
-			<p class="text-muted" style="margin-bottom: var(--s-md);">Enter your password to continue</p>
-			if errorMsg != "" {
-				<p class="text-error" style="margin-bottom: var(--s-md);">{ errorMsg }</p>
-			}
-			<form method="post" action="/login" hx-post="/login" hx-target="#login-form" hx-target-error="#error-message" hx-swap="outerHTML">
-				<div id="login-form">
-					<input type="password" name="password" class="input" placeholder="Password" required autofocus/>
-					<button type="submit" class="button mt-md">Login</button>
+		<div style="max-width:360px;margin:var(--s-2xl) auto;">
+			@Card() {
+				<div style="text-align:center;margin-bottom:var(--s-lg);">
+					<svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="margin:0 auto var(--s-sm);">
+						<rect width="24" height="24" rx="6" fill="var(--accent)"></rect>
+						<path d="M7.5 15.5C7.5 15.5 9 14 12 14s4.5 1.5 4.5 1.5" stroke="#fff" stroke-width="2" stroke-linecap="round"></path>
+						<path d="M16.5 8.5C16.5 8.5 15 10 12 10S7.5 8.5 7.5 8.5" stroke="#fff" stroke-width="2" stroke-linecap="round"></path>
+					</svg>
+					<h1 style="font-size:var(--text-lg);font-weight:600;">Sharm</h1>
+					<p class="text-muted" style="font-size:var(--text-sm);margin-top:var(--s-xs);">Enter your password to continue</p>
 				</div>
-			</form>
-			<div id="error-message" class="text-error" style="margin-top: var(--s-md);"></div>
+				if errorMsg != "" {
+					<div style="margin-bottom:var(--s-md);">
+						@Toast(errorMsg, ToastError)
+					</div>
+				}
+				<form method="post" action="/login" hx-post="/login" hx-target="#login-form" hx-target-error="#error-message" hx-swap="outerHTML" hx-ext="response-targets">
+					<div id="login-form">
+						<input type="password" name="password" class="input" placeholder="Password" required autofocus/>
+						<button type="submit" class="button mt-md" style="width:100%;">Login</button>
+					</div>
+				</form>
+				<div id="error-message" style="margin-top:var(--s-md);"></div>
+			}
 		</div>
 		<script>
 			document.body.addEventListener('htmx:beforeSwap', function(evt) {
