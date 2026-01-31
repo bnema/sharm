@@ -2,5 +2,5 @@ package static
 
 import "embed"
 
-//go:embed htmx.min.js
+//go:embed *.js *.svg
 var FS embed.FS
