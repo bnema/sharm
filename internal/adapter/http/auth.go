@@ -75,7 +75,7 @@ func LoginHandler(authSvc AuthService, rateLimiter *ratelimit.LoginRateLimiter, 
 				logger.Info.Printf("login attempt: empty password from %s", clientID)
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.WriteHeader(http.StatusBadRequest)
-				templates.Login("Password is required").Render(r.Context(), w)
+				_ = templates.Login("Password is required").Render(r.Context(), w)
 				return
 			}
 
@@ -85,7 +85,7 @@ func LoginHandler(authSvc AuthService, rateLimiter *ratelimit.LoginRateLimiter, 
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.Header().Set("Retry-After", fmt.Sprintf("%.0f", blockDuration.Seconds()))
 				w.WriteHeader(http.StatusTooManyRequests)
-				templates.Login(fmt.Sprintf("Too many attempts. Try again in %s", formatDuration(blockDuration))).Render(r.Context(), w)
+				_ = templates.Login(fmt.Sprintf("Too many attempts. Try again in %s", formatDuration(blockDuration))).Render(r.Context(), w)
 				return
 			}
 
@@ -103,7 +103,7 @@ func LoginHandler(authSvc AuthService, rateLimiter *ratelimit.LoginRateLimiter, 
 
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.WriteHeader(http.StatusUnauthorized)
-				templates.Login("Invalid password").Render(r.Context(), w)
+				_ = templates.Login("Invalid password").Render(r.Context(), w)
 				return
 			}
 
@@ -139,7 +139,7 @@ func LoginHandler(authSvc AuthService, rateLimiter *ratelimit.LoginRateLimiter, 
 func renderLogin(w http.ResponseWriter, r *http.Request, errorMsg string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	templates.Login(errorMsg).Render(r.Context(), w)
+	_ = templates.Login(errorMsg).Render(r.Context(), w)
 }
 
 func LogoutHandler() http.HandlerFunc {
