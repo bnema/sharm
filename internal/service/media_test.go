@@ -38,11 +38,12 @@ func TestMediaService_Upload_VideoNoCodecs(t *testing.T) {
 		Return(nil).
 		Once()
 
-	mockStore.EXPECT().UpdateDone(mock.AnythingOfType("*domain.Media")).
+	// H264 is auto-injected for video uploads even with no codecs selected
+	mockStore.EXPECT().SaveVariant(mock.AnythingOfType("*domain.Variant")).
 		Return(nil).
 		Once()
 
-	mockJobQueue.EXPECT().Enqueue(mock.AnythingOfType("string"), domain.JobTypeThumbnail, domain.Codec(""), 0).
+	mockJobQueue.EXPECT().Enqueue(mock.AnythingOfType("string"), domain.JobTypeConvert, domain.CodecH264, 0).
 		Return(&domain.Job{}, nil).
 		Once()
 
@@ -52,7 +53,6 @@ func TestMediaService_Upload_VideoNoCodecs(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Equal(t, domain.MediaTypeVideo, result.Type)
 	assert.Equal(t, "test.mp4", result.OriginalName)
-	assert.Equal(t, domain.MediaStatusDone, result.Status)
 	assert.Equal(t, 7, result.RetentionDays)
 	assert.WithinDuration(t, time.Now().AddDate(0, 0, 7), result.ExpiresAt, time.Second)
 

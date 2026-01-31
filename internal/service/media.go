@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/bnema/sharm/internal/domain"
@@ -91,6 +92,11 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 			logger.Error.Printf("failed to update image as done: %v", err)
 		}
 		return media, nil
+	}
+
+	// Ensure H264 is always included for video uploads (Discord/web compat)
+	if mediaType == domain.MediaTypeVideo && !slices.Contains(codecs, domain.CodecH264) {
+		codecs = append(codecs, domain.CodecH264)
 	}
 
 	if len(codecs) == 0 {

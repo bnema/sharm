@@ -47,10 +47,10 @@ func (h *SSEHandler) renderStatusHTML(media *domain.Media) (string, error) {
 	return buf.String(), nil
 }
 
-// renderRowHTML renders a dashboard row for a media item.
+// renderRowHTML renders the inner content of a dashboard row for SSE innerHTML swap.
 func (h *SSEHandler) renderRowHTML(media *domain.Media) (string, error) {
 	var buf bytes.Buffer
-	err := templates.DashboardRow(media, h.domain).Render(context.Background(), &buf)
+	err := templates.DashboardRowContent(media, h.domain).Render(context.Background(), &buf)
 	if err != nil {
 		return "", err
 	}

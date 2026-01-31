@@ -31,6 +31,15 @@ func codecMIME(codec domain.Codec) string {
 	}
 }
 
+func hasH264Done(media *domain.Media) bool {
+	for _, v := range media.Variants {
+		if v.Codec == domain.CodecH264 && v.Status == domain.VariantStatusDone {
+			return true
+		}
+	}
+	return false
+}
+
 templ Share(media *domain.Media, d string) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -38,20 +47,23 @@ templ Share(media *domain.Media, d string) {
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ media.OriginalName } — Sharm</title>
-			if media.Type == domain.MediaTypeVideo {
+			if media.Type == domain.MediaTypeVideo && hasH264Done(media) {
 				<meta property="og:type" content="video.other"/>
-				<meta property="og:video" content={ "https://" + d + "/v/" + media.ID + "/raw.mp4" }/>
-				<meta property="og:video:url" content={ "https://" + d + "/v/" + media.ID + "/raw.mp4" }/>
-				<meta property="og:video:secure_url" content={ "https://" + d + "/v/" + media.ID + "/raw.mp4" }/>
-				<meta property="og:video:type" content={ codecMIME(media.Codec) }/>
+				<meta property="og:video" content={ "https://" + d + "/v/" + media.ID + "/h264" }/>
+				<meta property="og:video:url" content={ "https://" + d + "/v/" + media.ID + "/h264" }/>
+				<meta property="og:video:secure_url" content={ "https://" + d + "/v/" + media.ID + "/h264" }/>
+				<meta property="og:video:type" content="video/mp4"/>
 				<meta property="og:video:width" content={ fmt.Sprintf("%d", media.Width) }/>
 				<meta property="og:video:height" content={ fmt.Sprintf("%d", media.Height) }/>
 				<meta name="twitter:card" content="player"/>
 				<meta name="twitter:player" content={ "https://" + d + "/v/" + media.ID }/>
 				<meta name="twitter:player:width" content={ fmt.Sprintf("%d", media.Width) }/>
 				<meta name="twitter:player:height" content={ fmt.Sprintf("%d", media.Height) }/>
-				<meta name="twitter:player:stream" content={ "https://" + d + "/v/" + media.ID + "/raw.mp4" }/>
-				<meta name="twitter:player:stream:content_type" content={ codecMIME(media.Codec) }/>
+				<meta name="twitter:player:stream" content={ "https://" + d + "/v/" + media.ID + "/h264" }/>
+				<meta name="twitter:player:stream:content_type" content="video/mp4"/>
+			} else if media.Type == domain.MediaTypeVideo {
+				<meta property="og:type" content="video.other"/>
+				<meta name="twitter:card" content="summary_large_image"/>
 			} else if media.Type == domain.MediaTypeImage {
 				<meta property="og:type" content="article"/>
 				<meta property="og:image" content={ "https://" + d + "/v/" + media.ID + "/raw" }/>
@@ -196,6 +208,11 @@ templ Share(media *domain.Media, d string) {
 				<div class="media-wrapper">
 					if media.Type == domain.MediaTypeVideo {
 						<video controls autoplay>
+							for _, v := range media.Variants {
+								if v.Status == domain.VariantStatusDone {
+									<source src={ "/v/" + media.ID + "/" + string(v.Codec) } type={ codecMIME(v.Codec) }/>
+								}
+							}
 							<source src={ "/v/" + media.ID + "/raw" }/>
 							Your browser does not support video playback.
 						</video>

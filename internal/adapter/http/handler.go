@@ -86,12 +86,8 @@ func (h *Handlers) Upload() http.HandlerFunc {
 			return
 		}
 		defer func() {
-			if err := tmpFile.Close(); err != nil {
-				logger.Error.Printf("failed to close temp file: %v", err)
-			}
-			if err := os.Remove(tmpFile.Name()); err != nil {
-				logger.Error.Printf("failed to remove temp file: %v", err)
-			}
+			_ = tmpFile.Close()
+			_ = os.Remove(tmpFile.Name()) // may already be moved by service
 		}()
 
 		if _, err := io.Copy(tmpFile, file); err != nil {
@@ -230,12 +226,8 @@ func (h *Handlers) ProbeUpload() http.HandlerFunc {
 			return
 		}
 		defer func() {
-			if err := tmpFile.Close(); err != nil {
-				logger.Error.Printf("failed to close temp file: %v", err)
-			}
-			if err := os.Remove(tmpFile.Name()); err != nil {
-				logger.Error.Printf("failed to remove temp file: %v", err)
-			}
+			_ = tmpFile.Close()
+			_ = os.Remove(tmpFile.Name()) // may already be moved by service
 		}()
 
 		if _, err := io.Copy(tmpFile, file); err != nil {

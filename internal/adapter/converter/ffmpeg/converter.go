@@ -1,14 +1,18 @@
 package ffmpeg
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/bnema/sharm/internal/port"
 )
+
+const convertTimeout = 30 * time.Minute
 
 type Converter struct{}
 
@@ -60,11 +64,9 @@ func (c *Converter) ConvertCodec(inputPath, outputDir, id string, codec domain.C
 func (c *Converter) convertAV1(inputPath, outputPath string, fps int) error {
 	args := []string{
 		"-i", inputPath,
-		"-c:v", "libaom-av1",
+		"-c:v", "libsvtav1",
 		"-crf", "30",
-		"-b:v", "0",
-		"-cpu-used", "4",
-		"-row-mt", "1",
+		"-preset", "6",
 		"-c:a", "libopus",
 		"-b:a", "128k",
 	}
@@ -72,7 +74,9 @@ func (c *Converter) convertAV1(inputPath, outputPath string, fps int) error {
 		args = append(args, "-r", fmt.Sprintf("%d", fps))
 	}
 	args = append(args, "-y", outputPath)
-	cmd := exec.Command("ffmpeg", args...)
+	ctx, cancel := context.WithTimeout(context.Background(), convertTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	return cmd.Run()
 }
 
@@ -90,7 +94,9 @@ func (c *Converter) convertH264(inputPath, outputPath string, fps int) error {
 		args = append(args, "-r", fmt.Sprintf("%d", fps))
 	}
 	args = append(args, "-y", outputPath)
-	cmd := exec.Command("ffmpeg", args...)
+	ctx, cancel := context.WithTimeout(context.Background(), convertTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	return cmd.Run()
 }
 
@@ -103,7 +109,9 @@ func (c *Converter) convertOpus(inputPath, outputPath string) error {
 		"-y",
 		outputPath,
 	}
-	cmd := exec.Command("ffmpeg", args...)
+	ctx, cancel := context.WithTimeout(context.Background(), convertTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	return cmd.Run()
 }
 
