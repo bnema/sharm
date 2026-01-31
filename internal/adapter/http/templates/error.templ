@@ -1,0 +1,18 @@
+package templates
+
+// ErrorInline renders an error message as an HTMX-swappable fragment.
+// Used for inline error responses from form submissions.
+templ ErrorInline(message string) {
+	@Toast(message, ToastError)
+}
+
+// ErrorPage renders a full-page error (404, 500, etc.)
+templ ErrorPage(code string, message string) {
+	@Layout(LayoutProps{Title: message + " — Sharm"}) {
+		<div style="text-align:center;padding:var(--s-2xl) 0;">
+			<p style="font-size:var(--text-2xl);font-weight:600;font-family:var(--font-mono);color:var(--text-muted);margin-bottom:var(--s-sm);">{ code }</p>
+			<p style="font-size:var(--text-base);color:var(--text-secondary);margin-bottom:var(--s-lg);">{ message }</p>
+			<a href="/" class="button-outline">Back to home</a>
+		</div>
+	}
+}

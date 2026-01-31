@@ -1,0 +1,183 @@
+package templates
+
+import (
+	"fmt"
+	"github.com/bnema/sharm/internal/domain"
+)
+
+func mediaStatusBadge(status domain.MediaStatus) (string, BadgeVariant) {
+	switch status {
+	case domain.MediaStatusDone:
+		return "ready", BadgeSuccess
+	case domain.MediaStatusFailed:
+		return "failed", BadgeError
+	case domain.MediaStatusProcessing:
+		return "processing", BadgeDefault
+	default:
+		return "pending", BadgeMuted
+	}
+}
+
+func mediaTypeLabel(t domain.MediaType) string {
+	switch t {
+	case domain.MediaTypeImage:
+		return "image"
+	case domain.MediaTypeAudio:
+		return "audio"
+	default:
+		return "video"
+	}
+}
+
+func variantStatusBadge(status domain.VariantStatus) (string, BadgeVariant) {
+	switch status {
+	case domain.VariantStatusDone:
+		return "done", BadgeSuccess
+	case domain.VariantStatusFailed:
+		return "failed", BadgeError
+	case domain.VariantStatusProcessing:
+		return "converting", BadgeDefault
+	default:
+		return "queued", BadgeMuted
+	}
+}
+
+templ Dashboard(media []*domain.Media, domainName string) {
+	@Layout(LayoutProps{Title: "Library — Sharm", ShowNav: true, ActiveRoute: "dashboard"}) {
+		@ConfirmDialog()
+		@CardHeader("Library") {
+			<a href="/upload" class="button" style="font-size:var(--text-xs);padding:0.25rem 0.75rem;">
+				@IconUpload()
+				Upload
+			</a>
+		}
+		if len(media) == 0 {
+			@Card() {
+				@EmptyState("No media yet. Upload something to get started.")
+			}
+		} else {
+			<div id="media-list" style="display:flex;flex-direction:column;gap:1px;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+				for _, m := range media {
+					@DashboardRow(m, domainName)
+				}
+			</div>
+			<script>
+				// Show empty state when last row is deleted
+				document.body.addEventListener('htmx:afterRequest', function(e) {
+					if (e.detail.requestConfig.verb !== 'delete') return;
+					const list = document.getElementById('media-list');
+					if (list && list.children.length === 0) {
+						list.outerHTML = '<div class="card"><div style="text-align:center;padding:var(--s-2xl) var(--s-md);"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1" style="margin:0 auto var(--s-md);"><rect x="3" y="3" width="18" height="18" rx="3"></rect><path d="M12 8v4m0 4h.01"></path></svg><p style="color:var(--text-muted);font-size:var(--text-sm);">No media yet. Upload something to get started.</p></div></div>';
+					}
+				});
+			</script>
+		}
+	}
+}
+
+// DashboardRow renders a single media row. For pending/processing items,
+// it connects via SSE to auto-update when status changes.
+templ DashboardRow(m *domain.Media, domainName string) {
+	if m.Status == domain.MediaStatusPending || m.Status == domain.MediaStatusProcessing {
+		<div
+			id={ "row-" + m.ID }
+			hx-ext="sse"
+			sse-connect={ "/events/" + m.ID }
+			sse-swap="row"
+			hx-swap="outerHTML"
+			style="display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);"
+		>
+			@dashboardRowContent(m, domainName)
+		</div>
+	} else {
+		<div id={ "row-" + m.ID } style="display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);">
+			@dashboardRowContent(m, domainName)
+		</div>
+	}
+}
+
+templ dashboardRowContent(m *domain.Media, domainName string) {
+	<!-- Type icon -->
+	<div style="flex-shrink:0;color:var(--text-muted);">
+		if m.Type == domain.MediaTypeVideo {
+			@IconVideo()
+		} else if m.Type == domain.MediaTypeAudio {
+			@IconMusic()
+		} else {
+			@IconImage()
+		}
+	</div>
+	<!-- Name + meta -->
+	<div style="flex:1;min-width:0;">
+		<div style="display:flex;align-items:center;gap:var(--s-sm);">
+			if m.Status == domain.MediaStatusDone {
+				<a href={ templ.SafeURL("/v/" + m.ID) } style="font-size:var(--text-sm);color:var(--text-primary);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{ m.OriginalName }</a>
+			} else {
+				<span style="font-size:var(--text-sm);color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{ m.OriginalName }</span>
+			}
+			@Badge(mediaStatusBadge(m.Status))
+			if m.Status == domain.MediaStatusProcessing {
+				@Spinner()
+			}
+		</div>
+		<div style="display:flex;align-items:center;gap:var(--s-sm);margin-top:2px;flex-wrap:wrap;">
+			<span class="text-muted" style="font-size:var(--text-xs);">{ mediaTypeLabel(m.Type) }</span>
+			if m.FileSize > 0 {
+				<span class="text-muted" style="font-size:var(--text-xs);">&bull;</span>
+				<span class="text-muted" style="font-size:var(--text-xs);">{ formatSize(m.FileSize) }</span>
+			}
+			<span class="text-muted" style="font-size:var(--text-xs);">&bull;</span>
+			<span class="text-muted" style="font-size:var(--text-xs);">{ fmt.Sprintf("%dd left", m.RetentionDays) }</span>
+			<!-- Variant status badges -->
+			for _, v := range m.Variants {
+				<span class="text-muted" style="font-size:var(--text-xs);">&bull;</span>
+				<span style="display:inline-flex;align-items:center;gap:2px;">
+					@Badge(variantStatusBadge(v.Status))
+					<span class="text-muted" style="font-size:var(--text-xs);">{ codecLabel(v.Codec) }</span>
+					if v.Status == domain.VariantStatusProcessing {
+						@Spinner()
+					}
+				</span>
+			}
+		</div>
+	</div>
+	<!-- Actions -->
+	<div style="display:flex;align-items:center;gap:var(--s-xs);flex-shrink:0;">
+		if m.Status == domain.MediaStatusDone {
+			<button
+				onclick={ copyToClipboard(fmt.Sprintf("https://%s/v/%s", domainName, m.ID)) }
+				class="button-ghost"
+				title="Copy link"
+			>
+				@IconCopy()
+			</button>
+			<a href={ templ.SafeURL("/v/" + m.ID + "/raw") } download class="button-ghost" title="Download">
+				@IconDownload()
+			</a>
+		}
+		<button
+			hx-delete={ "/media/" + m.ID }
+			hx-target={ "#row-" + m.ID }
+			hx-swap="delete"
+			hx-confirm="Delete this file?"
+			class="button-danger"
+			title="Delete"
+			style="padding:0.375rem 0.5rem;"
+		>
+			@IconTrash()
+		</button>
+	</div>
+}
+
+func formatSize(bytes int64) string {
+	if bytes < 1024 {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	if bytes < 1024*1024 {
+		return fmt.Sprintf("%.1f KB", float64(bytes)/1024)
+	}
+	if bytes < 1024*1024*1024 {
+		return fmt.Sprintf("%.1f MB", float64(bytes)/(1024*1024))
+	}
+	return fmt.Sprintf("%.1f GB", float64(bytes)/(1024*1024*1024))
+}
