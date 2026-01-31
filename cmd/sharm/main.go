@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"github.com/bnema/sharm/config"
 	"github.com/bnema/sharm/internal/adapter/converter/ffmpeg"
 	HTTPAdapter "github.com/bnema/sharm/internal/adapter/http"
-	"github.com/bnema/sharm/internal/adapter/storage/jsonfile"
+	sqlitestore "github.com/bnema/sharm/internal/adapter/storage/sqlite"
 	"github.com/bnema/sharm/internal/infrastructure/logger"
 	"github.com/bnema/sharm/internal/service"
 )
@@ -30,42 +31,77 @@ func main() {
 		os.Exit(1)
 	}
 
-	store, err := jsonfile.NewStore(cfg.DataDir)
+	store, err := sqlitestore.NewStore(cfg.DataDir)
 	if err != nil {
 		logger.Error.Printf("failed to create store: %v", err)
 		os.Exit(1)
 	}
+	defer func() { _ = store.Close() }()
 
 	converter := ffmpeg.NewConverter()
+	jobQueue := sqlitestore.NewJobQueue(store)
+	eventBus := service.NewEventBus()
 
-	mediaSvc := service.NewMediaService(store, converter, cfg.DataDir)
-
+	mediaSvc := service.NewMediaService(store, converter, jobQueue, cfg.DataDir)
 	authSvc := service.NewAuthService(cfg.AuthSecret)
 
-	server := HTTPAdapter.NewServer(authSvc, mediaSvc, cfg.Domain, cfg.MaxUploadSizeMB)
+	// Worker pool for async jobs (conversion, thumbnails)
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
 
+	workerPool := service.NewWorkerPool(jobQueue, store, converter, eventBus, cfg.DataDir, 2)
+	workerPool.Start(workerCtx)
+
+	server := HTTPAdapter.NewServer(authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB)
+
+	// Periodic cleanup of expired media
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
-		for range ticker.C {
-			if err := mediaSvc.Cleanup(); err != nil {
-				logger.Error.Printf("cleanup failed: %v", err)
+		for {
+			select {
+			case <-ticker.C:
+				if err := mediaSvc.Cleanup(); err != nil {
+					logger.Error.Printf("cleanup failed: %v", err)
+				}
+			case <-workerCtx.Done():
+				return
 			}
 		}
 	}()
 
 	addr := fmt.Sprintf(":%d", cfg.Port)
-	logger.Info.Printf("server listening on %s", addr)
+	httpServer := &http.Server{
+		Addr:         addr,
+		Handler:      server,
+		ReadTimeout:  5 * time.Minute,
+		WriteTimeout: 10 * time.Minute,
+		IdleTimeout:  120 * time.Second,
+	}
 
+	// Graceful shutdown
 	go func() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-		<-sigChan
-		logger.Info.Printf("shutdown signal received")
-		os.Exit(0)
+		sig := <-sigChan
+		logger.Info.Printf("received %s, shutting down", sig)
+
+		// Stop accepting new requests
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer shutdownCancel()
+
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			logger.Error.Printf("http shutdown error: %v", err)
+		}
+
+		// Stop workers (lets in-flight jobs finish)
+		workerCancel()
+
+		logger.Info.Printf("shutdown complete")
 	}()
 
-	if err := http.ListenAndServe(addr, server); err != nil {
+	logger.Info.Printf("server listening on %s", addr)
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error.Printf("server failed: %v", err)
 		os.Exit(1)
 	}

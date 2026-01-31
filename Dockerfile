@@ -28,6 +28,9 @@ RUN addgroup -g 1000 appuser && \
     adduser -D -u 1000 -G appuser appuser
 
 # Data directory structure (persisted via volume)
+# uploads/ - original uploaded files
+# converted/ - transcoded media files
+# sharm.db - SQLite database (WAL mode)
 RUN mkdir -p /data/uploads /data/converted && \
     chown -R appuser:appuser /data
 
@@ -44,7 +47,7 @@ ENV PORT=7890 \
 
 EXPOSE 7890
 
-# Mount point: contains uploads/, converted/, and media.json
+# Mount point: contains uploads/, converted/, and sharm.db
 VOLUME ["/data"]
 
 ENTRYPOINT ["sharm"]

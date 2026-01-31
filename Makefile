@@ -60,10 +60,13 @@ deps:
 	$(GOMOD) download
 	$(GOMOD) tidy
 
-## generate: Generate code (templ, mocks)
+## generate: Generate code (sqlc, templ, mocks)
 .PHONY: generate
 generate:
-	$(info Generating code...)
+	$(info Generating sqlc code...)
+	@command -v sqlc >/dev/null 2>&1 || { echo "sqlc not found. Install with: go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest"; exit 1; }
+	sqlc generate
+	$(info Generating templ code...)
 	@command -v templ >/dev/null 2>&1 || { echo "templ not found. Install with: go install github.com/a-h/templ/cmd/templ@latest"; exit 1; }
 	templ generate
 	$(info Generating mocks...)
