@@ -22,9 +22,9 @@ func (c *Converter) Convert(inputPath, outputDir, id string) (outputPath string,
 	webmPath := basePath + ".webm"
 	mp4Path := basePath + ".mp4"
 
-	err = c.convertAV1(inputPath, webmPath)
+	err = c.convertAV1(inputPath, webmPath, 0)
 	if err != nil {
-		err = c.convertH264(inputPath, mp4Path)
+		err = c.convertH264(inputPath, mp4Path, 0)
 		if err != nil {
 			return "", "", fmt.Errorf("both AV1 and H264 conversion failed: %w", err)
 		}
@@ -34,7 +34,30 @@ func (c *Converter) Convert(inputPath, outputDir, id string) (outputPath string,
 	return webmPath, string(domain.CodecAV1), nil
 }
 
-func (c *Converter) convertAV1(inputPath, outputPath string) error {
+func (c *Converter) ConvertCodec(inputPath, outputDir, id string, codec domain.Codec, fps int) (outputPath string, err error) {
+	basePath := filepath.Join(outputDir, id)
+
+	switch codec {
+	case domain.CodecAV1:
+		outputPath = basePath + "_av1.webm"
+		err = c.convertAV1(inputPath, outputPath, fps)
+	case domain.CodecH264:
+		outputPath = basePath + "_h264.mp4"
+		err = c.convertH264(inputPath, outputPath, fps)
+	case domain.CodecOpus:
+		outputPath = basePath + "_opus.ogg"
+		err = c.convertOpus(inputPath, outputPath)
+	default:
+		return "", fmt.Errorf("unsupported codec: %s", codec)
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("convert to %s: %w", codec, err)
+	}
+	return outputPath, nil
+}
+
+func (c *Converter) convertAV1(inputPath, outputPath string, fps int) error {
 	args := []string{
 		"-i", inputPath,
 		"-c:v", "libaom-av1",
@@ -44,14 +67,16 @@ func (c *Converter) convertAV1(inputPath, outputPath string) error {
 		"-row-mt", "1",
 		"-c:a", "libopus",
 		"-b:a", "128k",
-		"-y",
-		outputPath,
 	}
+	if fps > 0 {
+		args = append(args, "-r", fmt.Sprintf("%d", fps))
+	}
+	args = append(args, "-y", outputPath)
 	cmd := exec.Command("ffmpeg", args...)
 	return cmd.Run()
 }
 
-func (c *Converter) convertH264(inputPath, outputPath string) error {
+func (c *Converter) convertH264(inputPath, outputPath string, fps int) error {
 	args := []string{
 		"-i", inputPath,
 		"-c:v", "libx264",
@@ -60,6 +85,21 @@ func (c *Converter) convertH264(inputPath, outputPath string) error {
 		"-c:a", "aac",
 		"-b:a", "128k",
 		"-movflags", "+faststart",
+	}
+	if fps > 0 {
+		args = append(args, "-r", fmt.Sprintf("%d", fps))
+	}
+	args = append(args, "-y", outputPath)
+	cmd := exec.Command("ffmpeg", args...)
+	return cmd.Run()
+}
+
+func (c *Converter) convertOpus(inputPath, outputPath string) error {
+	args := []string{
+		"-i", inputPath,
+		"-c:a", "libopus",
+		"-b:a", "128k",
+		"-vn",
 		"-y",
 		outputPath,
 	}
