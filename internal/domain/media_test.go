@@ -48,7 +48,7 @@ func TestNewMedia(t *testing.T) {
 			assert.Equal(t, tt.mediaType, media.Type, "Type should match")
 			assert.Equal(t, tt.originalName, media.OriginalName, "OriginalName should match")
 			assert.Equal(t, tt.originalPath, media.OriginalPath, "OriginalPath should match")
-			assert.Equal(t, MediaStatusConverting, media.Status, "Status should be converting")
+			assert.Equal(t, MediaStatusPending, media.Status, "Status should be converting")
 			assert.Equal(t, tt.retentionDays, media.RetentionDays, "RetentionDays should match")
 
 			expectedExpiry := media.CreatedAt.AddDate(0, 0, tt.retentionDays)

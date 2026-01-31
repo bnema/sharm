@@ -3,6 +3,8 @@ package domain
 import (
 	"crypto/rand"
 	"encoding/base32"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -17,7 +19,8 @@ const (
 type MediaStatus string
 
 const (
-	MediaStatusConverting MediaStatus = "converting"
+	MediaStatusPending    MediaStatus = "pending"
+	MediaStatusProcessing MediaStatus = "processing"
 	MediaStatusDone       MediaStatus = "done"
 	MediaStatusFailed     MediaStatus = "failed"
 )
@@ -27,7 +30,30 @@ type Codec string
 const (
 	CodecAV1  Codec = "av1"
 	CodecH264 Codec = "h264"
+	CodecOpus Codec = "opus"
 )
+
+type VariantStatus string
+
+const (
+	VariantStatusPending    VariantStatus = "pending"
+	VariantStatusProcessing VariantStatus = "processing"
+	VariantStatusDone       VariantStatus = "done"
+	VariantStatusFailed     VariantStatus = "failed"
+)
+
+type Variant struct {
+	ID           int64         `json:"id"`
+	MediaID      string        `json:"media_id"`
+	Codec        Codec         `json:"codec"`
+	Path         string        `json:"path"`
+	FileSize     int64         `json:"file_size"`
+	Width        int           `json:"width"`
+	Height       int           `json:"height"`
+	Status       VariantStatus `json:"status"`
+	ErrorMessage string        `json:"error_message"`
+	CreatedAt    time.Time     `json:"created_at"`
+}
 
 type Media struct {
 	ID            string      `json:"id"`
@@ -45,6 +71,7 @@ type Media struct {
 	ThumbPath     string      `json:"thumb_path"`
 	CreatedAt     time.Time   `json:"created_at"`
 	ExpiresAt     time.Time   `json:"expires_at"`
+	Variants      []Variant   `json:"variants"`
 }
 
 func NewMedia(mediaType MediaType, originalName, originalPath string, retentionDays int) *Media {
@@ -55,7 +82,7 @@ func NewMedia(mediaType MediaType, originalName, originalPath string, retentionD
 		Type:          mediaType,
 		OriginalName:  originalName,
 		OriginalPath:  originalPath,
-		Status:        MediaStatusConverting,
+		Status:        MediaStatusPending,
 		RetentionDays: retentionDays,
 		CreatedAt:     time.Now(),
 		ExpiresAt:     time.Now().AddDate(0, 0, retentionDays),
@@ -87,4 +114,66 @@ func (m *Media) MarkAsDone(convertedPath string, codec Codec, width, height int,
 func (m *Media) MarkAsFailed(err error) {
 	m.Status = MediaStatusFailed
 	m.ErrorMessage = err.Error()
+}
+
+// AllVariantsTerminal returns true if every variant has reached a terminal state (done or failed).
+func (m *Media) AllVariantsTerminal() bool {
+	for _, v := range m.Variants {
+		if v.Status != VariantStatusDone && v.Status != VariantStatusFailed {
+			return false
+		}
+	}
+	return true
+}
+
+// HasDoneVariant returns true if at least one variant completed successfully.
+func (m *Media) HasDoneVariant() bool {
+	for _, v := range m.Variants {
+		if v.Status == VariantStatusDone {
+			return true
+		}
+	}
+	return false
+}
+
+// BestVariant returns the first done variant, or nil if none.
+func (m *Media) BestVariant() *Variant {
+	for i := range m.Variants {
+		if m.Variants[i].Status == VariantStatusDone {
+			return &m.Variants[i]
+		}
+	}
+	return nil
+}
+
+// VariantByCodec returns the variant for a given codec, or nil.
+func (m *Media) VariantByCodec(codec Codec) *Variant {
+	for i := range m.Variants {
+		if m.Variants[i].Codec == codec {
+			return &m.Variants[i]
+		}
+	}
+	return nil
+}
+
+var imageExts = map[string]bool{
+	".jpg": true, ".jpeg": true, ".png": true, ".gif": true,
+	".webp": true, ".svg": true, ".bmp": true, ".ico": true,
+}
+
+var audioExts = map[string]bool{
+	".mp3": true, ".wav": true, ".ogg": true, ".flac": true,
+	".aac": true, ".m4a": true, ".wma": true, ".opus": true,
+}
+
+func DetectMediaType(filename string) MediaType {
+	ext := strings.ToLower(filepath.Ext(filename))
+	if imageExts[ext] {
+		return MediaTypeImage
+	}
+	if audioExts[ext] {
+		return MediaTypeAudio
+	}
+	// Default to video for known video extensions or unknown types
+	return MediaTypeVideo
 }
