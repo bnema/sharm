@@ -18,6 +18,19 @@ func codecLabel(codec domain.Codec) string {
 	}
 }
 
+func codecMIME(codec domain.Codec) string {
+	switch codec {
+	case domain.CodecAV1:
+		return "video/webm"
+	case domain.CodecH264:
+		return "video/mp4"
+	case domain.CodecOpus:
+		return "audio/ogg"
+	default:
+		return "video/mp4"
+	}
+}
+
 templ Share(media *domain.Media, d string) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -27,16 +40,18 @@ templ Share(media *domain.Media, d string) {
 			<title>{ media.OriginalName } — Sharm</title>
 			if media.Type == domain.MediaTypeVideo {
 				<meta property="og:type" content="video.other"/>
-				<meta property="og:video" content={ "https://" + d + "/v/" + media.ID + "/raw" }/>
-				<meta property="og:video:url" content={ "https://" + d + "/v/" + media.ID + "/raw" }/>
-				<meta property="og:video:secure_url" content={ "https://" + d + "/v/" + media.ID + "/raw" }/>
-				<meta property="og:video:type" content={ "video/" + string(media.Codec) }/>
+				<meta property="og:video" content={ "https://" + d + "/v/" + media.ID + "/raw.mp4" }/>
+				<meta property="og:video:url" content={ "https://" + d + "/v/" + media.ID + "/raw.mp4" }/>
+				<meta property="og:video:secure_url" content={ "https://" + d + "/v/" + media.ID + "/raw.mp4" }/>
+				<meta property="og:video:type" content={ codecMIME(media.Codec) }/>
 				<meta property="og:video:width" content={ fmt.Sprintf("%d", media.Width) }/>
 				<meta property="og:video:height" content={ fmt.Sprintf("%d", media.Height) }/>
 				<meta name="twitter:card" content="player"/>
-				<meta name="twitter:player" content={ "https://" + d + "/v/" + media.ID + "/raw" }/>
+				<meta name="twitter:player" content={ "https://" + d + "/v/" + media.ID }/>
 				<meta name="twitter:player:width" content={ fmt.Sprintf("%d", media.Width) }/>
 				<meta name="twitter:player:height" content={ fmt.Sprintf("%d", media.Height) }/>
+				<meta name="twitter:player:stream" content={ "https://" + d + "/v/" + media.ID + "/raw.mp4" }/>
+				<meta name="twitter:player:stream:content_type" content={ codecMIME(media.Codec) }/>
 			} else if media.Type == domain.MediaTypeImage {
 				<meta property="og:type" content="article"/>
 				<meta property="og:image" content={ "https://" + d + "/v/" + media.ID + "/raw" }/>

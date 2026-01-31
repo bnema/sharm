@@ -112,6 +112,94 @@ func TestMedia_MarkAsDone(t *testing.T) {
 	assert.Equal(t, fileSize, media.FileSize, "FileSize should match")
 }
 
+func TestMedia_BestVariantForAccept(t *testing.T) {
+	av1Done := Variant{Codec: CodecAV1, Status: VariantStatusDone, Path: "/v/av1.webm"}
+	h264Done := Variant{Codec: CodecH264, Status: VariantStatusDone, Path: "/v/h264.mp4"}
+	h264Pending := Variant{Codec: CodecH264, Status: VariantStatusPending, Path: "/v/h264.mp4"}
+
+	tests := []struct {
+		name     string
+		variants []Variant
+		accept   string
+		wantPath string
+		wantNil  bool
+	}{
+		{
+			name:     "empty accept falls back to first done variant",
+			variants: []Variant{h264Done, av1Done},
+			accept:   "",
+			wantPath: h264Done.Path,
+		},
+		{
+			name:     "wildcard returns AV1 preferred",
+			variants: []Variant{h264Done, av1Done},
+			accept:   "*/*",
+			wantPath: av1Done.Path,
+		},
+		{
+			name:     "video/mp4 only returns H264",
+			variants: []Variant{av1Done, h264Done},
+			accept:   "video/mp4",
+			wantPath: h264Done.Path,
+		},
+		{
+			name:     "video/webm only returns AV1",
+			variants: []Variant{av1Done, h264Done},
+			accept:   "video/webm",
+			wantPath: av1Done.Path,
+		},
+		{
+			name:     "webm preferred over mp4 by q value",
+			variants: []Variant{av1Done, h264Done},
+			accept:   "video/webm, video/mp4;q=0.9",
+			wantPath: av1Done.Path,
+		},
+		{
+			name:     "mp4 preferred over webm by q value",
+			variants: []Variant{av1Done, h264Done},
+			accept:   "video/mp4, video/webm;q=0.5",
+			wantPath: h264Done.Path,
+		},
+		{
+			name:     "no matching variant returns nil",
+			variants: []Variant{av1Done},
+			accept:   "video/mp4",
+			wantNil:  true,
+		},
+		{
+			name:     "only one done variant returned regardless of accept",
+			variants: []Variant{h264Done, h264Pending},
+			accept:   "video/webm, video/mp4",
+			wantPath: h264Done.Path,
+		},
+		{
+			name:     "video wildcard matches all video types",
+			variants: []Variant{av1Done, h264Done},
+			accept:   "video/*",
+			wantPath: av1Done.Path,
+		},
+		{
+			name:     "no done variants returns nil",
+			variants: []Variant{h264Pending},
+			accept:   "video/mp4",
+			wantNil:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			media := &Media{Variants: tt.variants}
+			got := media.BestVariantForAccept(tt.accept)
+			if tt.wantNil {
+				assert.Nil(t, got)
+			} else {
+				assert.NotNil(t, got)
+				assert.Equal(t, tt.wantPath, got.Path)
+			}
+		})
+	}
+}
+
 func TestMedia_MarkAsFailed(t *testing.T) {
 	media := NewMedia(MediaTypeVideo, "test.mp4", "/uploads/test.mp4", 7)
 

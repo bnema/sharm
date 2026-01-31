@@ -5,6 +5,7 @@ import (
 	"encoding/base32"
 	"encoding/json"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -146,6 +147,113 @@ func (m *Media) BestVariant() *Variant {
 		}
 	}
 	return nil
+}
+
+// codecMIME maps codecs to their MIME types.
+var codecMIME = map[Codec]string{
+	CodecAV1:  "video/webm",
+	CodecH264: "video/mp4",
+	CodecOpus: "audio/ogg",
+}
+
+// codecPriority defines tie-break order (lower = preferred).
+var codecPriority = map[Codec]int{
+	CodecAV1:  0,
+	CodecH264: 1,
+	CodecOpus: 2,
+}
+
+type acceptEntry struct {
+	mime string
+	q    float64
+}
+
+// parseAccept parses an HTTP Accept header value into a slice of entries.
+func parseAccept(header string) []acceptEntry {
+	var entries []acceptEntry
+	for _, part := range strings.Split(header, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		mime := part
+		q := 1.0
+		if idx := strings.Index(part, ";"); idx != -1 {
+			mime = strings.TrimSpace(part[:idx])
+			params := strings.TrimSpace(part[idx+1:])
+			if strings.HasPrefix(params, "q=") {
+				if v, err := strconv.ParseFloat(params[2:], 64); err == nil {
+					q = v
+				}
+			}
+		}
+		entries = append(entries, acceptEntry{mime: mime, q: q})
+	}
+	return entries
+}
+
+// BestVariantForAccept returns the best done variant matching the given Accept
+// header. Falls back to BestVariant() when Accept is empty or contains */*.
+func (m *Media) BestVariantForAccept(accept string) *Variant {
+	accept = strings.TrimSpace(accept)
+	if accept == "" {
+		return m.BestVariant()
+	}
+
+	entries := parseAccept(accept)
+
+	type candidate struct {
+		variant *Variant
+		q       float64
+		prio    int
+	}
+	var candidates []candidate
+
+	for i := range m.Variants {
+		v := &m.Variants[i]
+		if v.Status != VariantStatusDone {
+			continue
+		}
+		mime, ok := codecMIME[v.Codec]
+		if !ok {
+			continue
+		}
+		// Find the best matching accept entry for this variant
+		bestQ := -1.0
+		for _, e := range entries {
+			if e.mime == "*/*" || e.mime == mime {
+				if e.q > bestQ {
+					bestQ = e.q
+				}
+			}
+			// Handle type wildcards like video/* or audio/*
+			if strings.HasSuffix(e.mime, "/*") {
+				prefix := strings.TrimSuffix(e.mime, "*")
+				if strings.HasPrefix(mime, prefix) && e.q > bestQ {
+					bestQ = e.q
+				}
+			}
+		}
+		if bestQ >= 0 {
+			candidates = append(candidates, candidate{
+				variant: v,
+				q:       bestQ,
+				prio:    codecPriority[v.Codec],
+			})
+		}
+	}
+
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	best := candidates[0]
+	for _, c := range candidates[1:] {
+		if c.q > best.q || (c.q == best.q && c.prio < best.prio) {
+			best = c
+		}
+	}
+	return best.variant
 }
 
 // VariantByCodec returns the variant for a given codec, or nil.

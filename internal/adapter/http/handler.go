@@ -297,7 +297,7 @@ func (h *Handlers) Media() http.HandlerFunc {
 		}
 
 		switch suffix {
-		case "raw":
+		case "raw", "raw.mp4":
 			h.ServeRaw()(w, r)
 		case "thumb":
 			h.ServeThumb()(w, r)
@@ -378,6 +378,7 @@ func (h *Handlers) ServeRaw() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/v/")
 		id = strings.TrimSuffix(id, "/raw")
+		id = strings.TrimSuffix(id, "/raw.mp4")
 		id = strings.TrimSuffix(id, "/")
 
 		media, err := h.mediaSvc.Get(id)
@@ -387,7 +388,7 @@ func (h *Handlers) ServeRaw() http.HandlerFunc {
 		}
 
 		// Serve best available: first done variant, then converted path, then original
-		if v := media.BestVariant(); v != nil && v.Path != "" {
+		if v := media.BestVariantForAccept(r.Header.Get("Accept")); v != nil && v.Path != "" {
 			mimeType := codecMIMEType(v.Codec, media.Type)
 			w.Header().Set("Content-Type", mimeType)
 			w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", media.OriginalName))
