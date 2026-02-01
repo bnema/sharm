@@ -1,0 +1,158 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    # Standard
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+    # Quality
+    - bodyclose
+    - copyloopvar
+    - dupl
+    - errorlint
+    - funlen
+    - goconst
+    - gocritic
+    - gocyclo
+    - mnd
+    - misspell
+    - nolintlint
+    - revive
+    - unconvert
+    - unparam
+    - whitespace
+    # Security
+    - gosec
+    # Modern Go
+    - modernize
+    - fatcontext
+    - intrange
+    - exptostd
+    # Line length
+    - lll
+
+  settings:
+    dupl:
+      threshold: 150
+    funlen:
+      lines: -1
+      statements: 50
+    goconst:
+      min-len: 2
+      min-occurrences: 3
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+      disabled-checks:
+        - dupImport
+        - ifElseChain
+        - octalLiteral
+        - whyNoLint
+        - unnamedResult
+        - hugeParam
+    gocyclo:
+      min-complexity: 20
+    mnd:
+      checks:
+        - argument
+        - case
+        - condition
+        - return
+      ignored-numbers:
+        - '0'
+        - '1'
+        - '2'
+        - '3'
+        - '4'
+        - '5'
+        - '10'
+        - '16'
+        - '32'
+        - '64'
+        - '100'
+        - '1000'
+      ignored-functions:
+        - strings.SplitN
+        - make
+        - time.Sleep
+        - time.Duration
+        - strconv.ParseInt
+        - strconv.ParseUint
+        - strconv.ParseFloat
+    govet:
+      enable:
+        - nilness
+        - shadow
+    errorlint:
+      asserts: false
+    lll:
+      line-length: 140
+    misspell:
+      locale: US
+    nolintlint:
+      allow-unused: false
+      require-explanation: true
+      require-specific: true
+    revive:
+      rules:
+        - name: indent-error-flow
+        - name: unused-parameter
+        - name: unused-receiver
+
+  exclusions:
+    generated: lax
+    paths:
+      - vendor
+    rules:
+      # Test files get relaxed rules
+      - path: _test\.go
+        linters:
+          - dupl
+          - mnd
+          - lll
+          - funlen
+          - goconst
+          - errcheck
+          - gosec
+      # Generated sqlc code
+      - path: internal/adapter/storage/sqlite/sqlitedb/
+        linters:
+          - all
+      # Generated templ code
+      - path: _templ\.go
+        linters:
+          - all
+      # Generated mocks
+      - path: internal/port/mocks/
+        linters:
+          - all
+      # gosec: file operations with variables are intentional in media handling
+      - text: "G304:"
+        linters:
+          - gosec
+      # gosec: G104 duplicates errcheck
+      - text: "G104:"
+        linters:
+          - gosec
+
+formatters:
+  enable:
+    - gofmt
+
+issues:
+  max-same-issues: 50
+
+severity:
+  default: error
