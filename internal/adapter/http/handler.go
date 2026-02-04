@@ -577,7 +577,7 @@ func (h *Handlers) ServeOriginal(id string) http.HandlerFunc {
 
 		mimeType := detectOriginalMIMEType(media)
 		w.Header().Set("Content-Type", mimeType)
-		w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", media.OriginalName))
+		w.Header().Set("Content-Disposition", validation.ContentDisposition(media.OriginalName, true))
 		http.ServeFile(w, r, media.OriginalPath)
 	}
 }
@@ -598,7 +598,7 @@ func (h *Handlers) ServeVariant(id string, codec domain.Codec) http.HandlerFunc 
 
 		mimeType := codecMIMEType(codec, media.Type)
 		w.Header().Set("Content-Type", mimeType)
-		w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", variantFilename(media.OriginalName, codec)))
+		w.Header().Set("Content-Disposition", validation.ContentDisposition(variantFilename(media.OriginalName, codec), true))
 		http.ServeFile(w, r, v.Path)
 	}
 }
@@ -620,7 +620,7 @@ func (h *Handlers) ServeRaw() http.HandlerFunc {
 		if v := media.BestVariantForAccept(r.Header.Get("Accept")); v != nil && v.Path != "" {
 			mimeType := codecMIMEType(v.Codec, media.Type)
 			w.Header().Set("Content-Type", mimeType)
-			w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", media.OriginalName))
+			w.Header().Set("Content-Disposition", validation.ContentDisposition(media.OriginalName, true))
 			http.ServeFile(w, r, v.Path)
 			return
 		}
@@ -638,7 +638,7 @@ func (h *Handlers) ServeRaw() http.HandlerFunc {
 
 		mimeType := detectMIMEType(media)
 		w.Header().Set("Content-Type", mimeType)
-		w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", media.OriginalName))
+		w.Header().Set("Content-Disposition", validation.ContentDisposition(media.OriginalName, true))
 		http.ServeFile(w, r, servePath)
 	}
 }
