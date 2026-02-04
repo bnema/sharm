@@ -198,7 +198,7 @@ func (h *Handlers) ChunkUpload() http.HandlerFunc {
 
 func (h *Handlers) CompleteUpload() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := r.ParseForm(); err != nil {
+		if err := r.ParseMultipartForm(1024 * 1024); err != nil {
 			http.Error(w, "Invalid request", http.StatusBadRequest)
 			return
 		}
