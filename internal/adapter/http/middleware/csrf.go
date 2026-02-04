@@ -123,8 +123,8 @@ func (c *CSRFProtection) validateRequest(r *http.Request) bool {
 		return false
 	}
 
-	// Tokens must match
-	if requestToken != cookieToken {
+	// Tokens must match using constant-time comparison
+	if !hmac.Equal([]byte(requestToken), []byte(cookieToken)) {
 		return false
 	}
 
