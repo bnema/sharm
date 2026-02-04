@@ -441,9 +441,100 @@ function updateFpsVisibility() {
 window.handleFileSelect = handleFileSelect;
 
 // =============================================================================
+// Dashboard Page
+// =============================================================================
+
+/**
+ * Initialize dashboard page functionality
+ */
+function initDashboardPage() {
+  // Handle empty media list after delete
+  document.body.addEventListener('htmx:afterRequest', function (e) {
+    // Guard: check that detail and requestConfig exist
+    if (!e.detail || !e.detail.requestConfig) return;
+    if (e.detail.requestConfig.verb !== 'delete') return;
+
+    var list = document.getElementById('media-list');
+    if (list && list.children.length === 0) {
+      list.outerHTML =
+        '<div class="card"><div style="text-align:center;padding:var(--s-2xl) var(--s-md);">' +
+        '<p style="color:var(--text-muted);font-size:var(--text-sm);">No media yet. Upload something to get started.</p></div></div>';
+    }
+  });
+
+  // Handle info dialog opening after swap
+  document.body.addEventListener('htmx:afterSwap', function (e) {
+    // FIX: Guard against missing detail.target (SSE events)
+    if (!e.detail || !e.detail.target) return;
+    if (e.detail.target.id === 'info-dialog-content') {
+      var dialog = document.getElementById('info-dialog');
+      if (dialog) dialog.showModal();
+    }
+  });
+}
+
+// =============================================================================
+// Dialog Utilities
+// =============================================================================
+
+/**
+ * Close dialog when clicking on backdrop
+ * @param {Event} event - Click event
+ * @param {HTMLDialogElement} dialog - Dialog element
+ */
+function closeDialogOnBackdrop(event, dialog) {
+  if (event.target === dialog) {
+    dialog.close();
+  }
+}
+
+// =============================================================================
+// Confirm Dialog (HTMX)
+// =============================================================================
+
+/**
+ * Initialize confirm dialog for HTMX delete confirmations
+ */
+function initConfirmDialog() {
+  var dialog = document.getElementById('confirm-dialog');
+  var msg = document.getElementById('confirm-dialog-msg');
+  if (!dialog || !msg) return;
+
+  var pendingEvt = null;
+
+  document.body.addEventListener('htmx:confirm', function (e) {
+    if (!e.detail || !e.detail.question) return;
+    e.preventDefault();
+    msg.textContent = e.detail.question;
+    pendingEvt = e;
+    dialog.showModal();
+  });
+
+  dialog.addEventListener('close', function () {
+    if (dialog.returnValue === 'confirm' && pendingEvt) {
+      pendingEvt.detail.issueRequest(true);
+    }
+    pendingEvt = null;
+  });
+
+  dialog.addEventListener('click', function (e) {
+    if (e.target === dialog) dialog.close('cancel');
+  });
+}
+
+// =============================================================================
+// Global Exports (for inline handlers)
+// =============================================================================
+
+// @ts-ignore
+window.closeDialogOnBackdrop = closeDialogOnBackdrop;
+
+// =============================================================================
 // Auto-initialization
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', function () {
   initUploadPage();
+  initDashboardPage();
+  initConfirmDialog();
 });

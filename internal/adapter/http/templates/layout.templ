@@ -389,7 +389,7 @@ templ Layout(props LayoutProps) {
 							</form>
 						</div>
 					</nav>
-					<dialog id="password-dialog" style="background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-lg);max-width:400px;width:90vw;font-family:var(--font-body);" onclick="if(event.target===this)this.close()">
+					<dialog id="password-dialog" style="background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-lg);max-width:400px;width:90vw;font-family:var(--font-body);" onclick="closeDialogOnBackdrop(event, this)">
 						<h2 style="font-size:var(--text-sm);font-weight:600;margin-bottom:var(--s-md);">Change Password</h2>
 						@ChangePassword("")
 					</dialog>
@@ -411,6 +411,7 @@ templ Layout(props LayoutProps) {
 						.catch(function(err) { console.error('SW registration failed:', err); });
 				}
 			</script>
+			<script src="/static/app.js"></script>
 		</body>
 	</html>
 }

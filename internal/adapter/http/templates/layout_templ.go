@@ -87,7 +87,7 @@ func Layout(props LayoutProps) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, ">Upload</a> <button class=\"nav-link\" style=\"background:none;border:none;cursor:pointer;font-family:var(--font-body);\" onclick=\"document.getElementById('password-dialog').showModal()\">Change Password</button><form action=\"/logout\" method=\"post\" style=\"display:inline;\"><button type=\"submit\" class=\"nav-link\" style=\"background:none;border:none;cursor:pointer;font-family:var(--font-body);color:var(--error);\">Logout</button></form></div></nav><dialog id=\"password-dialog\" style=\"background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-lg);max-width:400px;width:90vw;font-family:var(--font-body);\" onclick=\"if(event.target===this)this.close()\"><h2 style=\"font-size:var(--text-sm);font-weight:600;margin-bottom:var(--s-md);\">Change Password</h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, ">Upload</a> <button class=\"nav-link\" style=\"background:none;border:none;cursor:pointer;font-family:var(--font-body);\" onclick=\"document.getElementById('password-dialog').showModal()\">Change Password</button><form action=\"/logout\" method=\"post\" style=\"display:inline;\"><button type=\"submit\" class=\"nav-link\" style=\"background:none;border:none;cursor:pointer;font-family:var(--font-body);color:var(--error);\">Logout</button></form></div></nav><dialog id=\"password-dialog\" style=\"background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-lg);max-width:400px;width:90vw;font-family:var(--font-body);\" onclick=\"closeDialogOnBackdrop(event, this)\"><h2 style=\"font-size:var(--text-sm);font-weight:600;margin-bottom:var(--s-md);\">Change Password</h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -110,7 +110,7 @@ func Layout(props LayoutProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><script>\n\t\t\t\tif ('serviceWorker' in navigator) {\n\t\t\t\t\tnavigator.serviceWorker.register('/static/sw.js')\n\t\t\t\t\t\t.catch(function(err) { console.error('SW registration failed:', err); });\n\t\t\t\t}\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><script>\n\t\t\t\tif ('serviceWorker' in navigator) {\n\t\t\t\t\tnavigator.serviceWorker.register('/static/sw.js')\n\t\t\t\t\t\t.catch(function(err) { console.error('SW registration failed:', err); });\n\t\t\t\t}\n\t\t\t</script><script src=\"/static/app.js\"></script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
