@@ -79,8 +79,6 @@ func (s *Server) registerRoutes() {
 
 	s.mux.HandleFunc("POST /upload", AuthMiddleware(s.authSvc, s.handlers.Upload()))
 
-	s.mux.HandleFunc("POST /probe", AuthMiddleware(s.authSvc, s.handlers.ProbeUpload()))
-
 	s.mux.HandleFunc("GET /status/", AuthMiddleware(s.authSvc, s.handlers.StatusPage()))
 
 	s.mux.HandleFunc("GET /events/", AuthMiddleware(s.authSvc, s.sseHandler.Events()))

@@ -124,17 +124,10 @@ templ Upload(version string) {
 					fpsOpts.style.display = 'none';
 				}
 
-				if (probeResult) {
-					probeResult.innerHTML = '<div style="text-align:center;padding:var(--s-md);"><svg width="24" height="24" viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" style="animation:spin 0.8s linear infinite;margin:0 auto;"><circle cx="19" cy="19" r="16" stroke="var(--border)" stroke-width="3" fill="none"/><path d="M34 19a15 15 0 0 1-15 15" stroke="var(--accent)" stroke-width="3" fill="none" stroke-linecap="round"/></svg><span class="text-muted" style="font-size:var(--text-xs);margin-top:var(--s-sm);display:block;">Probing file...</span></div>';
-					const fd = new FormData();
-					fd.append('file', input.files[0]);
-					fetch('/probe', {method:'POST', body:fd}).then(function(resp) {
-						return resp.text();
-					}).then(function(html) {
-						probeResult.innerHTML = html;
-					}).catch(function() {
-						probeResult.innerHTML = '';
-					});
+				if (probeResult && (isVideo || isAudio)) {
+					window._probeClientSide(input.files[0], probeResult);
+				} else if (probeResult) {
+					probeResult.innerHTML = '';
 				}
 			};
 
@@ -148,6 +141,77 @@ templ Upload(version string) {
 			document.querySelectorAll('#codec-av1 input, #codec-h264 input').forEach(function(cb) {
 				cb.addEventListener('change', window._updateFpsVisibility);
 			});
+
+			window._probeClientSide = function(file, container) {
+				const url = URL.createObjectURL(file);
+				const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|flv|wmv|m4v)$/i.test(file.name);
+
+				if (isVideo) {
+					const video = document.createElement('video');
+					video.preload = 'metadata';
+					video.onloadedmetadata = function() {
+						const duration = video.duration;
+						const width = video.videoWidth;
+						const height = video.videoHeight;
+						URL.revokeObjectURL(url);
+
+						const formatDuration = function(sec) {
+							if (!sec || !isFinite(sec)) return 'Unknown';
+							const h = Math.floor(sec / 3600);
+							const m = Math.floor((sec % 3600) / 60);
+							const s = Math.floor(sec % 60);
+							if (h > 0) return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+							return m + ':' + String(s).padStart(2,'0');
+						};
+						const formatSize = function(bytes) {
+							if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
+							if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+							return (bytes / 1024).toFixed(1) + ' KB';
+						};
+
+						container.innerHTML = '<div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--s-sm) var(--s-md);font-size:var(--text-xs);">' +
+							'<div style="display:flex;gap:var(--s-lg);flex-wrap:wrap;">' +
+							'<div><span class="text-muted">Duration:</span> ' + formatDuration(duration) + '</div>' +
+							'<div><span class="text-muted">Resolution:</span> ' + width + '×' + height + '</div>' +
+							'<div><span class="text-muted">Size:</span> ' + formatSize(file.size) + '</div>' +
+							'</div></div>';
+					};
+					video.onerror = function() {
+						URL.revokeObjectURL(url);
+						container.innerHTML = '<div class="text-muted" style="font-size:var(--text-xs);">Unable to read video metadata</div>';
+					};
+					video.src = url;
+				} else {
+					const audio = document.createElement('audio');
+					audio.preload = 'metadata';
+					audio.onloadedmetadata = function() {
+						const duration = audio.duration;
+						URL.revokeObjectURL(url);
+
+						const formatDuration = function(sec) {
+							if (!sec || !isFinite(sec)) return 'Unknown';
+							const m = Math.floor(sec / 60);
+							const s = Math.floor(sec % 60);
+							return m + ':' + String(s).padStart(2,'0');
+						};
+						const formatSize = function(bytes) {
+							if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+							return (bytes / 1024).toFixed(1) + ' KB';
+						};
+
+						container.innerHTML = '<div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--s-sm) var(--s-md);font-size:var(--text-xs);">' +
+							'<div style="display:flex;gap:var(--s-lg);flex-wrap:wrap;">' +
+							'<div><span class="text-muted">Duration:</span> ' + formatDuration(duration) + '</div>' +
+							'<div><span class="text-muted">Size:</span> ' + formatSize(file.size) + '</div>' +
+							'</div></div>';
+					};
+					audio.onerror = function() {
+						URL.revokeObjectURL(url);
+						container.innerHTML = '<div class="text-muted" style="font-size:var(--text-xs);">Unable to read audio metadata</div>';
+					};
+					audio.src = url;
+				}
+			};
 		</script>
 	}
 }
