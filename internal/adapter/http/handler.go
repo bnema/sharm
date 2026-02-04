@@ -82,7 +82,7 @@ func (h *Handlers) Upload() http.HandlerFunc {
 		// Validate file type using magic bytes
 		_, allowed, err := validation.ValidateMagicBytes(file)
 		if err != nil {
-			logger.Error.Printf("magic bytes validation error for %s: %v", header.Filename, err)
+			logger.Error.Printf("magic bytes validation error for %s: %v", logger.SanitizeForLog(header.Filename), err)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = templates.ErrorInline("Failed to validate file type").Render(r.Context(), w)
@@ -134,7 +134,7 @@ func (h *Handlers) Upload() http.HandlerFunc {
 		mediaType := domain.DetectMediaType(header.Filename)
 		_, err = h.mediaSvc.Upload(header.Filename, tmpFile, retentionDays, mediaType, codecs, fps)
 		if err != nil {
-			logger.Error.Printf("upload error for %s: %v", header.Filename, err)
+			logger.Error.Printf("upload error for %s: %v", logger.SanitizeForLog(header.Filename), err)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
 			msg := "Upload failed"
@@ -341,7 +341,7 @@ func (h *Handlers) CompleteUpload() http.HandlerFunc {
 		// Validate assembled file type using magic bytes
 		_, allowed, err := validation.ValidateMagicBytes(assembled)
 		if err != nil {
-			logger.Error.Printf("magic bytes validation error for %s: %v", filename, err)
+			logger.Error.Printf("magic bytes validation error for %s: %v", logger.SanitizeForLog(filename), err)
 			http.Error(w, "Failed to validate file type", http.StatusInternalServerError)
 			return
 		}
@@ -355,7 +355,7 @@ func (h *Handlers) CompleteUpload() http.HandlerFunc {
 		mediaType := domain.DetectMediaType(filename)
 		_, err = h.mediaSvc.Upload(filename, assembled, retentionDays, mediaType, codecs, fps)
 		if err != nil {
-			logger.Error.Printf("upload error for %s: %v", filename, err)
+			logger.Error.Printf("upload error for %s: %v", logger.SanitizeForLog(filename), err)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
 			msg := "Upload failed"
@@ -422,7 +422,7 @@ func (h *Handlers) DeleteMedia() http.HandlerFunc {
 		id = strings.TrimSuffix(id, "/")
 
 		if err := h.mediaSvc.Delete(id); err != nil {
-			logger.Error.Printf("delete error for %s: %v", id, err)
+			logger.Error.Printf("delete error for %s: %v", logger.SanitizeForLog(id), err)
 			http.Error(w, "Delete failed", http.StatusInternalServerError)
 			return
 		}
@@ -476,7 +476,7 @@ func (h *Handlers) ProbeUpload() http.HandlerFunc {
 
 		probeResult, err := h.mediaSvc.ProbeFile(tmpFile.Name())
 		if err != nil {
-			logger.Error.Printf("probe error for %s: %v", header.Filename, err)
+			logger.Error.Printf("probe error for %s: %v", logger.SanitizeForLog(header.Filename), err)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = templates.ErrorInline("Failed to probe file").Render(r.Context(), w)
