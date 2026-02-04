@@ -101,7 +101,7 @@ func TestSecurityHeaders_CSP_ScriptSrc(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	csp := rec.Header().Get("Content-Security-Policy")
-	assert.Contains(t, csp, "script-src 'self' 'unsafe-inline'")
+	assert.Contains(t, csp, "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net")
 }
 
 func TestSecurityHeaders_CSP_StyleSrc(t *testing.T) {
