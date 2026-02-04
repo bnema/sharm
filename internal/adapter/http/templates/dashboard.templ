@@ -90,13 +90,13 @@ templ DashboardRow(m *domain.Media, domainName string) {
 			hx-ext="sse"
 			sse-connect={ "/events/" + m.ID }
 			sse-swap="row"
-			hx-swap="innerHTML"
-			style="display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);"
+			hx-swap="outerHTML"
+			style="display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);width:100%;"
 		>
 			@DashboardRowContent(m, domainName)
 		</div>
 	} else {
-		<div id={ "row-" + m.ID } style="display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);">
+		<div id={ "row-" + m.ID } style="display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);width:100%;">
 			@DashboardRowContent(m, domainName)
 		</div>
 	}

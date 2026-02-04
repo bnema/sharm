@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/bnema/sharm/internal/adapter/http/templates"
 	"github.com/bnema/sharm/internal/domain"
@@ -47,10 +48,10 @@ func (h *SSEHandler) renderStatusHTML(media *domain.Media) (string, error) {
 	return buf.String(), nil
 }
 
-// renderRowHTML renders the inner content of a dashboard row for SSE innerHTML swap.
+// renderRowHTML renders a dashboard row for SSE outerHTML swap.
 func (h *SSEHandler) renderRowHTML(media *domain.Media) (string, error) {
 	var buf bytes.Buffer
-	err := templates.DashboardRowContent(media, h.domain).Render(context.Background(), &buf)
+	err := templates.DashboardRow(media, h.domain).Render(context.Background(), &buf)
 	if err != nil {
 		return "", err
 	}
@@ -86,6 +87,14 @@ func (h *SSEHandler) sendAllEvents(w http.ResponseWriter, media *domain.Media) e
 	return nil
 }
 
+// sendKeepAlive writes an SSE comment to keep the connection active.
+func sendKeepAlive(w http.ResponseWriter) {
+	_, _ = fmt.Fprint(w, ": keep-alive\n\n")
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
 func (h *SSEHandler) Events() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/events/")
@@ -105,10 +114,12 @@ func (h *SSEHandler) Events() http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-Accel-Buffering", "no")
 
-		// If already terminal, send final events and close
+		// If already terminal, send final events and wait for client close
 		if media.Status == domain.MediaStatusDone || media.Status == domain.MediaStatusFailed {
 			_ = h.sendAllEvents(w, media)
+			<-r.Context().Done()
 			return
 		}
 
@@ -120,10 +131,14 @@ func (h *SSEHandler) Events() http.HandlerFunc {
 		defer h.eventBus.Unsubscribe(id, ch)
 
 		ctx := r.Context()
+		keepAlive := time.NewTicker(15 * time.Second)
+		defer keepAlive.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
+			case <-keepAlive.C:
+				sendKeepAlive(w)
 			case event, ok := <-ch:
 				if !ok {
 					return
@@ -135,8 +150,9 @@ func (h *SSEHandler) Events() http.HandlerFunc {
 				}
 				_ = h.sendAllEvents(w, media)
 
-				// Close on terminal states
+				// Let client close connection when terminal
 				if event.Status == string(domain.MediaStatusDone) || event.Status == string(domain.MediaStatusFailed) {
+					<-ctx.Done()
 					return
 				}
 			}

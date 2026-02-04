@@ -77,6 +77,36 @@ function formatSize(bytes) {
   return bytes + ' B';
 }
 
+/**
+ * Read CSRF token from cookie
+ * @returns {string}
+ */
+function getCSRFToken() {
+  if (typeof document === 'undefined') return '';
+  const cookie = document.cookie
+    .split('; ')
+    .find((row) => row.startsWith('csrf_token='));
+  if (!cookie) return '';
+  return cookie.substring('csrf_token='.length);
+}
+
+/**
+ * Ensure POST forms include CSRF token field
+ */
+function attachCSRFToForms() {
+  const token = getCSRFToken();
+  if (!token) return;
+  document.querySelectorAll('form[method="post"]').forEach((form) => {
+    if (!(form instanceof HTMLFormElement)) return;
+    if (form.querySelector('input[name="csrf_token"]')) return;
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'csrf_token';
+    input.value = token;
+    form.appendChild(input);
+  });
+}
+
 // =============================================================================
 // Progress UI
 // =============================================================================
@@ -209,7 +239,10 @@ async function uploadChunk(uploadId, chunkIndex, chunk, maxRetries) {
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const resp = await fetch('/upload/chunk', { method: 'POST', body: fd });
+      const headers = {};
+      const csrfToken = getCSRFToken();
+      if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+      const resp = await fetch('/upload/chunk', { method: 'POST', body: fd, headers });
       if (resp.ok) return true;
       // Don't retry on client errors (4xx) - these won't succeed on retry
       if (resp.status < 500) return false;
@@ -285,7 +318,10 @@ async function chunkedUpload(file, form) {
   }
 
   try {
-    const resp = await fetch('/upload/complete', { method: 'POST', body: fd });
+    const headers = {};
+    const csrfToken = getCSRFToken();
+    if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+    const resp = await fetch('/upload/complete', { method: 'POST', body: fd, headers });
     if (resp.ok) {
       const redirect = resp.headers.get('HX-Redirect');
       if (redirect) {
@@ -534,6 +570,7 @@ window.closeDialogOnBackdrop = closeDialogOnBackdrop;
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', function () {
+  attachCSRFToForms();
   initUploadPage();
   initDashboardPage();
   initConfirmDialog();
