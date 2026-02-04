@@ -397,7 +397,8 @@ templ Layout(props LayoutProps) {
 			</div>
 			<script>
 				if ('serviceWorker' in navigator) {
-					navigator.serviceWorker.register('/static/sw.js');
+					navigator.serviceWorker.register('/static/sw.js')
+						.catch(function(err) { console.error('SW registration failed:', err); });
 				}
 			</script>
 		</body>

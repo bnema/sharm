@@ -33,6 +33,15 @@ const MAX_RETRIES = 3;
  * @returns {string}
  */
 function generateUUID() {
+  // Use crypto.randomUUID() when available (secure contexts)
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID();
+    } catch (_) {
+      // Fall through to fallback
+    }
+  }
+  // Fallback for older browsers or non-secure contexts
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -61,9 +70,11 @@ function formatDuration(sec) {
  * @returns {string}
  */
 function formatSize(bytes) {
+  if (bytes === 0) return '0 B';
   if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
   if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
-  return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return bytes + ' B';
 }
 
 // =============================================================================
@@ -200,10 +211,14 @@ async function uploadChunk(uploadId, chunkIndex, chunk, maxRetries) {
     try {
       const resp = await fetch('/upload/chunk', { method: 'POST', body: fd });
       if (resp.ok) return true;
+      // Don't retry on client errors (4xx) - these won't succeed on retry
+      if (resp.status < 500) return false;
+      // Retry on server errors (5xx)
       if (attempt < maxRetries) {
         await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000));
       }
-    } catch (e) {
+    } catch (_) {
+      // Network error - retry with backoff
       if (attempt < maxRetries) {
         await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000));
       }
@@ -314,9 +329,13 @@ function initUploadPage() {
   const fileInput = form.querySelector('input[name="file"]');
   if (!(fileInput instanceof HTMLInputElement)) return;
 
-  // File selection handler
-  const origOnchange = fileInput.getAttribute('onchange') || '';
-  fileInput.setAttribute('onchange', origOnchange + ';window.handleFileSelect(this)');
+  // File selection handler - use addEventListener instead of mutating onchange attribute
+  if (!fileInput.dataset.listenerAttached) {
+    fileInput.addEventListener('change', function () {
+      window.handleFileSelect(this);
+    });
+    fileInput.dataset.listenerAttached = 'true';
+  }
 
   // Form submit handler
   form.addEventListener('submit', async function (e) {

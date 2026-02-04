@@ -48,7 +48,7 @@ func (m *Media) DaysRemaining() int {
 
 **New Endpoints**:
 
-```
+```text
 POST /upload/chunk
   Form data:
     - uploadId: string (client-generated UUID)
@@ -65,7 +65,8 @@ POST /upload/complete
 ```
 
 **Server Storage**:
-```
+
+```text
 {dataDir}/chunks/{uploadId}/
   ├── 0
   ├── 1

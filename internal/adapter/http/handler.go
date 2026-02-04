@@ -138,6 +138,19 @@ func (h *Handlers) Upload() http.HandlerFunc {
 
 const chunkSize = 5 * 1024 * 1024 // 5MB
 
+// validateUploadID checks that uploadID is a valid UUID-like string (alphanumeric with dashes).
+func validateUploadID(uploadID string) bool {
+	if uploadID == "" || len(uploadID) > 64 {
+		return false
+	}
+	for _, c := range uploadID {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
+			return false
+		}
+	}
+	return true
+}
+
 func (h *Handlers) ChunkUpload() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, chunkSize+1024*1024) // chunk + overhead
@@ -148,18 +161,22 @@ func (h *Handlers) ChunkUpload() http.HandlerFunc {
 		}
 
 		uploadID := r.FormValue("uploadId")
-		chunkIndex := r.FormValue("chunkIndex")
-		if uploadID == "" || chunkIndex == "" {
+		chunkIndexStr := r.FormValue("chunkIndex")
+		if uploadID == "" || chunkIndexStr == "" {
 			http.Error(w, "Missing uploadId or chunkIndex", http.StatusBadRequest)
 			return
 		}
 
-		// Validate uploadID format (should be UUID-like, alphanumeric with dashes)
-		for _, c := range uploadID {
-			if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
-				http.Error(w, "Invalid uploadId format", http.StatusBadRequest)
-				return
-			}
+		if !validateUploadID(uploadID) {
+			http.Error(w, "Invalid uploadId format", http.StatusBadRequest)
+			return
+		}
+
+		// Parse and validate chunkIndex to prevent path traversal
+		chunkIdx, err := strconv.Atoi(chunkIndexStr)
+		if err != nil || chunkIdx < 0 {
+			http.Error(w, "Invalid chunkIndex", http.StatusBadRequest)
+			return
 		}
 
 		file, _, err := r.FormFile("chunk")
@@ -167,23 +184,31 @@ func (h *Handlers) ChunkUpload() http.HandlerFunc {
 			http.Error(w, "Invalid chunk data", http.StatusBadRequest)
 			return
 		}
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				logger.Error.Printf("failed to close chunk file for upload %s chunk %d: %v", uploadID, chunkIdx, err)
+			}
+		}()
 
 		chunkDir := filepath.Join(os.TempDir(), "sharm-chunks", uploadID)
-		if err := os.MkdirAll(chunkDir, 0755); err != nil {
+		if err := os.MkdirAll(chunkDir, 0750); err != nil {
 			logger.Error.Printf("failed to create chunk dir: %v", err)
 			http.Error(w, "Server error", http.StatusInternalServerError)
 			return
 		}
 
-		chunkPath := filepath.Join(chunkDir, chunkIndex)
+		chunkPath := filepath.Join(chunkDir, strconv.Itoa(chunkIdx))
 		out, err := os.Create(chunkPath)
 		if err != nil {
-			logger.Error.Printf("failed to create chunk file: %v", err)
+			logger.Error.Printf("failed to create chunk file %s: %v", chunkPath, err)
 			http.Error(w, "Server error", http.StatusInternalServerError)
 			return
 		}
-		defer out.Close()
+		defer func() {
+			if err := out.Close(); err != nil {
+				logger.Error.Printf("failed to close output file %s: %v", chunkPath, err)
+			}
+		}()
 
 		if _, err := io.Copy(out, file); err != nil {
 			logger.Error.Printf("failed to write chunk: %v", err)
@@ -192,7 +217,9 @@ func (h *Handlers) ChunkUpload() http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK"))
+		if _, err := w.Write([]byte("OK")); err != nil {
+			logger.Error.Printf("failed to write response for chunk %d: %v", chunkIdx, err)
+		}
 	}
 }
 
@@ -210,6 +237,11 @@ func (h *Handlers) CompleteUpload() http.HandlerFunc {
 
 		if uploadID == "" || filename == "" || totalChunksStr == "" {
 			http.Error(w, "Missing required fields", http.StatusBadRequest)
+			return
+		}
+
+		if !validateUploadID(uploadID) {
+			http.Error(w, "Invalid uploadId format", http.StatusBadRequest)
 			return
 		}
 
@@ -236,7 +268,11 @@ func (h *Handlers) CompleteUpload() http.HandlerFunc {
 		fps, _ := strconv.Atoi(r.FormValue("fps"))
 
 		chunkDir := filepath.Join(os.TempDir(), "sharm-chunks", uploadID)
-		defer os.RemoveAll(chunkDir) // cleanup chunks after assembly
+		defer func() {
+			if err := os.RemoveAll(chunkDir); err != nil {
+				logger.Error.Printf("failed to cleanup chunk dir %s: %v", chunkDir, err)
+			}
+		}()
 
 		// Assemble chunks into temp file
 		assembled, err := os.CreateTemp("", "upload-assembled-*.tmp")
@@ -246,11 +282,15 @@ func (h *Handlers) CompleteUpload() http.HandlerFunc {
 			return
 		}
 		defer func() {
-			_ = assembled.Close()
-			_ = os.Remove(assembled.Name())
+			if err := assembled.Close(); err != nil {
+				logger.Error.Printf("failed to close assembled file: %v", err)
+			}
+			if err := os.Remove(assembled.Name()); err != nil && !os.IsNotExist(err) {
+				logger.Error.Printf("failed to remove assembled file: %v", err)
+			}
 		}()
 
-		for i := 0; i < totalChunks; i++ {
+		for i := range totalChunks {
 			chunkPath := filepath.Join(chunkDir, strconv.Itoa(i))
 			chunk, err := os.Open(chunkPath)
 			if err != nil {
@@ -258,10 +298,12 @@ func (h *Handlers) CompleteUpload() http.HandlerFunc {
 				http.Error(w, fmt.Sprintf("Missing chunk %d", i), http.StatusBadRequest)
 				return
 			}
-			_, err = io.Copy(assembled, chunk)
-			chunk.Close()
-			if err != nil {
-				logger.Error.Printf("failed to copy chunk %d: %v", i, err)
+			_, copyErr := io.Copy(assembled, chunk)
+			if closeErr := chunk.Close(); closeErr != nil {
+				logger.Error.Printf("failed to close chunk %d for upload %s: %v", i, uploadID, closeErr)
+			}
+			if copyErr != nil {
+				logger.Error.Printf("failed to copy chunk %d: %v", i, copyErr)
 				http.Error(w, "Server error", http.StatusInternalServerError)
 				return
 			}

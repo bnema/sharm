@@ -427,9 +427,9 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var15 string
-		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%dd left", m.RetentionDays))
+		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%dd left", m.DaysRemaining()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 153, Col: 104}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 153, Col: 106}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
