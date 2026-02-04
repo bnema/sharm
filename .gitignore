@@ -43,3 +43,9 @@ data/
 
 # Worktrees
 .worktrees/
+
+# Local environment
+.env.local
+
+# Air tmp directory
+tmp/

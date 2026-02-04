@@ -198,7 +198,7 @@ func (h *Handlers) ChunkUpload() http.HandlerFunc {
 		}
 
 		chunkPath := filepath.Join(chunkDir, strconv.Itoa(chunkIdx))
-		out, err := os.Create(chunkPath)
+		out, err := os.OpenFile(chunkPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 		if err != nil {
 			logger.Error.Printf("failed to create chunk file %s: %v", chunkPath, err)
 			http.Error(w, "Server error", http.StatusInternalServerError)
@@ -248,6 +248,11 @@ func (h *Handlers) CompleteUpload() http.HandlerFunc {
 		totalChunks, err := strconv.Atoi(totalChunksStr)
 		if err != nil || totalChunks < 1 {
 			http.Error(w, "Invalid totalChunks", http.StatusBadRequest)
+			return
+		}
+		// Prevent DoS via huge totalChunks value (max ~100GB at 5MB/chunk)
+		if totalChunks > 20000 {
+			http.Error(w, "Too many chunks", http.StatusBadRequest)
 			return
 		}
 
