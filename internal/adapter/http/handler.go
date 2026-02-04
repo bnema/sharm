@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/bnema/sharm/internal/adapter/http/templates"
+	"github.com/bnema/sharm/internal/adapter/http/validation"
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/bnema/sharm/internal/infrastructure/logger"
 )
@@ -77,6 +78,22 @@ func (h *Handlers) Upload() http.HandlerFunc {
 			return
 		}
 		defer file.Close() //nolint:errcheck
+
+		// Validate file type using magic bytes
+		_, allowed, err := validation.ValidateMagicBytes(file)
+		if err != nil {
+			logger.Error.Printf("magic bytes validation error for %s: %v", header.Filename, err)
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = templates.ErrorInline("Failed to validate file type").Render(r.Context(), w)
+			return
+		}
+		if !allowed {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = templates.ErrorInline("File type not allowed").Render(r.Context(), w)
+			return
+		}
 
 		tmpFile, err := os.CreateTemp("", "upload-*.tmp")
 		if err != nil {
@@ -318,6 +335,20 @@ func (h *Handlers) CompleteUpload() http.HandlerFunc {
 		if _, err := assembled.Seek(0, 0); err != nil {
 			logger.Error.Printf("failed to seek assembled file: %v", err)
 			http.Error(w, "Server error", http.StatusInternalServerError)
+			return
+		}
+
+		// Validate assembled file type using magic bytes
+		_, allowed, err := validation.ValidateMagicBytes(assembled)
+		if err != nil {
+			logger.Error.Printf("magic bytes validation error for %s: %v", filename, err)
+			http.Error(w, "Failed to validate file type", http.StatusInternalServerError)
+			return
+		}
+		if !allowed {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = templates.ErrorInline("File type not allowed").Render(r.Context(), w)
 			return
 		}
 
