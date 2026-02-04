@@ -166,12 +166,12 @@ func TestSanitizeFilename(t *testing.T) {
 
 func TestSanitizeFilename_LongFilenames(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
-		maxLen      int
-		wantLen     int
-		wantHasExt  bool
-		wantExt     string
+		name       string
+		input      string
+		maxLen     int
+		wantLen    int
+		wantHasExt bool
+		wantExt    string
 	}{
 		{
 			name:       "filename at limit",

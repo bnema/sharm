@@ -4,66 +4,57 @@ import (
 	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSecurityHeaders_XContentTypeOptions(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestSecurityHeaders_StaticHeaders(t *testing.T) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
+	tests := []struct {
+		name     string
+		header   string
+		expected string
+	}{
+		{
+			name:     "X-Content-Type-Options",
+			header:   "X-Content-Type-Options",
+			expected: "nosniff",
+		},
+		{
+			name:     "X-Frame-Options",
+			header:   "X-Frame-Options",
+			expected: "DENY",
+		},
+		{
+			name:     "Referrer-Policy",
+			header:   "Referrer-Policy",
+			expected: "strict-origin-when-cross-origin",
+		},
+		{
+			name:     "Permissions-Policy",
+			header:   "Permissions-Policy",
+			expected: "camera=(), microphone=(), geolocation=()",
+		},
+	}
 
-	handler.ServeHTTP(rec, req)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			rec := httptest.NewRecorder()
 
-	assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
-}
+			handler.ServeHTTP(rec, req)
 
-func TestSecurityHeaders_XFrameOptions(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	assert.Equal(t, "DENY", rec.Header().Get("X-Frame-Options"))
-}
-
-func TestSecurityHeaders_ReferrerPolicy(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	assert.Equal(t, "strict-origin-when-cross-origin", rec.Header().Get("Referrer-Policy"))
-}
-
-func TestSecurityHeaders_PermissionsPolicy(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	assert.Equal(t, "camera=(), microphone=(), geolocation=()", rec.Header().Get("Permissions-Policy"))
+			assert.Equal(t, tt.expected, rec.Header().Get(tt.header))
+		})
+	}
 }
 
 func TestSecurityHeaders_CSP_Present(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -77,7 +68,7 @@ func TestSecurityHeaders_CSP_Present(t *testing.T) {
 }
 
 func TestSecurityHeaders_CSP_DefaultSrc(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -91,7 +82,7 @@ func TestSecurityHeaders_CSP_DefaultSrc(t *testing.T) {
 }
 
 func TestSecurityHeaders_CSP_ScriptSrc(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -105,7 +96,7 @@ func TestSecurityHeaders_CSP_ScriptSrc(t *testing.T) {
 }
 
 func TestSecurityHeaders_CSP_StyleSrc(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -119,7 +110,7 @@ func TestSecurityHeaders_CSP_StyleSrc(t *testing.T) {
 }
 
 func TestSecurityHeaders_CSP_FrameAncestors(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -133,7 +124,7 @@ func TestSecurityHeaders_CSP_FrameAncestors(t *testing.T) {
 }
 
 func TestSecurityHeaders_CSP_FontSrc(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -147,7 +138,7 @@ func TestSecurityHeaders_CSP_FontSrc(t *testing.T) {
 }
 
 func TestSecurityHeaders_CSP_ImgSrc(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -161,7 +152,7 @@ func TestSecurityHeaders_CSP_ImgSrc(t *testing.T) {
 }
 
 func TestSecurityHeaders_CSP_MediaSrc(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -175,7 +166,7 @@ func TestSecurityHeaders_CSP_MediaSrc(t *testing.T) {
 }
 
 func TestSecurityHeaders_CSP_ConnectSrc(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -189,7 +180,7 @@ func TestSecurityHeaders_CSP_ConnectSrc(t *testing.T) {
 }
 
 func TestSecurityHeaders_HSTS_NotSetWithoutTLS(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -202,7 +193,7 @@ func TestSecurityHeaders_HSTS_NotSetWithoutTLS(t *testing.T) {
 }
 
 func TestSecurityHeaders_HSTS_SetWithXForwardedProtoHTTPS(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -217,8 +208,22 @@ func TestSecurityHeaders_HSTS_SetWithXForwardedProtoHTTPS(t *testing.T) {
 	assert.Contains(t, hsts, "max-age=")
 }
 
+func TestSecurityHeaders_HSTS_NotSetWithXForwardedProtoHTTP(t *testing.T) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Forwarded-Proto", "http")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Empty(t, rec.Header().Get("Strict-Transport-Security"))
+}
+
 func TestSecurityHeaders_HSTS_SetWithTLS(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -234,7 +239,7 @@ func TestSecurityHeaders_HSTS_SetWithTLS(t *testing.T) {
 }
 
 func TestSecurityHeaders_HSTS_IncludesSubdomains(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -250,7 +255,7 @@ func TestSecurityHeaders_HSTS_IncludesSubdomains(t *testing.T) {
 
 func TestSecurityHeaders_CallsNextHandler(t *testing.T) {
 	called := false
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -264,7 +269,7 @@ func TestSecurityHeaders_CallsNextHandler(t *testing.T) {
 }
 
 func TestSecurityHeaders_PreservesResponseStatus(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 	}))
 
@@ -277,7 +282,7 @@ func TestSecurityHeaders_PreservesResponseStatus(t *testing.T) {
 }
 
 func TestSecurityHeaders_PreservesResponseBody(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("test response"))
 	}))
 
@@ -290,7 +295,7 @@ func TestSecurityHeaders_PreservesResponseBody(t *testing.T) {
 }
 
 func TestSecurityHeaders_AllHeadersSet(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -313,7 +318,7 @@ func TestSecurityHeaders_AllHeadersSet(t *testing.T) {
 }
 
 func TestSecurityHeaders_CSP_AllDirectives(t *testing.T) {
-	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -336,6 +341,6 @@ func TestSecurityHeaders_CSP_AllDirectives(t *testing.T) {
 	}
 
 	for _, directive := range directives {
-		assert.True(t, strings.Contains(csp, directive), "CSP should contain %s directive", directive)
+		assert.Contains(t, csp, directive, "CSP should contain %s directive", directive)
 	}
 }

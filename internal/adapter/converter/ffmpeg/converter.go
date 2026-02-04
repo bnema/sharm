@@ -39,12 +39,12 @@ func NewConverter() port.MediaConverter {
 	return &Converter{}
 }
 
-func (c *Converter) Convert(inputPath, outputDir, id string) (outputPath string, codec string, err error) {
-	if err := validatePath(inputPath); err != nil {
-		return "", "", fmt.Errorf("invalid input path: %w", err)
+func (c *Converter) Convert(inputPath, outputDir, id string) (outputPath, codec string, err error) {
+	if validateErr := validatePath(inputPath); validateErr != nil {
+		return "", "", fmt.Errorf("invalid input path: %w", validateErr)
 	}
-	if err := validatePath(outputDir); err != nil {
-		return "", "", fmt.Errorf("invalid output dir: %w", err)
+	if validateErr := validatePath(outputDir); validateErr != nil {
+		return "", "", fmt.Errorf("invalid output dir: %w", validateErr)
 	}
 	basePath := filepath.Join(outputDir, id)
 
@@ -64,11 +64,11 @@ func (c *Converter) Convert(inputPath, outputDir, id string) (outputPath string,
 }
 
 func (c *Converter) ConvertCodec(inputPath, outputDir, id string, codec domain.Codec, fps int) (outputPath string, err error) {
-	if err := validatePath(inputPath); err != nil {
-		return "", fmt.Errorf("invalid input path: %w", err)
+	if validateErr := validatePath(inputPath); validateErr != nil {
+		return "", fmt.Errorf("invalid input path: %w", validateErr)
 	}
-	if err := validatePath(outputDir); err != nil {
-		return "", fmt.Errorf("invalid output dir: %w", err)
+	if validateErr := validatePath(outputDir); validateErr != nil {
+		return "", fmt.Errorf("invalid output dir: %w", validateErr)
 	}
 	basePath := filepath.Join(outputDir, id)
 
@@ -93,11 +93,11 @@ func (c *Converter) ConvertCodec(inputPath, outputDir, id string, codec domain.C
 }
 
 func (c *Converter) convertAV1(inputPath, outputPath string, fps int) error {
-	if err := validatePath(inputPath); err != nil {
-		return fmt.Errorf("invalid input path: %w", err)
+	if validateErr := validatePath(inputPath); validateErr != nil {
+		return fmt.Errorf("invalid input path: %w", validateErr)
 	}
-	if err := validatePath(outputPath); err != nil {
-		return fmt.Errorf("invalid output path: %w", err)
+	if validateErr := validatePath(outputPath); validateErr != nil {
+		return fmt.Errorf("invalid output path: %w", validateErr)
 	}
 	args := []string{
 		"-nostdin", // Security: prevent stdin-based attacks

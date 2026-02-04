@@ -129,12 +129,12 @@ func (s *AuthService) CreateUser(username, password string) error {
 		return ErrUserExists
 	}
 
-	if err := validateUsername(username); err != nil {
-		return fmt.Errorf("%w: %s", ErrInvalidUsername, err)
+	if validateErr := validateUsername(username); validateErr != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidUsername, validateErr)
 	}
 
-	if err := validatePasswordStrength(password); err != nil {
-		return err
+	if validateErr := validatePasswordStrength(password); validateErr != nil {
+		return validateErr
 	}
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -224,8 +224,8 @@ func (s *AuthService) ChangePassword(username, oldPassword, newPassword string) 
 		return ErrWrongPassword
 	}
 
-	if err := validatePasswordStrength(newPassword); err != nil {
-		return err
+	if validateErr := validatePasswordStrength(newPassword); validateErr != nil {
+		return validateErr
 	}
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)

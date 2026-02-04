@@ -22,14 +22,14 @@ var allowedMIMETypes = map[string]bool{
 	"video/webm":      true,
 	"video/quicktime": true,
 	// Audio
-	"audio/mpeg":    true,
-	"audio/ogg":     true,
+	"audio/mpeg":      true,
+	"audio/ogg":       true,
 	"application/ogg": true,
-	"audio/wav":     true,
-	"audio/wave":    true,
-	"audio/x-wav":   true,
-	"audio/flac":    true,
-	"audio/x-flac":  true,
+	"audio/wav":       true,
+	"audio/wave":      true,
+	"audio/x-wav":     true,
+	"audio/flac":      true,
+	"audio/x-flac":    true,
 }
 
 // magicBytesBufferSize is the number of bytes to read for content type detection.

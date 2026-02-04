@@ -30,7 +30,7 @@ func NewMediaService(store port.MediaStore, converter port.MediaConverter, jobQu
 }
 
 func (s *MediaService) Upload(filename string, file *os.File, retentionDays int, mediaType domain.MediaType, codecs []domain.Codec, fps int) (*domain.Media, error) {
-	if err := os.MkdirAll(s.uploadDir, 0755); err != nil {
+	if err := os.MkdirAll(s.uploadDir, 0750); err != nil {
 		logger.Error.Printf("failed to create upload directory: %v", err)
 		return nil, fmt.Errorf("failed to create upload directory: %w", err)
 	}
@@ -229,8 +229,8 @@ func copyFile(src *os.File, dstPath string) error {
 	}
 	defer dstFile.Close() //nolint:errcheck
 
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return fmt.Errorf("failed to copy file contents: %w", err)
+	if _, copyErr := io.Copy(dstFile, srcFile); copyErr != nil {
+		return fmt.Errorf("failed to copy file contents: %w", copyErr)
 	}
 
 	srcInfo, err := src.Stat()
