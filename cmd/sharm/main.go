@@ -58,7 +58,7 @@ func main() {
 	workerPool := service.NewWorkerPool(jobQueue, store, converter, eventBus, cfg.DataDir, 2)
 	workerPool.Start(workerCtx)
 
-	server := HTTPAdapter.NewServer(authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB, Version, cfg.BehindProxy)
+	server := HTTPAdapter.NewServer(authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB, Version, cfg.BehindProxy, cfg.SecretKey)
 
 	// Periodic cleanup of expired media
 	go func() {

@@ -19,11 +19,12 @@ type Server struct {
 	rateLimiter    *ratelimit.LoginRateLimiter
 	backoffTracker *ratelimit.LoginAttemptTracker
 	backoff        *ratelimit.Backoff
+	csrf           *middleware.CSRFProtection
 	behindProxy    bool
 	version        string
 }
 
-func NewServer(authSvc AuthService, mediaSvc MediaService, eventBus *service.EventBus, domain string, maxSizeMB int, version string, behindProxy bool) *Server {
+func NewServer(authSvc AuthService, mediaSvc MediaService, eventBus *service.EventBus, domain string, maxSizeMB int, version string, behindProxy bool, secretKey string) *Server {
 	mux := http.NewServeMux()
 	handlers := NewHandlers(mediaSvc, domain, maxSizeMB, version)
 	sseHandler := NewSSEHandler(eventBus, mediaSvc, domain)
@@ -42,6 +43,8 @@ func NewServer(authSvc AuthService, mediaSvc MediaService, eventBus *service.Eve
 		2.0,
 	)
 
+	csrf := middleware.NewCSRFProtection(secretKey)
+
 	s := &Server{
 		mux:            mux,
 		handlers:       handlers,
@@ -51,6 +54,7 @@ func NewServer(authSvc AuthService, mediaSvc MediaService, eventBus *service.Eve
 		rateLimiter:    rateLimiter,
 		backoffTracker: backoffTracker,
 		backoff:        backoff,
+		csrf:           csrf,
 		behindProxy:    behindProxy,
 		version:        version,
 	}
@@ -98,5 +102,6 @@ func (s *Server) registerStatic() {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	middleware.SecurityHeaders(s.mux).ServeHTTP(w, r)
+	// Chain: SecurityHeaders -> CSRF -> mux
+	middleware.SecurityHeaders(s.csrf.Middleware(s.mux)).ServeHTTP(w, r)
 }
