@@ -20,7 +20,7 @@ templ StatusPage(id string, version string) {
 }
 
 templ StatusPolling(id string) {
-	<div hx-ext="sse" sse-connect={ "/events/" + id } sse-swap="status" hx-swap="innerHTML" class="fade-in">
+	<div hx-ext="sse" sse-connect={ "/events/" + id } sse-swap="status" hx-swap="outerHTML" class="fade-in">
 		<div style="display:flex;align-items:center;gap:var(--s-sm);">
 			@Spinner()
 			<span class="text-secondary" style="font-size:var(--text-sm);">Processing...</span>

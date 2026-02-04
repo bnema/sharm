@@ -44,7 +44,7 @@ func Load() (*Config, error) {
 			secretKey = string(keyBytes)
 		} else {
 			secretKey = generateSecretKey()
-			if err := os.MkdirAll(dataDir, 0755); err == nil {
+			if err := os.MkdirAll(dataDir, 0750); err == nil {
 				_ = os.WriteFile(secretKeyFile, []byte(secretKey), 0600)
 			}
 		}

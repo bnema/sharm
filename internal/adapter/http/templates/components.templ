@@ -295,33 +295,6 @@ templ ConfirmDialog() {
 			</div>
 		</form>
 	</dialog>
-	<script>
-		(function() {
-			const dialog = document.getElementById('confirm-dialog');
-			const msg = document.getElementById('confirm-dialog-msg');
-			let pendingEvt = null;
-
-			document.body.addEventListener('htmx:confirm', function(e) {
-				if (!e.detail.question) return;
-				e.preventDefault();
-				msg.textContent = e.detail.question;
-				pendingEvt = e;
-				dialog.showModal();
-			});
-
-			dialog.addEventListener('close', function() {
-				if (dialog.returnValue === 'confirm' && pendingEvt) {
-					pendingEvt.detail.issueRequest(true);
-				}
-				pendingEvt = null;
-			});
-
-			// Close on backdrop click
-			dialog.addEventListener('click', function(e) {
-				if (e.target === dialog) dialog.close('cancel');
-			});
-		})();
-	</script>
 }
 
 // --- Time display helper ---

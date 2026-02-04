@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/bnema/sharm/internal/adapter/storage/sqlite/sqlitedb"
 	"github.com/bnema/sharm/internal/domain"
@@ -37,7 +38,7 @@ func (q *JobQueue) Claim() (*domain.Job, error) {
 	ctx := context.Background()
 	row, err := q.queries.ClaimNextJob(ctx)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err

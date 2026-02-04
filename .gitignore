@@ -40,3 +40,12 @@ data/
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Worktrees
+.worktrees/
+
+# Local environment
+.env.local
+
+# Air tmp directory
+tmp/

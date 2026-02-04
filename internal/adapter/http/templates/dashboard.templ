@@ -58,7 +58,7 @@ func variantDotVariant(status domain.VariantStatus) BadgeVariant {
 templ Dashboard(media []*domain.Media, domainName string, version string) {
 	@Layout(LayoutProps{Title: "Library — Sharm", ShowNav: true, ActiveRoute: "dashboard", Version: version}) {
 		@ConfirmDialog()
-		<dialog id="info-dialog" style="background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-lg);max-width:480px;width:90vw;font-family:var(--font-body);" onclick="if(event.target===this)this.close()">
+		<dialog id="info-dialog" style="background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-lg);max-width:480px;width:90vw;font-family:var(--font-body);" onclick="closeDialogOnBackdrop(event, this)">
 			<div id="info-dialog-content"></div>
 		</dialog>
 		@CardHeader("Library") {
@@ -77,22 +77,6 @@ templ Dashboard(media []*domain.Media, domainName string, version string) {
 					@DashboardRow(m, domainName)
 				}
 			</div>
-			<script>
-				document.body.addEventListener('htmx:afterRequest', function(e) {
-					if (e.detail.requestConfig.verb !== 'delete') return;
-					const list = document.getElementById('media-list');
-					if (list && list.children.length === 0) {
-						list.outerHTML = '<div class="card"><div style="text-align:center;padding:var(--s-2xl) var(--s-md);"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1" style="margin:0 auto var(--s-md);"><rect x="3" y="3" width="18" height="18" rx="3"></rect><path d="M12 8v4m0 4h.01"></path></svg><p style="color:var(--text-muted);font-size:var(--text-sm);">No media yet. Upload something to get started.</p></div></div>';
-					}
-				});
-
-				document.body.addEventListener('htmx:afterSwap', function(e) {
-					if (e.detail.target.id === 'info-dialog-content') {
-						const dialog = document.getElementById('info-dialog');
-						if (dialog) dialog.showModal();
-					}
-				});
-			</script>
 		}
 	}
 }
@@ -106,13 +90,13 @@ templ DashboardRow(m *domain.Media, domainName string) {
 			hx-ext="sse"
 			sse-connect={ "/events/" + m.ID }
 			sse-swap="row"
-			hx-swap="innerHTML"
-			style="display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);"
+			hx-swap="outerHTML"
+			style="display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);width:100%;"
 		>
 			@DashboardRowContent(m, domainName)
 		</div>
 	} else {
-		<div id={ "row-" + m.ID } style="display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);">
+		<div id={ "row-" + m.ID } style="display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);width:100%;">
 			@DashboardRowContent(m, domainName)
 		</div>
 	}
@@ -150,7 +134,7 @@ templ DashboardRowContent(m *domain.Media, domainName string) {
 				<span class="text-muted" style="font-size:var(--text-xs);">{ domain.FormatSize(m.FileSize) }</span>
 			}
 			<span class="text-muted" style="font-size:var(--text-xs);">&bull;</span>
-			<span class="text-muted" style="font-size:var(--text-xs);">{ fmt.Sprintf("%dd left", m.RetentionDays) }</span>
+			<span class="text-muted" style="font-size:var(--text-xs);">{ fmt.Sprintf("%dd left", m.DaysRemaining()) }</span>
 		</div>
 		if len(m.Variants) > 0 {
 			<div style="margin-top:var(--s-xs);display:flex;flex-direction:column;">

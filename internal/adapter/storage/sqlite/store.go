@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -112,7 +113,7 @@ func (s *Store) Get(id string) (*domain.Media, error) {
 	ctx := context.Background()
 	row, err := s.queries.GetMedia(ctx, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrNotFound
 		}
 		return nil, err
@@ -208,7 +209,7 @@ func (s *Store) GetVariant(id int64) (*domain.Variant, error) {
 	ctx := context.Background()
 	row, err := s.queries.GetVariant(ctx, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrNotFound
 		}
 		return nil, err
@@ -224,7 +225,7 @@ func (s *Store) GetVariantByMediaAndCodec(mediaID string, codec domain.Codec) (*
 		Codec:   string(codec),
 	})
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrNotFound
 		}
 		return nil, err
@@ -337,7 +338,7 @@ func (s *Store) GetUser(username string) (*domain.User, error) {
 	ctx := context.Background()
 	row, err := s.queries.GetUser(ctx, username)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrNotFound
 		}
 		return nil, err
@@ -355,7 +356,7 @@ func (s *Store) GetFirstUser() (*domain.User, error) {
 	ctx := context.Background()
 	row, err := s.queries.GetFirstUser(ctx)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrNotFound
 		}
 		return nil, err
@@ -373,7 +374,7 @@ func (s *Store) GetUserByID(id int64) (*domain.User, error) {
 	ctx := context.Background()
 	row, err := s.queries.GetUserByID(ctx, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrNotFound
 		}
 		return nil, err

@@ -156,6 +156,11 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 	_ = wp.store.UpdateVariantStatus(variant.ID, domain.VariantStatusProcessing, "")
 	wp.publishEvent(media.ID, "status", string(domain.MediaStatusProcessing), "")
 
+	convertedDir = filepath.Join(wp.dataDir, "converted")
+	if err := os.MkdirAll(convertedDir, 0750); err != nil {
+		return fmt.Errorf("create converted directory: %w", err)
+	}
+
 	outputPath, err := wp.converter.ConvertCodec(media.OriginalPath, convertedDir, media.ID, job.Codec, job.Fps)
 	if err != nil {
 		return fmt.Errorf("convert %s: %w", job.Codec, err)
@@ -187,13 +192,13 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 	variant.Width = width
 	variant.Height = height
 	variant.Status = domain.VariantStatusDone
-	if err := wp.store.UpdateVariantDone(variant); err != nil {
-		return fmt.Errorf("update variant done: %w", err)
+	if updateErr := wp.store.UpdateVariantDone(variant); updateErr != nil {
+		return fmt.Errorf("update variant done: %w", updateErr)
 	}
 
 	if media.Type == domain.MediaTypeVideo && media.ThumbPath == "" {
 		thumbPath := filepath.Join(convertedDir, media.ID+"_thumb.jpg")
-		if err := wp.converter.Thumbnail(outputPath, thumbPath); err != nil {
+		if thumbErr := wp.converter.Thumbnail(outputPath, thumbPath); thumbErr != nil {
 			logger.Error.Printf("thumbnail failed for %s: %v", media.ID, err)
 		} else {
 			media.ThumbPath = thumbPath
@@ -294,7 +299,7 @@ func (wp *WorkerPool) handleThumbnail(job *domain.Job) error {
 	}
 
 	convertedDir := filepath.Join(wp.dataDir, "converted")
-	if err := os.MkdirAll(convertedDir, 0755); err != nil {
+	if err := os.MkdirAll(convertedDir, 0750); err != nil {
 		return fmt.Errorf("create converted directory: %w", err)
 	}
 	thumbPath := filepath.Join(convertedDir, media.ID+"_thumb.jpg")

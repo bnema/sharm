@@ -328,7 +328,7 @@ func TestAuthService_ValidateToken(t *testing.T) {
 
 		invalidTimestamp := "not-a-number"
 
-		mac := hmac.New(sha256.New, []byte(passwordHash))
+		mac := hmac.New(sha256.New, passwordHash)
 		mac.Write([]byte(invalidTimestamp))
 		signature := base64.URLEncoding.EncodeToString(mac.Sum(nil))
 		token := invalidTimestamp + ":" + signature

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"encoding/json"
+	"math"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -102,6 +103,16 @@ func generateID() string {
 
 func (m *Media) IsExpired() bool {
 	return time.Now().After(m.ExpiresAt)
+}
+
+// DaysRemaining returns the number of days until expiration (rounded up).
+// Returns 0 if already expired.
+func (m *Media) DaysRemaining() int {
+	remaining := time.Until(m.ExpiresAt).Hours() / 24
+	if remaining <= 0 {
+		return 0
+	}
+	return int(math.Ceil(remaining))
 }
 
 func (m *Media) MarkAsDone(convertedPath string, codec Codec, width, height int, thumbPath string, fileSize int64) {

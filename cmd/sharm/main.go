@@ -32,7 +32,7 @@ func main() {
 
 	logger.Info.Printf("starting sharm on port %d, domain=%s", cfg.Port, cfg.Domain)
 
-	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
+	if err := os.MkdirAll(cfg.DataDir, 0750); err != nil {
 		logger.Error.Printf("failed to create data directory: %v", err)
 		os.Exit(1)
 	}
@@ -58,7 +58,7 @@ func main() {
 	workerPool := service.NewWorkerPool(jobQueue, store, converter, eventBus, cfg.DataDir, 2)
 	workerPool.Start(workerCtx)
 
-	server := HTTPAdapter.NewServer(authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB, Version, cfg.BehindProxy)
+	server := HTTPAdapter.NewServer(authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB, Version, cfg.BehindProxy, cfg.SecretKey)
 
 	// Periodic cleanup of expired media
 	go func() {
@@ -109,6 +109,5 @@ func main() {
 	logger.Info.Printf("server listening on %s", addr)
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error.Printf("server failed: %v", err)
-		os.Exit(1)
 	}
 }

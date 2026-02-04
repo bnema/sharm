@@ -17,6 +17,7 @@ const (
 	CookieMaxAge   = 7 * 24 * 60 * 60
 	CookiePath     = "/"
 	CookieSameSite = http.SameSiteStrictMode
+	HXRequestTrue  = "true"
 )
 
 func getClientID(r *http.Request) string {
@@ -138,7 +139,7 @@ func LoginHandler(authSvc AuthService, rateLimiter *ratelimit.LoginRateLimiter, 
 			setAuthCookie(w, r, token, behindProxy)
 			logger.Info.Printf("login successful for %s from %s", username, clientID)
 
-			if r.Header.Get("HX-Request") == "true" {
+			if r.Header.Get("HX-Request") == HXRequestTrue {
 				w.Header().Set("HX-Redirect", "/")
 				return
 			}
@@ -224,7 +225,7 @@ func SetupHandler(authSvc AuthService, version string, behindProxy bool) http.Ha
 
 			setAuthCookie(w, r, token, behindProxy)
 
-			if r.Header.Get("HX-Request") == "true" {
+			if r.Header.Get("HX-Request") == HXRequestTrue {
 				w.Header().Set("HX-Redirect", "/")
 				return
 			}

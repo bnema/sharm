@@ -6,13 +6,7 @@ templ Upload(version string) {
 			@CardHeader("Upload") {
 				<span class="text-muted" style="font-size:var(--text-xs);">Images, videos, audio</span>
 			}
-			<form
-				hx-post="/upload"
-				hx-encoding="multipart/form-data"
-				hx-target="#result"
-				hx-target-error="#result"
-				hx-ext="response-targets"
-			>
+			<form id="upload-form">
 				@Dropzone("file", "video/*,image/*,audio/*")
 				<!-- Codec selection (shown dynamically based on file type) -->
 				<div id="codec-options" style="display:none;margin-top:var(--s-md);">
@@ -67,87 +61,5 @@ templ Upload(version string) {
 			<div id="probe-result" class="mt-md"></div>
 			<div id="result" class="mt-md"></div>
 		}
-		<script>
-			document.body.addEventListener('htmx:xhr:progress', function(e) {
-				if (!e.detail.lengthComputable) return;
-				const bar = document.getElementById('upload-progress');
-				const fill = document.getElementById('upload-progress-fill');
-				const pct = document.getElementById('upload-progress-pct');
-				if (!bar) return;
-				const percent = (e.detail.loaded / e.detail.total) * 100;
-				bar.style.display = 'block';
-				fill.style.width = percent + '%';
-				pct.textContent = Math.round(percent) + '%';
-				if (percent >= 100) {
-					pct.textContent = 'Processing...';
-				}
-			});
-
-			const fileInput = document.querySelector('input[name="file"]');
-			if (fileInput) {
-				const origOnchange = fileInput.getAttribute('onchange');
-				fileInput.setAttribute('onchange', origOnchange + ';window._updateCodecOptions(this)');
-			}
-
-			window._updateCodecOptions = function(input) {
-				const opts = document.getElementById('codec-options');
-				const av1 = document.getElementById('codec-av1');
-				const h264 = document.getElementById('codec-h264');
-				const opus = document.getElementById('codec-opus');
-				const fpsOpts = document.getElementById('fps-options');
-				const probeResult = document.getElementById('probe-result');
-				if (!input.files[0]) {
-					opts.style.display = 'none';
-					fpsOpts.style.display = 'none';
-					return;
-				}
-				const name = input.files[0].name.toLowerCase();
-				const videoExts = ['.mp4','.webm','.mov','.avi','.mkv','.flv','.wmv','.m4v'];
-				const audioExts = ['.mp3','.wav','.ogg','.flac','.aac','.m4a','.wma','.opus'];
-				const isVideo = videoExts.some(e => name.endsWith(e));
-				const isAudio = audioExts.some(e => name.endsWith(e));
-
-				if (isVideo) {
-					opts.style.display = 'block';
-					av1.style.display = 'flex';
-					h264.style.display = 'flex';
-					opus.style.display = 'none';
-					window._updateFpsVisibility();
-				} else if (isAudio) {
-					opts.style.display = 'block';
-					av1.style.display = 'none';
-					h264.style.display = 'none';
-					opus.style.display = 'flex';
-					fpsOpts.style.display = 'none';
-				} else {
-					opts.style.display = 'none';
-					fpsOpts.style.display = 'none';
-				}
-
-				if (probeResult) {
-					probeResult.innerHTML = '<div style="text-align:center;padding:var(--s-md);"><svg width="24" height="24" viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" style="animation:spin 0.8s linear infinite;margin:0 auto;"><circle cx="19" cy="19" r="16" stroke="var(--border)" stroke-width="3" fill="none"/><path d="M34 19a15 15 0 0 1-15 15" stroke="var(--accent)" stroke-width="3" fill="none" stroke-linecap="round"/></svg><span class="text-muted" style="font-size:var(--text-xs);margin-top:var(--s-sm);display:block;">Probing file...</span></div>';
-					const fd = new FormData();
-					fd.append('file', input.files[0]);
-					fetch('/probe', {method:'POST', body:fd}).then(function(resp) {
-						return resp.text();
-					}).then(function(html) {
-						probeResult.innerHTML = html;
-					}).catch(function() {
-						probeResult.innerHTML = '';
-					});
-				}
-			};
-
-			window._updateFpsVisibility = function() {
-				const fpsOpts = document.getElementById('fps-options');
-				const av1Checked = document.querySelector('#codec-av1 input')?.checked;
-				const h264Checked = document.querySelector('#codec-h264 input')?.checked;
-				fpsOpts.style.display = (av1Checked || h264Checked) ? 'block' : 'none';
-			};
-
-			document.querySelectorAll('#codec-av1 input, #codec-h264 input').forEach(function(cb) {
-				cb.addEventListener('change', window._updateFpsVisibility);
-			});
-		</script>
 	}
 }
