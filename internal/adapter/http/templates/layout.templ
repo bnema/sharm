@@ -30,7 +30,8 @@ templ Layout(props LayoutProps) {
 					var csrfToken = document.cookie.split('; ')
 						.find(function(row) { return row.startsWith('csrf_token='); });
 					if (csrfToken) {
-						csrfToken = csrfToken.split('=')[1];
+						// Use substring to preserve = padding in base64 tokens
+						csrfToken = csrfToken.substring('csrf_token='.length);
 						document.body.setAttribute('hx-headers', JSON.stringify({'X-CSRF-Token': csrfToken}));
 					}
 				});
