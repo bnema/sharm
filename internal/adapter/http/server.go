@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bnema/sharm/internal/adapter/http/middleware"
 	"github.com/bnema/sharm/internal/adapter/http/ratelimit"
 	"github.com/bnema/sharm/internal/service"
 	"github.com/bnema/sharm/static"
@@ -97,5 +98,5 @@ func (s *Server) registerStatic() {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.mux.ServeHTTP(w, r)
+	middleware.SecurityHeaders(s.mux).ServeHTTP(w, r)
 }
