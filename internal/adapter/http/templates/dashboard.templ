@@ -150,7 +150,7 @@ templ DashboardRowContent(m *domain.Media, domainName string) {
 				<span class="text-muted" style="font-size:var(--text-xs);">{ domain.FormatSize(m.FileSize) }</span>
 			}
 			<span class="text-muted" style="font-size:var(--text-xs);">&bull;</span>
-			<span class="text-muted" style="font-size:var(--text-xs);">{ fmt.Sprintf("%dd left", m.RetentionDays) }</span>
+			<span class="text-muted" style="font-size:var(--text-xs);">{ fmt.Sprintf("%dd left", m.DaysRemaining()) }</span>
 		</div>
 		if len(m.Variants) > 0 {
 			<div style="margin-top:var(--s-xs);display:flex;flex-direction:column;">
