@@ -6,13 +6,7 @@ templ Upload(version string) {
 			@CardHeader("Upload") {
 				<span class="text-muted" style="font-size:var(--text-xs);">Images, videos, audio</span>
 			}
-			<form
-				hx-post="/upload"
-				hx-encoding="multipart/form-data"
-				hx-target="#result"
-				hx-target-error="#result"
-				hx-ext="response-targets"
-			>
+			<form id="upload-form">
 				@Dropzone("file", "video/*,image/*,audio/*")
 				<!-- Codec selection (shown dynamically based on file type) -->
 				<div id="codec-options" style="display:none;margin-top:var(--s-md);">
@@ -68,19 +62,120 @@ templ Upload(version string) {
 			<div id="result" class="mt-md"></div>
 		}
 		<script>
-			document.body.addEventListener('htmx:xhr:progress', function(e) {
-				if (!e.detail.lengthComputable) return;
+			const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
+			const MAX_RETRIES = 3;
+
+			function generateUUID() {
+				return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+					const r = Math.random() * 16 | 0;
+					const v = c === 'x' ? r : (r & 0x3 | 0x8);
+					return v.toString(16);
+				});
+			}
+
+			function updateProgress(percent, text) {
 				const bar = document.getElementById('upload-progress');
 				const fill = document.getElementById('upload-progress-fill');
 				const pct = document.getElementById('upload-progress-pct');
 				if (!bar) return;
-				const percent = (e.detail.loaded / e.detail.total) * 100;
 				bar.style.display = 'block';
 				fill.style.width = percent + '%';
-				pct.textContent = Math.round(percent) + '%';
-				if (percent >= 100) {
-					pct.textContent = 'Processing...';
+				pct.textContent = text || Math.round(percent) + '%';
+			}
+
+			async function uploadChunk(uploadId, chunkIndex, chunk, retries) {
+				const fd = new FormData();
+				fd.append('uploadId', uploadId);
+				fd.append('chunkIndex', String(chunkIndex));
+				fd.append('chunk', chunk);
+
+				for (let attempt = 0; attempt <= retries; attempt++) {
+					try {
+						const resp = await fetch('/upload/chunk', {method: 'POST', body: fd});
+						if (resp.ok) return true;
+						if (attempt < retries) {
+							await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+						}
+					} catch (e) {
+						if (attempt < retries) {
+							await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+						}
+					}
 				}
+				return false;
+			}
+
+			async function chunkedUpload(file, form) {
+				const uploadId = generateUUID();
+				const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+				const result = document.getElementById('result');
+
+				for (let i = 0; i < totalChunks; i++) {
+					const start = i * CHUNK_SIZE;
+					const end = Math.min(start + CHUNK_SIZE, file.size);
+					const chunk = file.slice(start, end);
+
+					updateProgress((i / totalChunks) * 90, 'Uploading chunk ' + (i + 1) + '/' + totalChunks);
+
+					const ok = await uploadChunk(uploadId, i, chunk, MAX_RETRIES);
+					if (!ok) {
+						result.innerHTML = '<div class="text-error" style="font-size:var(--text-sm);">Upload failed at chunk ' + (i + 1) + '. Please try again.</div>';
+						updateProgress(0, '');
+						document.getElementById('upload-progress').style.display = 'none';
+						return false;
+					}
+				}
+
+				updateProgress(95, 'Finalizing...');
+
+				const fd = new FormData();
+				fd.append('uploadId', uploadId);
+				fd.append('filename', file.name);
+				fd.append('totalChunks', String(totalChunks));
+				fd.append('retention', form.querySelector('[name="retention"]').value);
+				form.querySelectorAll('[name="codecs"]:checked').forEach(cb => fd.append('codecs', cb.value));
+				const fpsInput = form.querySelector('[name="fps"]:checked');
+				if (fpsInput) fd.append('fps', fpsInput.value);
+
+				try {
+					const resp = await fetch('/upload/complete', {method: 'POST', body: fd});
+					if (resp.ok) {
+						const redirect = resp.headers.get('HX-Redirect');
+						if (redirect) {
+							window.location.href = redirect;
+						} else {
+							updateProgress(100, 'Done!');
+							window.location.href = '/';
+						}
+						return true;
+					} else {
+						const text = await resp.text();
+						result.innerHTML = text || '<div class="text-error" style="font-size:var(--text-sm);">Upload failed</div>';
+						updateProgress(0, '');
+						document.getElementById('upload-progress').style.display = 'none';
+						return false;
+					}
+				} catch (e) {
+					result.innerHTML = '<div class="text-error" style="font-size:var(--text-sm);">Upload failed. Please try again.</div>';
+					updateProgress(0, '');
+					document.getElementById('upload-progress').style.display = 'none';
+					return false;
+				}
+			}
+
+			document.getElementById('upload-form').addEventListener('submit', async function(e) {
+				e.preventDefault();
+				const fileInput = this.querySelector('input[name="file"]');
+				const file = fileInput?.files[0];
+				if (!file) {
+					document.getElementById('result').innerHTML = '<div class="text-error" style="font-size:var(--text-sm);">Please select a file</div>';
+					return;
+				}
+				const submitBtn = this.querySelector('button[type="submit"]');
+				submitBtn.disabled = true;
+				document.getElementById('result').innerHTML = '';
+				await chunkedUpload(file, this);
+				submitBtn.disabled = false;
 			});
 
 			const fileInput = document.querySelector('input[name="file"]');

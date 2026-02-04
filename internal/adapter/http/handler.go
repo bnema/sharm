@@ -136,6 +136,165 @@ func (h *Handlers) Upload() http.HandlerFunc {
 	}
 }
 
+const chunkSize = 5 * 1024 * 1024 // 5MB
+
+func (h *Handlers) ChunkUpload() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, chunkSize+1024*1024) // chunk + overhead
+
+		if err := r.ParseMultipartForm(chunkSize + 1024*1024); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+
+		uploadID := r.FormValue("uploadId")
+		chunkIndex := r.FormValue("chunkIndex")
+		if uploadID == "" || chunkIndex == "" {
+			http.Error(w, "Missing uploadId or chunkIndex", http.StatusBadRequest)
+			return
+		}
+
+		// Validate uploadID format (should be UUID-like, alphanumeric with dashes)
+		for _, c := range uploadID {
+			if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
+				http.Error(w, "Invalid uploadId format", http.StatusBadRequest)
+				return
+			}
+		}
+
+		file, _, err := r.FormFile("chunk")
+		if err != nil {
+			http.Error(w, "Invalid chunk data", http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+
+		chunkDir := filepath.Join(os.TempDir(), "sharm-chunks", uploadID)
+		if err := os.MkdirAll(chunkDir, 0755); err != nil {
+			logger.Error.Printf("failed to create chunk dir: %v", err)
+			http.Error(w, "Server error", http.StatusInternalServerError)
+			return
+		}
+
+		chunkPath := filepath.Join(chunkDir, chunkIndex)
+		out, err := os.Create(chunkPath)
+		if err != nil {
+			logger.Error.Printf("failed to create chunk file: %v", err)
+			http.Error(w, "Server error", http.StatusInternalServerError)
+			return
+		}
+		defer out.Close()
+
+		if _, err := io.Copy(out, file); err != nil {
+			logger.Error.Printf("failed to write chunk: %v", err)
+			http.Error(w, "Server error", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}
+}
+
+func (h *Handlers) CompleteUpload() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+
+		uploadID := r.FormValue("uploadId")
+		filename := r.FormValue("filename")
+		totalChunksStr := r.FormValue("totalChunks")
+		retentionStr := r.FormValue("retention")
+
+		if uploadID == "" || filename == "" || totalChunksStr == "" {
+			http.Error(w, "Missing required fields", http.StatusBadRequest)
+			return
+		}
+
+		totalChunks, err := strconv.Atoi(totalChunksStr)
+		if err != nil || totalChunks < 1 {
+			http.Error(w, "Invalid totalChunks", http.StatusBadRequest)
+			return
+		}
+
+		retentionDays, err := strconv.Atoi(retentionStr)
+		if err != nil {
+			retentionDays = 7
+		}
+
+		// Parse codecs
+		var codecs []domain.Codec
+		for _, c := range r.Form["codecs"] {
+			switch domain.Codec(c) {
+			case domain.CodecAV1, domain.CodecH264, domain.CodecOpus:
+				codecs = append(codecs, domain.Codec(c))
+			}
+		}
+
+		fps, _ := strconv.Atoi(r.FormValue("fps"))
+
+		chunkDir := filepath.Join(os.TempDir(), "sharm-chunks", uploadID)
+		defer os.RemoveAll(chunkDir) // cleanup chunks after assembly
+
+		// Assemble chunks into temp file
+		assembled, err := os.CreateTemp("", "upload-assembled-*.tmp")
+		if err != nil {
+			logger.Error.Printf("failed to create assembled file: %v", err)
+			http.Error(w, "Server error", http.StatusInternalServerError)
+			return
+		}
+		defer func() {
+			_ = assembled.Close()
+			_ = os.Remove(assembled.Name())
+		}()
+
+		for i := 0; i < totalChunks; i++ {
+			chunkPath := filepath.Join(chunkDir, strconv.Itoa(i))
+			chunk, err := os.Open(chunkPath)
+			if err != nil {
+				logger.Error.Printf("missing chunk %d for upload %s: %v", i, uploadID, err)
+				http.Error(w, fmt.Sprintf("Missing chunk %d", i), http.StatusBadRequest)
+				return
+			}
+			_, err = io.Copy(assembled, chunk)
+			chunk.Close()
+			if err != nil {
+				logger.Error.Printf("failed to copy chunk %d: %v", i, err)
+				http.Error(w, "Server error", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		// Reset file position for reading
+		if _, err := assembled.Seek(0, 0); err != nil {
+			logger.Error.Printf("failed to seek assembled file: %v", err)
+			http.Error(w, "Server error", http.StatusInternalServerError)
+			return
+		}
+
+		mediaType := domain.DetectMediaType(filename)
+		_, err = h.mediaSvc.Upload(filename, assembled, retentionDays, mediaType, codecs, fps)
+		if err != nil {
+			logger.Error.Printf("upload error for %s: %v", filename, err)
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusInternalServerError)
+			msg := "Upload failed"
+			if strings.Contains(err.Error(), "no space left") {
+				msg = "Upload failed: disk full"
+			} else if strings.Contains(err.Error(), "permission denied") {
+				msg = "Upload failed: permission error"
+			}
+			_ = templates.ErrorInline(msg).Render(r.Context(), w)
+			return
+		}
+
+		w.Header().Set("HX-Redirect", "/")
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
 func (h *Handlers) StatusPage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/status/")
