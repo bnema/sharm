@@ -157,7 +157,7 @@ func TestSecurityHeaders_CSP_ImgSrc(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	csp := rec.Header().Get("Content-Security-Policy")
-	assert.Contains(t, csp, "img-src 'self' data:")
+	assert.Contains(t, csp, "img-src 'self' data: blob:")
 }
 
 func TestSecurityHeaders_CSP_MediaSrc(t *testing.T) {
@@ -171,7 +171,7 @@ func TestSecurityHeaders_CSP_MediaSrc(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	csp := rec.Header().Get("Content-Security-Policy")
-	assert.Contains(t, csp, "media-src 'self'")
+	assert.Contains(t, csp, "media-src 'self' blob:")
 }
 
 func TestSecurityHeaders_CSP_ConnectSrc(t *testing.T) {
