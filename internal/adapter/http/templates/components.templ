@@ -260,21 +260,8 @@ templ IconLibrary() {
 
 // --- Status icons (replace text badges) ---
 
-func statusColor(v BadgeVariant) string {
-	switch v {
-	case BadgeSuccess:
-		return "var(--success)"
-	case BadgeError:
-		return "var(--error)"
-	case BadgeMuted:
-		return "var(--text-muted)"
-	default:
-		return "var(--accent)"
-	}
-}
-
 templ StatusIcon(label string, variant BadgeVariant) {
-	<span style={ fmt.Sprintf("display:inline-flex;align-items:center;color:%s;flex-shrink:0;", statusColor(variant)) } title={ label }>
+	<span style={ fmt.Sprintf("display:inline-flex;align-items:center;color:%s;flex-shrink:0;", dotColor(variant)) } title={ label }>
 		if variant == BadgeSuccess {
 			@IconCheckCircle()
 		} else if variant == BadgeError {

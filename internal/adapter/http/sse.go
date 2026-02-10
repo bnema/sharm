@@ -9,6 +9,7 @@ import (
 
 	"github.com/bnema/sharm/internal/adapter/http/templates"
 	"github.com/bnema/sharm/internal/domain"
+	"github.com/bnema/sharm/internal/infrastructure/logger"
 	"github.com/bnema/sharm/internal/service"
 )
 
@@ -118,15 +119,22 @@ func (h *SSEHandler) Events() http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-Accel-Buffering", "no")
 
 		// If already terminal, send final events and close
 		if media.Status == domain.MediaStatusDone || media.Status == domain.MediaStatusFailed {
-			_, _ = h.sendAllEvents(w, media, nil)
+			if _, err := h.sendAllEvents(w, media, nil); err != nil {
+				logger.Error.Printf("SSE render error for terminal media %s: %v", id, err)
+			}
 			return
 		}
 
 		// Send current state
-		state, _ := h.sendAllEvents(w, media, nil)
+		state, err := h.sendAllEvents(w, media, nil)
+		if err != nil {
+			logger.Error.Printf("SSE initial render error for media %s: %v", id, err)
+			return
+		}
 
 		// Subscribe to events
 		ch := h.eventBus.Subscribe(id)
