@@ -143,7 +143,7 @@ func StatusPolling(id string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" sse-swap=\"status\" hx-swap=\"innerHTML\" class=\"fade-in\"><div style=\"display:flex;align-items:center;gap:var(--s-sm);\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" sse-swap=\"status\" hx-swap=\"outerHTML\" class=\"fade-in\"><div style=\"display:flex;align-items:center;gap:var(--s-sm);\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

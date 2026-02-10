@@ -1411,7 +1411,7 @@ func ConfirmDialog() templ.Component {
 			templ_7745c5c3_Var52 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "<dialog id=\"confirm-dialog\" style=\"background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-lg);max-width:360px;width:90vw;font-family:var(--font-body);\"><form method=\"dialog\" style=\"display:flex;flex-direction:column;gap:var(--s-md);\"><p id=\"confirm-dialog-msg\" style=\"font-size:var(--text-sm);line-height:1.6;\"></p><div style=\"display:flex;justify-content:flex-end;gap:var(--s-sm);\"><button value=\"cancel\" class=\"button-outline\" style=\"font-size:var(--text-sm);padding:0.375rem 0.75rem;\">Cancel</button> <button value=\"confirm\" class=\"button-danger\" style=\"font-size:var(--text-sm);padding:0.375rem 0.75rem;border:1px solid color-mix(in srgb,var(--error) 40%,transparent);background:color-mix(in srgb,var(--error) 10%,transparent);\">Delete</button></div></form></dialog><script>\n\t\t(function() {\n\t\t\tconst dialog = document.getElementById('confirm-dialog');\n\t\t\tconst msg = document.getElementById('confirm-dialog-msg');\n\t\t\tlet pendingEvt = null;\n\n\t\t\tdocument.body.addEventListener('htmx:confirm', function(e) {\n\t\t\t\tif (!e.detail.question) return;\n\t\t\t\te.preventDefault();\n\t\t\t\tmsg.textContent = e.detail.question;\n\t\t\t\tpendingEvt = e;\n\t\t\t\tdialog.showModal();\n\t\t\t});\n\n\t\t\tdialog.addEventListener('close', function() {\n\t\t\t\tif (dialog.returnValue === 'confirm' && pendingEvt) {\n\t\t\t\t\tpendingEvt.detail.issueRequest(true);\n\t\t\t\t}\n\t\t\t\tpendingEvt = null;\n\t\t\t});\n\n\t\t\t// Close on backdrop click\n\t\t\tdialog.addEventListener('click', function(e) {\n\t\t\t\tif (e.target === dialog) dialog.close('cancel');\n\t\t\t});\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "<dialog id=\"confirm-dialog\" style=\"background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-lg);max-width:360px;width:90vw;font-family:var(--font-body);\"><form method=\"dialog\" style=\"display:flex;flex-direction:column;gap:var(--s-md);\"><p id=\"confirm-dialog-msg\" style=\"font-size:var(--text-sm);line-height:1.6;\"></p><div style=\"display:flex;justify-content:flex-end;gap:var(--s-sm);\"><button value=\"cancel\" class=\"button-outline\" style=\"font-size:var(--text-sm);padding:0.375rem 0.75rem;\">Cancel</button> <button value=\"confirm\" class=\"button-danger\" style=\"font-size:var(--text-sm);padding:0.375rem 0.75rem;border:1px solid color-mix(in srgb,var(--error) 40%,transparent);background:color-mix(in srgb,var(--error) 10%,transparent);\">Delete</button></div></form></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1448,7 +1448,7 @@ func TimeAgo(label string) templ.Component {
 		var templ_7745c5c3_Var54 string
 		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/components.templ`, Line: 434, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/components.templ`, Line: 407, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 		if templ_7745c5c3_Err != nil {
