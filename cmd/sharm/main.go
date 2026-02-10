@@ -23,6 +23,11 @@ var (
 	BuildTime = "unknown"
 )
 
+const (
+	dataDirPerms            = 0o750
+	gracefulShutdownTimeout = 30 * time.Second
+)
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -32,7 +37,8 @@ func main() {
 
 	logger.Info.Printf("starting sharm on port %d, domain=%s", cfg.Port, cfg.Domain)
 
-	if err := os.MkdirAll(cfg.DataDir, 0750); err != nil {
+	err = os.MkdirAll(cfg.DataDir, dataDirPerms)
+	if err != nil {
 		logger.Error.Printf("failed to create data directory: %v", err)
 		os.Exit(1)
 	}
@@ -58,7 +64,7 @@ func main() {
 	workerPool := service.NewWorkerPool(jobQueue, store, converter, eventBus, cfg.DataDir, 2)
 	workerPool.Start(workerCtx)
 
-	server := HTTPAdapter.NewServer(authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB, Version, cfg.BehindProxy, cfg.SecretKey)
+	server := HTTPAdapter.NewServer(authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB, Version, cfg.BehindProxy)
 
 	// Periodic cleanup of expired media
 	go func() {
@@ -93,7 +99,7 @@ func main() {
 		logger.Info.Printf("received %s, shutting down", sig)
 
 		// Stop accepting new requests
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
 		defer shutdownCancel()
 
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
@@ -109,5 +115,6 @@ func main() {
 	logger.Info.Printf("server listening on %s", addr)
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error.Printf("server failed: %v", err)
+		return
 	}
 }

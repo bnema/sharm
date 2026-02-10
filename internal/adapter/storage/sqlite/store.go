@@ -27,7 +27,7 @@ var hookOnce sync.Once
 
 func registerHook() {
 	hookOnce.Do(func() {
-		sqlite.RegisterConnectionHook(func(conn sqlite.ExecQuerierContext, dsn string) error {
+		sqlite.RegisterConnectionHook(func(conn sqlite.ExecQuerierContext, _ string) error {
 			pragmas := []string{
 				"PRAGMA journal_mode = WAL",
 				"PRAGMA busy_timeout = 5000",
@@ -181,7 +181,7 @@ func (s *Store) UpdateDone(m *domain.Media) error {
 	})
 }
 
-func (s *Store) UpdateProbeJSON(id string, probeJSON string) error {
+func (s *Store) UpdateProbeJSON(id, probeJSON string) error {
 	ctx := context.Background()
 	return s.queries.UpdateMediaProbeJSON(ctx, sqlitedb.UpdateMediaProbeJSONParams{
 		ProbeJson: probeJSON,
@@ -308,16 +308,16 @@ func variantFromRow(row sqlitedb.MediaVariant) domain.Variant {
 
 func variantListFromRows(rows []sqlitedb.MediaVariant) []domain.Variant {
 	result := make([]domain.Variant, len(rows))
-	for i, row := range rows {
-		result[i] = variantFromRow(row)
+	for i := range rows {
+		result[i] = variantFromRow(rows[i])
 	}
 	return result
 }
 
 func (s *Store) mediaListWithVariants(ctx context.Context, rows []sqlitedb.Medium) ([]*domain.Media, error) {
 	result := make([]*domain.Media, len(rows))
-	for i, row := range rows {
-		media := mediumToMedia(row)
+	for i := range rows {
+		media := mediumToMedia(rows[i])
 		variants, err := s.queries.ListVariantsByMedia(ctx, media.ID)
 		if err != nil {
 			return nil, fmt.Errorf("list variants for %s: %w", media.ID, err)

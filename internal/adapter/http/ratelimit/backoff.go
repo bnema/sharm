@@ -1,7 +1,9 @@
 package ratelimit
 
 import (
-	"math/rand"
+	"crypto/rand"
+	"math"
+	"math/big"
 	"time"
 )
 
@@ -12,10 +14,10 @@ type Backoff struct {
 	Jitter bool
 }
 
-func NewBackoff(min, max time.Duration, factor float64) *Backoff {
+func NewBackoff(minDuration, maxDuration time.Duration, factor float64) *Backoff {
 	return &Backoff{
-		Min:    min,
-		Max:    max,
+		Min:    minDuration,
+		Max:    maxDuration,
 		Factor: factor,
 		Jitter: true,
 	}
@@ -33,7 +35,7 @@ func (b *Backoff) Duration(attempt int) time.Duration {
 	}
 
 	if b.Jitter {
-		duration = duration * (0.5 + rand.Float64()*0.5)
+		duration *= 0.5 + secureJitter()*0.5
 	}
 
 	return time.Duration(duration)
@@ -41,10 +43,18 @@ func (b *Backoff) Duration(attempt int) time.Duration {
 
 func pow(base, exp float64) float64 {
 	result := 1.0
-	for i := 0; i < int(exp); i++ {
+	for range int(exp) {
 		result *= base
 	}
 	return result
+}
+
+func secureJitter() float64 {
+	n, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		return 1
+	}
+	return float64(n.Int64()) / float64(math.MaxInt64)
 }
 
 type LoginAttemptTracker struct {

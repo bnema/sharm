@@ -24,7 +24,7 @@ func TestMediaService_Upload_VideoNoCodecs(t *testing.T) {
 
 	tmpFile, err := os.CreateTemp("", "test_upload_*.mp4")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name()) //nolint:errcheck
+	defer os.Remove(tmpFile.Name())
 	_, _ = tmpFile.WriteString("test content")
 
 	probeResult := &domain.ProbeResult{
@@ -70,7 +70,7 @@ func TestMediaService_Upload_VideoWithCodecs(t *testing.T) {
 
 	tmpFile, err := os.CreateTemp("", "test_upload_*.mp4")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name()) //nolint:errcheck
+	defer os.Remove(tmpFile.Name())
 	_, _ = tmpFile.WriteString("test content")
 
 	probeResult := &domain.ProbeResult{
@@ -114,7 +114,7 @@ func TestMediaService_Upload_CreateDirectoryFails(t *testing.T) {
 
 	tmpFile, err := os.CreateTemp("", "test_upload_*.mp4")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name()) //nolint:errcheck
+	defer os.Remove(tmpFile.Name())
 
 	result, err := service.Upload("test.mp4", tmpFile, 7, domain.MediaTypeVideo, nil, 0)
 
@@ -153,7 +153,7 @@ func TestMediaService_Upload_StoreSaveFails(t *testing.T) {
 
 	tmpFile, err := os.CreateTemp("", "test_upload_*.mp4")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name()) //nolint:errcheck
+	defer os.Remove(tmpFile.Name())
 	_, _ = tmpFile.WriteString("test content")
 
 	probeResult := &domain.ProbeResult{

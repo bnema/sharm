@@ -31,6 +31,8 @@ type Event struct {
 	Message string
 }
 
+const convertedDirPerms = 0o750
+
 func NewWorkerPool(
 	jobQueue port.JobQueue,
 	store port.MediaStore,
@@ -112,7 +114,7 @@ func (wp *WorkerPool) processJob(job *domain.Job) {
 		} else if job.Type == domain.JobTypeConvert {
 			// Legacy: no codec means old-style conversion
 			_ = wp.store.UpdateStatus(job.MediaID, domain.MediaStatusFailed, err.Error())
-			wp.publishEvent(job.MediaID, "status", string(domain.MediaStatusFailed), err.Error())
+			wp.publishEvent(job.MediaID, string(domain.MediaStatusFailed), err.Error())
 		}
 		return
 	}
@@ -130,11 +132,11 @@ func (wp *WorkerPool) handleConvert(job *domain.Job) error {
 	// Update media status to processing (if not already)
 	if media.Status == domain.MediaStatusPending {
 		_ = wp.store.UpdateStatus(media.ID, domain.MediaStatusProcessing, "")
-		wp.publishEvent(media.ID, "status", string(domain.MediaStatusProcessing), "")
+		wp.publishEvent(media.ID, string(domain.MediaStatusProcessing), "")
 	}
 
 	convertedDir := filepath.Join(wp.dataDir, "converted")
-	if err := os.MkdirAll(convertedDir, 0755); err != nil {
+	if err := os.MkdirAll(convertedDir, convertedDirPerms); err != nil {
 		return fmt.Errorf("create converted directory: %w", err)
 	}
 
@@ -144,7 +146,7 @@ func (wp *WorkerPool) handleConvert(job *domain.Job) error {
 	}
 
 	// Legacy: old-style conversion (no codec specified, try AV1 then H264)
-	return wp.handleLegacyConvert(job, media, convertedDir)
+	return wp.handleLegacyConvert(media, convertedDir)
 }
 
 func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media, convertedDir string) error {
@@ -154,12 +156,7 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 	}
 
 	_ = wp.store.UpdateVariantStatus(variant.ID, domain.VariantStatusProcessing, "")
-	wp.publishEvent(media.ID, "status", string(domain.MediaStatusProcessing), "")
-
-	convertedDir = filepath.Join(wp.dataDir, "converted")
-	if err := os.MkdirAll(convertedDir, 0750); err != nil {
-		return fmt.Errorf("create converted directory: %w", err)
-	}
+	wp.publishEvent(media.ID, string(domain.MediaStatusProcessing), "")
 
 	outputPath, err := wp.converter.ConvertCodec(media.OriginalPath, convertedDir, media.ID, job.Codec, job.Fps)
 	if err != nil {
@@ -192,13 +189,15 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 	variant.Width = width
 	variant.Height = height
 	variant.Status = domain.VariantStatusDone
-	if updateErr := wp.store.UpdateVariantDone(variant); updateErr != nil {
-		return fmt.Errorf("update variant done: %w", updateErr)
+	err = wp.store.UpdateVariantDone(variant)
+	if err != nil {
+		return fmt.Errorf("update variant done: %w", err)
 	}
 
 	if media.Type == domain.MediaTypeVideo && media.ThumbPath == "" {
 		thumbPath := filepath.Join(convertedDir, media.ID+"_thumb.jpg")
-		if thumbErr := wp.converter.Thumbnail(outputPath, thumbPath); thumbErr != nil {
+		err = wp.converter.Thumbnail(outputPath, thumbPath)
+		if err != nil {
 			logger.Error.Printf("thumbnail failed for %s: %v", media.ID, err)
 		} else {
 			media.ThumbPath = thumbPath
@@ -218,21 +217,21 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 			media.Status = domain.MediaStatusFailed
 			media.ErrorMessage = "all conversions failed"
 			_ = wp.store.UpdateStatus(media.ID, domain.MediaStatusFailed, "all conversions failed")
-			wp.publishEvent(media.ID, "status", string(domain.MediaStatusFailed), "all conversions failed")
+			wp.publishEvent(media.ID, string(domain.MediaStatusFailed), "all conversions failed")
 			return nil
 		}
 		if err := wp.store.UpdateDone(media); err != nil {
 			return fmt.Errorf("update media done: %w", err)
 		}
-		wp.publishEvent(media.ID, "status", string(domain.MediaStatusDone), "")
+		wp.publishEvent(media.ID, string(domain.MediaStatusDone), "")
 	} else {
-		wp.publishEvent(media.ID, "status", string(domain.MediaStatusProcessing), "")
+		wp.publishEvent(media.ID, string(domain.MediaStatusProcessing), "")
 	}
 
 	return nil
 }
 
-func (wp *WorkerPool) handleLegacyConvert(job *domain.Job, media *domain.Media, convertedDir string) error {
+func (wp *WorkerPool) handleLegacyConvert(media *domain.Media, convertedDir string) error {
 	convertedPath, codec, err := wp.converter.Convert(media.OriginalPath, convertedDir, media.ID)
 	if err != nil {
 		return fmt.Errorf("convert: %w", err)
@@ -258,7 +257,7 @@ func (wp *WorkerPool) handleLegacyConvert(job *domain.Job, media *domain.Media, 
 
 	_ = os.Remove(media.OriginalPath)
 
-	wp.publishEvent(media.ID, "status", string(domain.MediaStatusDone), "")
+	wp.publishEvent(media.ID, string(domain.MediaStatusDone), "")
 	return nil
 }
 
@@ -284,10 +283,10 @@ func (wp *WorkerPool) failVariant(job *domain.Job) {
 			if err := wp.store.UpdateDone(media); err != nil {
 				logger.Error.Printf("failed to mark media done after variant failures: %v", err)
 			}
-			wp.publishEvent(media.ID, "status", string(domain.MediaStatusDone), "")
+			wp.publishEvent(media.ID, string(domain.MediaStatusDone), "")
 		} else {
 			_ = wp.store.UpdateStatus(media.ID, domain.MediaStatusFailed, "all conversions failed")
-			wp.publishEvent(media.ID, "status", string(domain.MediaStatusFailed), "all conversions failed")
+			wp.publishEvent(media.ID, string(domain.MediaStatusFailed), "all conversions failed")
 		}
 	}
 }
@@ -299,7 +298,7 @@ func (wp *WorkerPool) handleThumbnail(job *domain.Job) error {
 	}
 
 	convertedDir := filepath.Join(wp.dataDir, "converted")
-	if err := os.MkdirAll(convertedDir, 0750); err != nil {
+	if err := os.MkdirAll(convertedDir, convertedDirPerms); err != nil {
 		return fmt.Errorf("create converted directory: %w", err)
 	}
 	thumbPath := filepath.Join(convertedDir, media.ID+"_thumb.jpg")
@@ -337,10 +336,10 @@ func (wp *WorkerPool) handleProbe(job *domain.Job) error {
 	return wp.store.UpdateDone(media)
 }
 
-func (wp *WorkerPool) publishEvent(mediaID, eventType, status, message string) {
+func (wp *WorkerPool) publishEvent(mediaID, status, message string) {
 	if wp.eventBus != nil {
 		wp.eventBus.Publish(mediaID, Event{
-			Type:    eventType,
+			Type:    "status",
 			Status:  status,
 			Message: message,
 		})

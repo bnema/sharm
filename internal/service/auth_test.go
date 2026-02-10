@@ -27,7 +27,7 @@ func (m *mockUserStore) HasUser() (bool, error) {
 	return m.hasUser, m.createUserErr
 }
 
-func (m *mockUserStore) GetUser(username string) (*domain.User, error) {
+func (m *mockUserStore) GetUser(_ string) (*domain.User, error) {
 	if m.getUserErr != nil {
 		return nil, m.getUserErr
 	}
@@ -41,7 +41,7 @@ func (m *mockUserStore) GetFirstUser() (*domain.User, error) {
 	return m.user, nil
 }
 
-func (m *mockUserStore) GetUserByID(id int64) (*domain.User, error) {
+func (m *mockUserStore) GetUserByID(_ int64) (*domain.User, error) {
 	if m.getUserErr != nil {
 		return nil, m.getUserErr
 	}
@@ -61,7 +61,7 @@ func (m *mockUserStore) CreateUser(username, passwordHash string) error {
 	return nil
 }
 
-func (m *mockUserStore) UpdatePassword(id int64, passwordHash string) error {
+func (m *mockUserStore) UpdatePassword(_ int64, passwordHash string) error {
 	if m.user != nil {
 		m.user.PasswordHash = passwordHash
 	}

@@ -20,7 +20,7 @@ func TestLoginRateLimiter_Check_FirstAttempt(t *testing.T) {
 func TestLoginRateLimiter_Check_SubsequentAttempts(t *testing.T) {
 	limiter := NewLoginRateLimiter(5, 1*time.Minute, 5*time.Minute)
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		allowed, _ := limiter.Check("client1")
 		assert.True(t, allowed)
 	}
@@ -187,16 +187,16 @@ func TestLoginRateLimiter_ConcurrentAccess(t *testing.T) {
 	limiter := NewLoginRateLimiter(100, 1*time.Minute, 5*time.Minute)
 
 	done := make(chan bool)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
-			for j := 0; j < 10; j++ {
+			for range 10 {
 				limiter.Check("concurrent-client")
 			}
 			done <- true
 		}()
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 

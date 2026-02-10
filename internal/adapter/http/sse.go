@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/bnema/sharm/internal/adapter/http/templates"
 	"github.com/bnema/sharm/internal/domain"
@@ -19,11 +18,16 @@ type SSEHandler struct {
 	domain   string
 }
 
-func NewSSEHandler(eventBus *service.EventBus, mediaSvc MediaService, domain string) *SSEHandler {
+type renderedFragments struct {
+	statusHTML string
+	rowHTML    string
+}
+
+func NewSSEHandler(eventBus *service.EventBus, mediaSvc MediaService, domainName string) *SSEHandler {
 	return &SSEHandler{
 		eventBus: eventBus,
 		mediaSvc: mediaSvc,
-		domain:   domain,
+		domain:   domainName,
 	}
 }
 
@@ -48,10 +52,10 @@ func (h *SSEHandler) renderStatusHTML(media *domain.Media) (string, error) {
 	return buf.String(), nil
 }
 
-// renderRowHTML renders a dashboard row for SSE outerHTML swap.
+// renderRowHTML renders the inner content of a dashboard row for SSE innerHTML swap.
 func (h *SSEHandler) renderRowHTML(media *domain.Media) (string, error) {
 	var buf bytes.Buffer
-	err := templates.DashboardRow(media, h.domain).Render(context.Background(), &buf)
+	err := templates.DashboardRowContent(media, h.domain).Render(context.Background(), &buf)
 	if err != nil {
 		return "", err
 	}
@@ -59,9 +63,9 @@ func (h *SSEHandler) renderRowHTML(media *domain.Media) (string, error) {
 }
 
 // sseWrite writes an SSE event, handling multi-line data correctly.
-func sseWrite(w http.ResponseWriter, eventName string, data string) {
+func sseWrite(w http.ResponseWriter, eventName, data string) {
 	_, _ = fmt.Fprintf(w, "event: %s\n", eventName)
-	for _, line := range strings.Split(data, "\n") {
+	for line := range strings.SplitSeq(data, "\n") {
 		_, _ = fmt.Fprintf(w, "data: %s\n", line)
 	}
 	_, _ = fmt.Fprint(w, "\n")
@@ -70,29 +74,29 @@ func sseWrite(w http.ResponseWriter, eventName string, data string) {
 	}
 }
 
-// sendAllEvents sends both "status" and "row" SSE events for a media item.
-func (h *SSEHandler) sendAllEvents(w http.ResponseWriter, media *domain.Media) error {
+// sendAllEvents sends changed "status" and "row" SSE fragments for a media item.
+func (h *SSEHandler) sendAllEvents(w http.ResponseWriter, media *domain.Media, previous *renderedFragments) (*renderedFragments, error) {
 	statusHTML, err := h.renderStatusHTML(media)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	sseWrite(w, "status", statusHTML)
 
 	rowHTML, err := h.renderRowHTML(media)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	sseWrite(w, "row", rowHTML)
 
-	return nil
-}
-
-// sendKeepAlive writes an SSE comment to keep the connection active.
-func sendKeepAlive(w http.ResponseWriter) {
-	_, _ = fmt.Fprint(w, ": keep-alive\n\n")
-	if f, ok := w.(http.Flusher); ok {
-		f.Flush()
+	if previous == nil || previous.statusHTML != statusHTML {
+		sseWrite(w, "status", statusHTML)
 	}
+	if previous == nil || previous.rowHTML != rowHTML {
+		sseWrite(w, "row", rowHTML)
+	}
+
+	return &renderedFragments{
+		statusHTML: statusHTML,
+		rowHTML:    rowHTML,
+	}, nil
 }
 
 func (h *SSEHandler) Events() http.HandlerFunc {
@@ -114,31 +118,25 @@ func (h *SSEHandler) Events() http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("X-Accel-Buffering", "no")
 
-		// If already terminal, send final events and wait for client close
+		// If already terminal, send final events and close
 		if media.Status == domain.MediaStatusDone || media.Status == domain.MediaStatusFailed {
-			_ = h.sendAllEvents(w, media)
-			<-r.Context().Done()
+			_, _ = h.sendAllEvents(w, media, nil)
 			return
 		}
 
 		// Send current state
-		_ = h.sendAllEvents(w, media)
+		state, _ := h.sendAllEvents(w, media, nil)
 
 		// Subscribe to events
 		ch := h.eventBus.Subscribe(id)
 		defer h.eventBus.Unsubscribe(id, ch)
 
 		ctx := r.Context()
-		keepAlive := time.NewTicker(15 * time.Second)
-		defer keepAlive.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-keepAlive.C:
-				sendKeepAlive(w)
 			case event, ok := <-ch:
 				if !ok {
 					return
@@ -148,11 +146,10 @@ func (h *SSEHandler) Events() http.HandlerFunc {
 				if err != nil {
 					return
 				}
-				_ = h.sendAllEvents(w, media)
+				state, _ = h.sendAllEvents(w, media, state)
 
-				// Let client close connection when terminal
+				// Close on terminal states
 				if event.Status == string(domain.MediaStatusDone) || event.Status == string(domain.MediaStatusFailed) {
-					<-ctx.Done()
 					return
 				}
 			}

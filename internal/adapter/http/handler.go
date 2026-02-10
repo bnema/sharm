@@ -10,26 +10,34 @@ import (
 	"strings"
 
 	"github.com/bnema/sharm/internal/adapter/http/templates"
-	"github.com/bnema/sharm/internal/adapter/http/validation"
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/bnema/sharm/internal/infrastructure/logger"
 )
 
-const (
-	mimeAudioMpeg = "audio/mpeg"
-	mimeAudioOgg  = "audio/ogg"
-	mimeVideoWebm = "video/webm"
-	mimeVideoMp4  = "video/mp4"
-	hxRequestTrue = "true"
-)
-
 type MediaService interface {
-	Upload(filename string, file *os.File, retentionDays int, mediaType domain.MediaType, codecs []domain.Codec, fps int) (*domain.Media, error)
+	Upload(
+		filename string,
+		file *os.File,
+		retentionDays int,
+		mediaType domain.MediaType,
+		codecs []domain.Codec,
+		fps int,
+	) (*domain.Media, error)
 	Get(id string) (*domain.Media, error)
 	ListAll() ([]*domain.Media, error)
 	Delete(id string) error
 	ProbeFile(filePath string) (*domain.ProbeResult, error)
 }
+
+const (
+	bytesPerMegabyte        = 1024 * 1024
+	bitsPerMegabyteShift    = 20
+	defaultProbeMaxMemoryMB = 32
+	audioMIMETypeMPEG       = "audio/mpeg"
+	audioMIMETypeOGG        = "audio/ogg"
+	videoMIMETypeWEBM       = "video/webm"
+	videoMIMETypeMP4        = "video/mp4"
+)
 
 type Handlers struct {
 	mediaSvc  MediaService
@@ -69,9 +77,10 @@ func (h *Handlers) UploadPage() http.HandlerFunc {
 
 func (h *Handlers) Upload() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, int64(h.maxSizeMB)*1024*1024)
+		maxUploadBytes := int64(h.maxSizeMB) * bytesPerMegabyte
+		r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
 
-		if err := r.ParseMultipartForm(int64(h.maxSizeMB) * 1024 * 1024); err != nil {
+		if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusRequestEntityTooLarge)
 			_ = templates.ErrorInline("File too large").Render(r.Context(), w)
@@ -85,23 +94,7 @@ func (h *Handlers) Upload() http.HandlerFunc {
 			_ = templates.ErrorInline("Invalid file upload").Render(r.Context(), w)
 			return
 		}
-		defer file.Close() //nolint:errcheck
-
-		// Validate file type using magic bytes
-		_, allowed, err := validation.ValidateMagicBytes(file)
-		if err != nil {
-			logger.Error.Printf("magic bytes validation error for %s: %v", logger.SanitizeForLog(header.Filename), err)
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.WriteHeader(http.StatusInternalServerError)
-			_ = templates.ErrorInline("Failed to validate file type").Render(r.Context(), w)
-			return
-		}
-		if !allowed {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = templates.ErrorInline("File type not allowed").Render(r.Context(), w)
-			return
-		}
+		defer file.Close() //nolint:errcheck // best-effort cleanup after response handling
 
 		tmpFile, err := os.CreateTemp("", "upload-*.tmp")
 		if err != nil {
@@ -115,7 +108,8 @@ func (h *Handlers) Upload() http.HandlerFunc {
 			_ = os.Remove(tmpFile.Name()) // may already be moved by service
 		}()
 
-		if _, copyErr := io.Copy(tmpFile, file); copyErr != nil {
+		_, err = io.Copy(tmpFile, file)
+		if err != nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = templates.ErrorInline("Failed to save file").Render(r.Context(), w)
@@ -123,10 +117,7 @@ func (h *Handlers) Upload() http.HandlerFunc {
 		}
 
 		retentionStr := r.FormValue("retention")
-		retentionDays, parseErr := strconv.Atoi(retentionStr)
-		if parseErr != nil {
-			retentionDays = 7
-		}
+		retentionDays, err := strconv.Atoi(retentionStr)
 		if err != nil {
 			retentionDays = 7
 		}
@@ -145,7 +136,7 @@ func (h *Handlers) Upload() http.HandlerFunc {
 		mediaType := domain.DetectMediaType(header.Filename)
 		_, err = h.mediaSvc.Upload(header.Filename, tmpFile, retentionDays, mediaType, codecs, fps)
 		if err != nil {
-			logger.Error.Printf("upload error for %s: %v", logger.SanitizeForLog(header.Filename), err)
+			logger.Error.Printf("upload error for %s: %v", header.Filename, err)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
 			msg := "Upload failed"
@@ -164,226 +155,6 @@ func (h *Handlers) Upload() http.HandlerFunc {
 	}
 }
 
-const chunkSize = 5 * 1024 * 1024 // 5MB
-
-// validateUploadID checks that uploadID is a valid UUID-like string (alphanumeric with dashes).
-func validateUploadID(uploadID string) bool {
-	if uploadID == "" || len(uploadID) > 64 {
-		return false
-	}
-	for _, c := range uploadID {
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
-			return false
-		}
-	}
-	return true
-}
-
-func (h *Handlers) ChunkUpload() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, chunkSize+1024*1024) // chunk + overhead
-
-		if err := r.ParseMultipartForm(chunkSize + 1024*1024); err != nil {
-			http.Error(w, "Invalid request", http.StatusBadRequest)
-			return
-		}
-
-		uploadID := r.FormValue("uploadId")
-		chunkIndexStr := r.FormValue("chunkIndex")
-		if uploadID == "" || chunkIndexStr == "" {
-			http.Error(w, "Missing uploadId or chunkIndex", http.StatusBadRequest)
-			return
-		}
-
-		if !validateUploadID(uploadID) {
-			http.Error(w, "Invalid uploadId format", http.StatusBadRequest)
-			return
-		}
-
-		// Parse and validate chunkIndex to prevent path traversal
-		chunkIdx, err := strconv.Atoi(chunkIndexStr)
-		if err != nil || chunkIdx < 0 {
-			http.Error(w, "Invalid chunkIndex", http.StatusBadRequest)
-			return
-		}
-
-		file, _, err := r.FormFile("chunk")
-		if err != nil {
-			http.Error(w, "Invalid chunk data", http.StatusBadRequest)
-			return
-		}
-		defer func() {
-			if closeErr := file.Close(); closeErr != nil {
-				logger.Error.Printf("failed to close chunk file for upload %s chunk %d: %v", uploadID, chunkIdx, closeErr)
-			}
-		}()
-
-		chunkDir := filepath.Join(os.TempDir(), "sharm-chunks", uploadID)
-		if mkdirErr := os.MkdirAll(chunkDir, 0750); mkdirErr != nil {
-			logger.Error.Printf("failed to create chunk dir: %v", mkdirErr)
-			http.Error(w, "Server error", http.StatusInternalServerError)
-			return
-		}
-
-		chunkPath := filepath.Join(chunkDir, strconv.Itoa(chunkIdx))
-		out, err := os.OpenFile(chunkPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-		if err != nil {
-			logger.Error.Printf("failed to create chunk file %s: %v", chunkPath, err)
-			http.Error(w, "Server error", http.StatusInternalServerError)
-			return
-		}
-		defer func() {
-			if closeErr := out.Close(); closeErr != nil {
-				logger.Error.Printf("failed to close output file %s: %v", chunkPath, closeErr)
-			}
-		}()
-
-		if _, err := io.Copy(out, file); err != nil {
-			logger.Error.Printf("failed to write chunk: %v", err)
-			http.Error(w, "Server error", http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte("OK")); err != nil {
-			logger.Error.Printf("failed to write response for chunk %d: %v", chunkIdx, err)
-		}
-	}
-}
-
-func (h *Handlers) CompleteUpload() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := r.ParseMultipartForm(1024 * 1024); err != nil {
-			http.Error(w, "Invalid request", http.StatusBadRequest)
-			return
-		}
-
-		uploadID := r.FormValue("uploadId")
-		filename := r.FormValue("filename")
-		totalChunksStr := r.FormValue("totalChunks")
-		retentionStr := r.FormValue("retention")
-
-		if uploadID == "" || filename == "" || totalChunksStr == "" {
-			http.Error(w, "Missing required fields", http.StatusBadRequest)
-			return
-		}
-
-		if !validateUploadID(uploadID) {
-			http.Error(w, "Invalid uploadId format", http.StatusBadRequest)
-			return
-		}
-
-		totalChunks, err := strconv.Atoi(totalChunksStr)
-		if err != nil || totalChunks < 1 {
-			http.Error(w, "Invalid totalChunks", http.StatusBadRequest)
-			return
-		}
-		// Prevent DoS via huge totalChunks value (max ~100GB at 5MB/chunk)
-		if totalChunks > 20000 {
-			http.Error(w, "Too many chunks", http.StatusBadRequest)
-			return
-		}
-
-		retentionDays, err := strconv.Atoi(retentionStr)
-		if err != nil {
-			retentionDays = 7
-		}
-
-		// Parse codecs
-		var codecs []domain.Codec
-		for _, c := range r.Form["codecs"] {
-			switch domain.Codec(c) {
-			case domain.CodecAV1, domain.CodecH264, domain.CodecOpus:
-				codecs = append(codecs, domain.Codec(c))
-			}
-		}
-
-		fps, _ := strconv.Atoi(r.FormValue("fps"))
-
-		chunkDir := filepath.Join(os.TempDir(), "sharm-chunks", uploadID)
-		defer func() {
-			if removeErr := os.RemoveAll(chunkDir); removeErr != nil {
-				logger.Error.Printf("failed to cleanup chunk dir %s: %v", chunkDir, removeErr)
-			}
-		}()
-
-		// Assemble chunks into temp file
-		assembled, err := os.CreateTemp("", "upload-assembled-*.tmp")
-		if err != nil {
-			logger.Error.Printf("failed to create assembled file: %v", err)
-			http.Error(w, "Server error", http.StatusInternalServerError)
-			return
-		}
-		defer func() {
-			if closeErr := assembled.Close(); closeErr != nil {
-				logger.Error.Printf("failed to close assembled file: %v", closeErr)
-			}
-			if removeErr := os.Remove(assembled.Name()); removeErr != nil && !os.IsNotExist(removeErr) {
-				logger.Error.Printf("failed to remove assembled file: %v", removeErr)
-			}
-		}()
-
-		for i := range totalChunks {
-			chunkPath := filepath.Join(chunkDir, strconv.Itoa(i))
-			chunk, openErr := os.Open(chunkPath)
-			if openErr != nil {
-				logger.Error.Printf("missing chunk %d for upload %s: %v", i, uploadID, openErr)
-				http.Error(w, fmt.Sprintf("Missing chunk %d", i), http.StatusBadRequest)
-				return
-			}
-			_, copyErr := io.Copy(assembled, chunk)
-			if closeErr := chunk.Close(); closeErr != nil {
-				logger.Error.Printf("failed to close chunk %d for upload %s: %v", i, uploadID, closeErr)
-			}
-			if copyErr != nil {
-				logger.Error.Printf("failed to copy chunk %d: %v", i, copyErr)
-				http.Error(w, "Server error", http.StatusInternalServerError)
-				return
-			}
-		}
-
-		// Reset file position for reading
-		if _, seekErr := assembled.Seek(0, 0); seekErr != nil {
-			logger.Error.Printf("failed to seek assembled file: %v", seekErr)
-			http.Error(w, "Server error", http.StatusInternalServerError)
-			return
-		}
-
-		// Validate assembled file type using magic bytes
-		_, allowed, err := validation.ValidateMagicBytes(assembled)
-		if err != nil {
-			logger.Error.Printf("magic bytes validation error for %s: %v", logger.SanitizeForLog(filename), err)
-			http.Error(w, "Failed to validate file type", http.StatusInternalServerError)
-			return
-		}
-		if !allowed {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = templates.ErrorInline("File type not allowed").Render(r.Context(), w)
-			return
-		}
-
-		mediaType := domain.DetectMediaType(filename)
-		_, err = h.mediaSvc.Upload(filename, assembled, retentionDays, mediaType, codecs, fps)
-		if err != nil {
-			logger.Error.Printf("upload error for %s: %v", logger.SanitizeForLog(filename), err)
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.WriteHeader(http.StatusInternalServerError)
-			msg := "Upload failed"
-			if strings.Contains(err.Error(), "no space left") {
-				msg = "Upload failed: disk full"
-			} else if strings.Contains(err.Error(), "permission denied") {
-				msg = "Upload failed: permission error"
-			}
-			_ = templates.ErrorInline(msg).Render(r.Context(), w)
-			return
-		}
-
-		w.Header().Set("HX-Redirect", "/")
-		w.WriteHeader(http.StatusOK)
-	}
-}
-
 func (h *Handlers) StatusPage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/status/")
@@ -393,7 +164,7 @@ func (h *Handlers) StatusPage() http.HandlerFunc {
 		if err != nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusNotFound)
-			if r.Header.Get("HX-Request") == hxRequestTrue {
+			if r.Header.Get("HX-Request") == "true" {
 				_ = templates.ErrorInline("Media not found").Render(r.Context(), w)
 			} else {
 				_ = templates.ErrorPage("404", "Media not found", h.version).Render(r.Context(), w)
@@ -404,7 +175,7 @@ func (h *Handlers) StatusPage() http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 		// HTMX polling request — return fragment
-		if r.Header.Get("HX-Request") == hxRequestTrue {
+		if r.Header.Get("HX-Request") == "true" {
 			switch media.Status {
 			case domain.MediaStatusPending, domain.MediaStatusProcessing:
 				_ = templates.StatusPolling(media.ID).Render(r.Context(), w)
@@ -433,7 +204,7 @@ func (h *Handlers) DeleteMedia() http.HandlerFunc {
 		id = strings.TrimSuffix(id, "/")
 
 		if err := h.mediaSvc.Delete(id); err != nil {
-			logger.Error.Printf("delete error for %s: %v", logger.SanitizeForLog(id), err)
+			logger.Error.Printf("delete error for %s: %v", id, err)
 			http.Error(w, "Delete failed", http.StatusInternalServerError)
 			return
 		}
@@ -444,9 +215,10 @@ func (h *Handlers) DeleteMedia() http.HandlerFunc {
 
 func (h *Handlers) ProbeUpload() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, int64(h.maxSizeMB)*1024*1024)
+		maxUploadBytes := int64(h.maxSizeMB) * bytesPerMegabyte
+		r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
 
-		if err := r.ParseMultipartForm(32 << 20); err != nil {
+		if err := r.ParseMultipartForm(defaultProbeMaxMemoryMB << bitsPerMegabyteShift); err != nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusBadRequest)
 			_ = templates.ErrorInline("Invalid file upload").Render(r.Context(), w)
@@ -466,8 +238,8 @@ func (h *Handlers) ProbeUpload() http.HandlerFunc {
 			}
 		}()
 
-		tmpFile, createErr := os.CreateTemp("", "probe-*.tmp")
-		if createErr != nil {
+		tmpFile, err := os.CreateTemp("", "probe-*.tmp")
+		if err != nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = templates.ErrorInline("Failed to process file").Render(r.Context(), w)
@@ -478,16 +250,17 @@ func (h *Handlers) ProbeUpload() http.HandlerFunc {
 			_ = os.Remove(tmpFile.Name()) // may already be moved by service
 		}()
 
-		if _, copyErr := io.Copy(tmpFile, file); copyErr != nil {
+		_, err = io.Copy(tmpFile, file)
+		if err != nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = templates.ErrorInline("Failed to read file").Render(r.Context(), w)
 			return
 		}
 
-		probeResult, probeErr := h.mediaSvc.ProbeFile(tmpFile.Name())
-		if probeErr != nil {
-			logger.Error.Printf("probe error for %s: %v", logger.SanitizeForLog(header.Filename), probeErr)
+		probeResult, err := h.mediaSvc.ProbeFile(tmpFile.Name())
+		if err != nil {
+			logger.Error.Printf("probe error for %s: %v", header.Filename, err)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = templates.ErrorInline("Failed to probe file").Render(r.Context(), w)
@@ -588,7 +361,7 @@ func (h *Handlers) ServeOriginal(id string) http.HandlerFunc {
 
 		mimeType := detectOriginalMIMEType(media)
 		w.Header().Set("Content-Type", mimeType)
-		w.Header().Set("Content-Disposition", validation.ContentDisposition(media.OriginalName, true))
+		w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", media.OriginalName))
 		http.ServeFile(w, r, media.OriginalPath)
 	}
 }
@@ -609,7 +382,7 @@ func (h *Handlers) ServeVariant(id string, codec domain.Codec) http.HandlerFunc 
 
 		mimeType := codecMIMEType(codec, media.Type)
 		w.Header().Set("Content-Type", mimeType)
-		w.Header().Set("Content-Disposition", validation.ContentDisposition(variantFilename(media.OriginalName, codec), true))
+		w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", variantFilename(media.OriginalName, codec)))
 		http.ServeFile(w, r, v.Path)
 	}
 }
@@ -631,7 +404,7 @@ func (h *Handlers) ServeRaw() http.HandlerFunc {
 		if v := media.BestVariantForAccept(r.Header.Get("Accept")); v != nil && v.Path != "" {
 			mimeType := codecMIMEType(v.Codec, media.Type)
 			w.Header().Set("Content-Type", mimeType)
-			w.Header().Set("Content-Disposition", validation.ContentDisposition(media.OriginalName, true))
+			w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", media.OriginalName))
 			http.ServeFile(w, r, v.Path)
 			return
 		}
@@ -649,7 +422,7 @@ func (h *Handlers) ServeRaw() http.HandlerFunc {
 
 		mimeType := detectMIMEType(media)
 		w.Header().Set("Content-Type", mimeType)
-		w.Header().Set("Content-Disposition", validation.ContentDisposition(media.OriginalName, true))
+		w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", media.OriginalName))
 		http.ServeFile(w, r, servePath)
 	}
 }
@@ -662,21 +435,21 @@ func detectMIMEType(media *domain.Media) string {
 		ext := strings.ToLower(filepath.Ext(media.OriginalName))
 		switch ext {
 		case ".mp3":
-			return mimeAudioMpeg
+			return audioMIMETypeMPEG
 		case ".ogg":
-			return mimeAudioOgg
+			return audioMIMETypeOGG
 		case ".wav":
 			return "audio/wav"
 		case ".flac":
 			return "audio/flac"
 		default:
-			return mimeAudioMpeg
+			return audioMIMETypeMPEG
 		}
 	default: // video
 		if media.Codec == domain.CodecAV1 {
-			return mimeVideoWebm
+			return videoMIMETypeWEBM
 		}
-		return mimeVideoMp4
+		return videoMIMETypeMP4
 	}
 }
 
@@ -694,9 +467,9 @@ func detectOriginalMIMEType(media *domain.Media) string {
 	case ".jpg", ".jpeg":
 		return "image/jpeg"
 	case ".mp4", ".m4v":
-		return mimeVideoMp4
+		return "video/mp4"
 	case ".webm":
-		return mimeVideoWebm
+		return "video/webm"
 	case ".mov":
 		return "video/quicktime"
 	case ".avi":
@@ -704,9 +477,9 @@ func detectOriginalMIMEType(media *domain.Media) string {
 	case ".mkv":
 		return "video/x-matroska"
 	case ".mp3":
-		return mimeAudioMpeg
+		return "audio/mpeg"
 	case ".ogg", ".opus":
-		return mimeAudioOgg
+		return "audio/ogg"
 	case ".wav":
 		return "audio/wav"
 	case ".flac":
@@ -723,16 +496,16 @@ func detectOriginalMIMEType(media *domain.Media) string {
 func codecMIMEType(codec domain.Codec, mediaType domain.MediaType) string {
 	switch codec {
 	case domain.CodecAV1:
-		return mimeVideoWebm
+		return videoMIMETypeWEBM
 	case domain.CodecH264:
-		return mimeVideoMp4
+		return videoMIMETypeMP4
 	case domain.CodecOpus:
-		return mimeAudioOgg
+		return audioMIMETypeOGG
 	default:
 		if mediaType == domain.MediaTypeAudio {
-			return mimeAudioMpeg
+			return audioMIMETypeMPEG
 		}
-		return mimeVideoMp4
+		return videoMIMETypeMP4
 	}
 }
 
