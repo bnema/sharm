@@ -151,6 +151,28 @@ templ IconCheck() {
 	</svg>
 }
 
+templ IconCheckCircle() {
+	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+		<path d="m9 11 3 3L22 4"></path>
+	</svg>
+}
+
+templ IconAlertCircle() {
+	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+		<circle cx="12" cy="12" r="10"></circle>
+		<line x1="12" x2="12" y1="8" y2="12"></line>
+		<line x1="12" x2="12.01" y1="16" y2="16"></line>
+	</svg>
+}
+
+templ IconClock() {
+	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+		<circle cx="12" cy="12" r="10"></circle>
+		<polyline points="12 6 12 12 16 14"></polyline>
+	</svg>
+}
+
 templ IconExternalLink() {
 	<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 		<path d="M15 3h6v6"></path>
@@ -234,6 +256,35 @@ templ IconLibrary() {
 		<rect width="7" height="7" x="14" y="14" rx="1"></rect>
 		<rect width="7" height="7" x="3" y="14" rx="1"></rect>
 	</svg>
+}
+
+// --- Status icons (replace text badges) ---
+
+func statusColor(v BadgeVariant) string {
+	switch v {
+	case BadgeSuccess:
+		return "var(--success)"
+	case BadgeError:
+		return "var(--error)"
+	case BadgeMuted:
+		return "var(--text-muted)"
+	default:
+		return "var(--accent)"
+	}
+}
+
+templ StatusIcon(label string, variant BadgeVariant) {
+	<span style={ fmt.Sprintf("display:inline-flex;align-items:center;color:%s;flex-shrink:0;", statusColor(variant)) } title={ label }>
+		if variant == BadgeSuccess {
+			@IconCheckCircle()
+		} else if variant == BadgeError {
+			@IconAlertCircle()
+		} else if variant == BadgeMuted {
+			@IconClock()
+		} else {
+			@Spinner()
+		}
+	</span>
 }
 
 // --- Card (composable wrapper) ---

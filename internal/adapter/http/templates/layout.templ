@@ -305,15 +305,40 @@ templ Layout(props LayoutProps) {
 				}
 
 				.nav-link {
-					padding: 0.25rem 0.625rem;
+					display: inline-flex;
+					align-items: center;
+					gap: var(--s-xs);
+					padding: 0.375rem 0.75rem;
 					font-size: var(--text-sm);
+					font-family: var(--font-body);
 					color: var(--text-muted);
 					text-decoration: none;
 					border-radius: var(--radius-md);
+					border: none;
+					background: none;
+					cursor: pointer;
 					transition: all var(--duration) var(--ease);
 				}
 				.nav-link:hover { color: var(--text-primary); background: var(--bg-elevated); }
 				.nav-link[aria-current="page"] { color: var(--text-primary); background: var(--bg-elevated); }
+
+				.nav-link--icon {
+					padding: 0.375rem;
+				}
+
+				.nav-link svg {
+					width: 16px;
+					height: 16px;
+				}
+
+				.nav-link--danger:hover { color: var(--error); }
+
+				.nav-sep {
+					width: 1px;
+					height: 16px;
+					background: var(--border);
+					margin: 0 var(--s-xs);
+				}
 
 				/* --- Dialog --- */
 				dialog[open] {
@@ -430,7 +455,7 @@ templ Layout(props LayoutProps) {
 					}
 
 					.footer {
-						padding-bottom: calc(var(--s-sm) + 60px);
+						display: none;
 					}
 				}
 
@@ -519,24 +544,35 @@ templ Layout(props LayoutProps) {
 							Sharm
 							<span class="tag">{ props.Version }</span>
 						</a>
-						<div class="nav-links">
-							<a href="/"
-								class="nav-link"
-								if props.ActiveRoute == "dashboard" {
-									aria-current="page"
-								}
-							>Library</a>
-							<a href="/upload"
-								class="nav-link"
-								if props.ActiveRoute == "upload" {
-									aria-current="page"
-								}
-							>Upload</a>
-							<button class="nav-link" style="background:none;border:none;cursor:pointer;font-family:var(--font-body);" onclick="document.getElementById('password-dialog').showModal()">Change Password</button>
-							<form action="/logout" method="post" style="display:inline;">
-								<button type="submit" class="nav-link" style="background:none;border:none;cursor:pointer;font-family:var(--font-body);color:var(--error);">Logout</button>
-							</form>
-						</div>
+					<div class="nav-links">
+						<a href="/"
+							class="nav-link"
+							if props.ActiveRoute == "dashboard" {
+								aria-current="page"
+							}
+						>
+							@IconLibrary()
+							Library
+						</a>
+						<a href="/upload"
+							class="nav-link"
+							if props.ActiveRoute == "upload" {
+								aria-current="page"
+							}
+						>
+							@IconUpload()
+							Upload
+						</a>
+						<span class="nav-sep"></span>
+						<button class="nav-link nav-link--icon" onclick="document.getElementById('password-dialog').showModal()" title="Change Password">
+							@IconLock()
+						</button>
+						<form action="/logout" method="post" style="display:inline;">
+							<button type="submit" class="nav-link nav-link--icon nav-link--danger" title="Logout">
+								@IconLogOut()
+							</button>
+						</form>
+					</div>
 					</nav>
 					<dialog id="password-dialog" style="background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-lg);max-width:400px;width:90vw;font-family:var(--font-body);" onclick="closeDialogOnBackdrop(event, this)">
 						<h2 style="font-size:var(--text-sm);font-weight:600;margin-bottom:var(--s-md);">Change Password</h2>
