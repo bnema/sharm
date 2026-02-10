@@ -132,8 +132,8 @@ func (m *Media) MarkAsFailed(err error) {
 
 // AllVariantsTerminal returns true if every variant has reached a terminal state (done or failed).
 func (m *Media) AllVariantsTerminal() bool {
-	for i := range m.Variants {
-		if m.Variants[i].Status != VariantStatusDone && m.Variants[i].Status != VariantStatusFailed {
+	for _, v := range m.Variants {
+		if v.Status != VariantStatusDone && v.Status != VariantStatusFailed {
 			return false
 		}
 	}
@@ -142,8 +142,8 @@ func (m *Media) AllVariantsTerminal() bool {
 
 // HasDoneVariant returns true if at least one variant completed successfully.
 func (m *Media) HasDoneVariant() bool {
-	for i := range m.Variants {
-		if m.Variants[i].Status == VariantStatusDone {
+	for _, v := range m.Variants {
+		if v.Status == VariantStatusDone {
 			return true
 		}
 	}
@@ -182,16 +182,16 @@ type acceptEntry struct {
 // parseAccept parses an HTTP Accept header value into a slice of entries.
 func parseAccept(header string) []acceptEntry {
 	var entries []acceptEntry
-	for part := range strings.SplitSeq(header, ",") {
+	for _, part := range strings.Split(header, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
 		}
 		mime := part
 		q := 1.0
-		if before, after, found := strings.Cut(part, ";"); found {
-			mime = strings.TrimSpace(before)
-			params := strings.TrimSpace(after)
+		if idx := strings.Index(part, ";"); idx != -1 {
+			mime = strings.TrimSpace(part[:idx])
+			params := strings.TrimSpace(part[idx+1:])
 			if strings.HasPrefix(params, "q=") {
 				if v, err := strconv.ParseFloat(params[2:], 64); err == nil {
 					q = v

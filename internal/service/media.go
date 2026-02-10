@@ -20,11 +20,6 @@ type MediaService struct {
 	uploadDir string
 }
 
-const (
-	directoryPerms    = 0o750
-	maxProbeJSONBytes = 1 * 1024 * 1024
-)
-
 func NewMediaService(store port.MediaStore, converter port.MediaConverter, jobQueue port.JobQueue, dataDir string) *MediaService {
 	return &MediaService{
 		store:     store,
@@ -34,16 +29,8 @@ func NewMediaService(store port.MediaStore, converter port.MediaConverter, jobQu
 	}
 }
 
-//nolint:gocyclo,funlen // Upload coordinates validation, persistence, probing, and job enqueue flows.
-func (s *MediaService) Upload(
-	filename string,
-	file *os.File,
-	retentionDays int,
-	mediaType domain.MediaType,
-	codecs []domain.Codec,
-	fps int,
-) (*domain.Media, error) {
-	if err := os.MkdirAll(s.uploadDir, directoryPerms); err != nil {
+func (s *MediaService) Upload(filename string, file *os.File, retentionDays int, mediaType domain.MediaType, codecs []domain.Codec, fps int) (*domain.Media, error) {
+	if err := os.MkdirAll(s.uploadDir, 0750); err != nil {
 		logger.Error.Printf("failed to create upload directory: %v", err)
 		return nil, fmt.Errorf("failed to create upload directory: %w", err)
 	}
@@ -77,8 +64,8 @@ func (s *MediaService) Upload(
 	probeResult, _ := s.converter.Probe(finalUploadPath)
 	if probeResult != nil {
 		rawJSON := probeResult.RawJSON
-		if len(rawJSON) > maxProbeJSONBytes {
-			rawJSON = rawJSON[:maxProbeJSONBytes]
+		if len(rawJSON) > 1*1024*1024 {
+			rawJSON = rawJSON[:1*1024*1024]
 		}
 		media.ProbeJSON = rawJSON
 		width, height := probeResult.Dimensions()
@@ -92,14 +79,7 @@ func (s *MediaService) Upload(
 		return nil, fmt.Errorf("failed to save media metadata: %w", err)
 	}
 
-	logger.Info.Printf(
-		"media uploaded: id=%s, type=%s, filename=%s, retention=%d days, codecs=%v",
-		media.ID,
-		mediaType,
-		filename,
-		retentionDays,
-		codecs,
-	)
+	logger.Info.Printf("media uploaded: id=%s, type=%s, filename=%s, retention=%d days, codecs=%v", media.ID, mediaType, filename, retentionDays, codecs)
 
 	if mediaType == domain.MediaTypeImage {
 		fileInfo, _ := os.Stat(finalUploadPath)
@@ -183,9 +163,9 @@ func (s *MediaService) Delete(id string) error {
 	}
 
 	// Remove variant files
-	for i := range media.Variants {
-		if media.Variants[i].Path != "" {
-			_ = os.Remove(media.Variants[i].Path)
+	for _, v := range media.Variants {
+		if v.Path != "" {
+			_ = os.Remove(v.Path)
 		}
 	}
 
@@ -209,11 +189,10 @@ func (s *MediaService) Cleanup() error {
 		return err
 	}
 
-	for i := range expired {
-		media := expired[i]
-		for j := range media.Variants {
-			if media.Variants[j].Path != "" {
-				_ = os.Remove(media.Variants[j].Path)
+	for _, media := range expired {
+		for _, v := range media.Variants {
+			if v.Path != "" {
+				_ = os.Remove(v.Path)
 			}
 		}
 		_ = os.Remove(media.OriginalPath)
@@ -242,17 +221,16 @@ func copyFile(src *os.File, dstPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %w", err)
 	}
-	defer srcFile.Close() //nolint:errcheck // best-effort cleanup for temporary file handle
+	defer srcFile.Close() //nolint:errcheck
 
 	dstFile, err := os.Create(dstPath)
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}
-	defer dstFile.Close() //nolint:errcheck // best-effort cleanup for destination file handle
+	defer dstFile.Close() //nolint:errcheck
 
-	_, err = io.Copy(dstFile, srcFile)
-	if err != nil {
-		return fmt.Errorf("failed to copy file contents: %w", err)
+	if _, copyErr := io.Copy(dstFile, srcFile); copyErr != nil {
+		return fmt.Errorf("failed to copy file contents: %w", copyErr)
 	}
 
 	srcInfo, err := src.Stat()

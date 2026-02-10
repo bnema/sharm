@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bnema/sharm/internal/adapter/http/middleware"
 	"github.com/bnema/sharm/internal/adapter/http/ratelimit"
 	"github.com/bnema/sharm/internal/service"
 	"github.com/bnema/sharm/static"
@@ -18,45 +19,31 @@ type Server struct {
 	rateLimiter    *ratelimit.LoginRateLimiter
 	backoffTracker *ratelimit.LoginAttemptTracker
 	backoff        *ratelimit.Backoff
+	csrf           *middleware.CSRFProtection
 	behindProxy    bool
 	version        string
 }
 
-const (
-	loginMaxAttempts            = 5
-	loginWindowDuration         = 15 * time.Minute
-	loginBlockDuration          = 30 * time.Minute
-	backoffMinDuration          = 500 * time.Millisecond
-	backoffMaxDuration          = 10 * time.Second
-	backoffFactor       float64 = 2
-)
-
-func NewServer(
-	authSvc AuthService,
-	mediaSvc MediaService,
-	eventBus *service.EventBus,
-	domain string,
-	maxSizeMB int,
-	version string,
-	behindProxy bool,
-) *Server {
+func NewServer(authSvc AuthService, mediaSvc MediaService, eventBus *service.EventBus, domain string, maxSizeMB int, version string, behindProxy bool, secretKey string) *Server {
 	mux := http.NewServeMux()
 	handlers := NewHandlers(mediaSvc, domain, maxSizeMB, version)
 	sseHandler := NewSSEHandler(eventBus, mediaSvc, domain)
 
 	rateLimiter := ratelimit.NewLoginRateLimiter(
-		loginMaxAttempts,
-		loginWindowDuration,
-		loginBlockDuration,
+		5,
+		15*time.Minute,
+		30*time.Minute,
 	)
 
 	backoffTracker := ratelimit.NewLoginAttemptTracker()
 
 	backoff := ratelimit.NewBackoff(
-		backoffMinDuration,
-		backoffMaxDuration,
-		backoffFactor,
+		500*time.Millisecond,
+		10*time.Second,
+		2.0,
 	)
+
+	csrf := middleware.NewCSRFProtection(secretKey)
 
 	s := &Server{
 		mux:            mux,
@@ -67,6 +54,7 @@ func NewServer(
 		rateLimiter:    rateLimiter,
 		backoffTracker: backoffTracker,
 		backoff:        backoff,
+		csrf:           csrf,
 		behindProxy:    behindProxy,
 		version:        version,
 	}
@@ -95,8 +83,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /upload", AuthMiddleware(s.authSvc, s.handlers.UploadPage()))
 
 	s.mux.HandleFunc("POST /upload", AuthMiddleware(s.authSvc, s.handlers.Upload()))
-
-	s.mux.HandleFunc("POST /probe", AuthMiddleware(s.authSvc, s.handlers.ProbeUpload()))
+	s.mux.HandleFunc("POST /upload/chunk", AuthMiddleware(s.authSvc, s.handlers.ChunkUpload()))
+	s.mux.HandleFunc("POST /upload/complete", AuthMiddleware(s.authSvc, s.handlers.CompleteUpload()))
 
 	s.mux.HandleFunc("GET /status/", AuthMiddleware(s.authSvc, s.handlers.StatusPage()))
 
@@ -114,5 +102,6 @@ func (s *Server) registerStatic() {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.mux.ServeHTTP(w, r)
+	// Chain: SecurityHeaders -> CSRF -> mux
+	middleware.SecurityHeaders(s.csrf.Middleware(s.mux)).ServeHTTP(w, r)
 }

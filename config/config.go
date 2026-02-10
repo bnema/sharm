@@ -19,11 +19,6 @@ type Config struct {
 	BehindProxy          bool
 }
 
-const (
-	dataDirPerms   = 0o750
-	secretFilePerm = 0o600
-)
-
 func Load() (*Config, error) {
 	port, err := strconv.Atoi(getEnv("PORT", "7890"))
 	if err != nil {
@@ -49,8 +44,8 @@ func Load() (*Config, error) {
 			secretKey = string(keyBytes)
 		} else {
 			secretKey = generateSecretKey()
-			if err := os.MkdirAll(dataDir, dataDirPerms); err == nil {
-				_ = os.WriteFile(secretKeyFile, []byte(secretKey), secretFilePerm)
+			if err := os.MkdirAll(dataDir, 0750); err == nil {
+				_ = os.WriteFile(secretKeyFile, []byte(secretKey), 0600)
 			}
 		}
 	}

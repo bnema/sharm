@@ -28,17 +28,11 @@ var (
 	ErrInvalidUsername = errors.New("invalid username")
 )
 
-const (
-	minUsernameLength = 3
-	maxUsernameLength = 50
-	minPasswordLength = 8
-)
-
 func validateUsername(username string) error {
-	if len(username) < minUsernameLength {
+	if len(username) < 3 {
 		return fmt.Errorf("must be at least 3 characters")
 	}
-	if len(username) > maxUsernameLength {
+	if len(username) > 50 {
 		return fmt.Errorf("must be at most 50 characters")
 	}
 	for _, r := range username {
@@ -50,7 +44,7 @@ func validateUsername(username string) error {
 }
 
 func validatePasswordStrength(password string) error {
-	if len(password) < minPasswordLength {
+	if len(password) < 8 {
 		return fmt.Errorf("must be at least 8 characters")
 	}
 
@@ -135,12 +129,12 @@ func (s *AuthService) CreateUser(username, password string) error {
 		return ErrUserExists
 	}
 
-	if validationErr := validateUsername(username); validationErr != nil {
-		return fmt.Errorf("%w: %w", ErrInvalidUsername, validationErr)
+	if validateErr := validateUsername(username); validateErr != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidUsername, validateErr)
 	}
 
-	if validationErr := validatePasswordStrength(password); validationErr != nil {
-		return validationErr
+	if validateErr := validatePasswordStrength(password); validateErr != nil {
+		return validateErr
 	}
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -230,8 +224,8 @@ func (s *AuthService) ChangePassword(username, oldPassword, newPassword string) 
 		return ErrWrongPassword
 	}
 
-	if validationErr := validatePasswordStrength(newPassword); validationErr != nil {
-		return validationErr
+	if validateErr := validatePasswordStrength(newPassword); validateErr != nil {
+		return validateErr
 	}
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)

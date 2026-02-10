@@ -43,14 +43,6 @@ type ProbeResult struct {
 	RawJSON string        `json:"-"`
 }
 
-const (
-	oneKilobyte      = 1024
-	oneMegabyte      = oneKilobyte * 1024
-	oneGigabyte      = oneMegabyte * 1024
-	oneMegabitPerSec = 1000000
-	oneKilobitPerSec = 1000
-)
-
 func (p *ProbeResult) VideoStream() *ProbeStream {
 	for i := range p.Streams {
 		if p.Streams[i].CodecType == "video" {
@@ -69,7 +61,7 @@ func (p *ProbeResult) AudioStream() *ProbeStream {
 	return nil
 }
 
-func (p *ProbeResult) Dimensions() (width, height int) {
+func (p *ProbeResult) Dimensions() (width int, height int) {
 	vs := p.VideoStream()
 	if vs != nil {
 		return vs.Width, vs.Height
@@ -109,11 +101,11 @@ func FormatBitrate(bitrateStr string) string {
 	if err != nil {
 		return bitrateStr
 	}
-	if bitrate >= oneMegabitPerSec {
-		return fmt.Sprintf("%.1f Mbps", bitrate/oneMegabitPerSec)
+	if bitrate >= 1000000 {
+		return fmt.Sprintf("%.1f Mbps", bitrate/1000000)
 	}
-	if bitrate >= oneKilobitPerSec {
-		return fmt.Sprintf("%.1f Kbps", bitrate/oneKilobitPerSec)
+	if bitrate >= 1000 {
+		return fmt.Sprintf("%.1f Kbps", bitrate/1000)
 	}
 	return fmt.Sprintf("%.0f bps", bitrate)
 }
@@ -163,14 +155,14 @@ func ParseDuration(durationStr string) float64 {
 }
 
 func FormatSize(bytes int64) string {
-	if bytes < oneKilobyte {
+	if bytes < 1024 {
 		return fmt.Sprintf("%d B", bytes)
 	}
-	if bytes < oneMegabyte {
-		return fmt.Sprintf("%.1f KB", float64(bytes)/oneKilobyte)
+	if bytes < 1024*1024 {
+		return fmt.Sprintf("%.1f KB", float64(bytes)/1024)
 	}
-	if bytes < oneGigabyte {
-		return fmt.Sprintf("%.1f MB", float64(bytes)/oneMegabyte)
+	if bytes < 1024*1024*1024 {
+		return fmt.Sprintf("%.1f MB", float64(bytes)/(1024*1024))
 	}
-	return fmt.Sprintf("%.1f GB", float64(bytes)/oneGigabyte)
+	return fmt.Sprintf("%.1f GB", float64(bytes)/(1024*1024*1024))
 }

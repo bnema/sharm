@@ -13,12 +13,11 @@ import (
 )
 
 const (
-	CookieName      = "auth_token"
-	CookieMaxAge    = 7 * 24 * 60 * 60
-	CookiePath      = "/"
-	CookieSameSite  = http.SameSiteStrictMode
-	hxRequestHeader = "HX-Request"
-	hxTrueValue     = "true"
+	CookieName     = "auth_token"
+	CookieMaxAge   = 7 * 24 * 60 * 60
+	CookiePath     = "/"
+	CookieSameSite = http.SameSiteStrictMode
+	HXRequestTrue  = "true"
 )
 
 func getClientID(r *http.Request) string {
@@ -84,14 +83,7 @@ func AuthMiddleware(authSvc AuthService, next http.HandlerFunc) http.HandlerFunc
 	}
 }
 
-func LoginHandler(
-	authSvc AuthService,
-	rateLimiter *ratelimit.LoginRateLimiter,
-	tracker *ratelimit.LoginAttemptTracker,
-	backoff *ratelimit.Backoff,
-	version string,
-	behindProxy bool,
-) http.HandlerFunc {
+func LoginHandler(authSvc AuthService, rateLimiter *ratelimit.LoginRateLimiter, tracker *ratelimit.LoginAttemptTracker, backoff *ratelimit.Backoff, version string, behindProxy bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		clientID := getClientID(r)
 
@@ -124,12 +116,7 @@ func LoginHandler(
 
 				backoffDuration := backoff.Duration(failedAttempts)
 				if backoffDuration > 0 {
-					logger.Info.Printf(
-						"login attempt: invalid credentials from %s (attempt %d), backing off for %v",
-						clientID,
-						failedAttempts,
-						backoffDuration,
-					)
+					logger.Info.Printf("login attempt: invalid credentials from %s (attempt %d), backing off for %v", clientID, failedAttempts, backoffDuration)
 					time.Sleep(backoffDuration)
 				} else {
 					logger.Info.Printf("login attempt: invalid credentials from %s (attempt %d)", clientID, failedAttempts)
@@ -152,7 +139,7 @@ func LoginHandler(
 			setAuthCookie(w, r, token, behindProxy)
 			logger.Info.Printf("login successful for %s from %s", username, clientID)
 
-			if r.Header.Get(hxRequestHeader) == hxTrueValue {
+			if r.Header.Get("HX-Request") == HXRequestTrue {
 				w.Header().Set("HX-Redirect", "/")
 				return
 			}
@@ -238,7 +225,7 @@ func SetupHandler(authSvc AuthService, version string, behindProxy bool) http.Ha
 
 			setAuthCookie(w, r, token, behindProxy)
 
-			if r.Header.Get(hxRequestHeader) == hxTrueValue {
+			if r.Header.Get("HX-Request") == HXRequestTrue {
 				w.Header().Set("HX-Redirect", "/")
 				return
 			}

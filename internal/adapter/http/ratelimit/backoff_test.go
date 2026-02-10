@@ -46,7 +46,7 @@ func TestBackoff_Duration_WithJitter(t *testing.T) {
 	backoff.Jitter = true
 
 	durations := make([]time.Duration, 100)
-	for i := range 100 {
+	for i := 0; i < 100; i++ {
 		durations[i] = backoff.Duration(3)
 	}
 
