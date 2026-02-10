@@ -3,14 +3,33 @@ package ffmpeg
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/bnema/sharm/internal/port"
 )
+
+// Path validation errors
+var (
+	ErrEmptyPath   = errors.New("empty path")
+	ErrInvalidPath = errors.New("invalid path: contains null bytes")
+)
+
+// validatePath checks for empty paths and null byte injection attacks
+func validatePath(path string) error {
+	if path == "" {
+		return ErrEmptyPath
+	}
+	if strings.ContainsRune(path, 0) {
+		return ErrInvalidPath
+	}
+	return nil
+}
 
 const convertTimeout = 30 * time.Minute
 
@@ -21,6 +40,12 @@ func NewConverter() port.MediaConverter {
 }
 
 func (c *Converter) Convert(inputPath, outputDir, id string) (outputPath, codec string, err error) {
+	if validateErr := validatePath(inputPath); validateErr != nil {
+		return "", "", fmt.Errorf("invalid input path: %w", validateErr)
+	}
+	if validateErr := validatePath(outputDir); validateErr != nil {
+		return "", "", fmt.Errorf("invalid output dir: %w", validateErr)
+	}
 	basePath := filepath.Join(outputDir, id)
 
 	webmPath := basePath + ".webm"
@@ -39,6 +64,12 @@ func (c *Converter) Convert(inputPath, outputDir, id string) (outputPath, codec 
 }
 
 func (c *Converter) ConvertCodec(inputPath, outputDir, id string, codec domain.Codec, fps int) (outputPath string, err error) {
+	if validateErr := validatePath(inputPath); validateErr != nil {
+		return "", fmt.Errorf("invalid input path: %w", validateErr)
+	}
+	if validateErr := validatePath(outputDir); validateErr != nil {
+		return "", fmt.Errorf("invalid output dir: %w", validateErr)
+	}
 	basePath := filepath.Join(outputDir, id)
 
 	switch codec {
@@ -61,8 +92,15 @@ func (c *Converter) ConvertCodec(inputPath, outputDir, id string, codec domain.C
 	return outputPath, nil
 }
 
-func (*Converter) convertAV1(inputPath, outputPath string, fps int) error {
+func (c *Converter) convertAV1(inputPath, outputPath string, fps int) error {
+	if validateErr := validatePath(inputPath); validateErr != nil {
+		return fmt.Errorf("invalid input path: %w", validateErr)
+	}
+	if validateErr := validatePath(outputPath); validateErr != nil {
+		return fmt.Errorf("invalid output path: %w", validateErr)
+	}
 	args := []string{
+		"-nostdin", // Security: prevent stdin-based attacks
 		"-i", inputPath,
 		"-c:v", "libsvtav1",
 		"-crf", "30",
@@ -76,12 +114,19 @@ func (*Converter) convertAV1(inputPath, outputPath string, fps int) error {
 	args = append(args, "-y", outputPath)
 	ctx, cancel := context.WithTimeout(context.Background(), convertTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...) // #nosec G204 -- binary is fixed, args are ffmpeg flags
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	return cmd.Run()
 }
 
-func (*Converter) convertH264(inputPath, outputPath string, fps int) error {
+func (c *Converter) convertH264(inputPath, outputPath string, fps int) error {
+	if err := validatePath(inputPath); err != nil {
+		return fmt.Errorf("invalid input path: %w", err)
+	}
+	if err := validatePath(outputPath); err != nil {
+		return fmt.Errorf("invalid output path: %w", err)
+	}
 	args := []string{
+		"-nostdin", // Security: prevent stdin-based attacks
 		"-i", inputPath,
 		"-c:v", "libx264",
 		"-crf", "23",
@@ -96,12 +141,19 @@ func (*Converter) convertH264(inputPath, outputPath string, fps int) error {
 	args = append(args, "-y", outputPath)
 	ctx, cancel := context.WithTimeout(context.Background(), convertTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...) // #nosec G204 -- binary is fixed, args are ffmpeg flags
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	return cmd.Run()
 }
 
-func (*Converter) convertOpus(inputPath, outputPath string) error {
+func (c *Converter) convertOpus(inputPath, outputPath string) error {
+	if err := validatePath(inputPath); err != nil {
+		return fmt.Errorf("invalid input path: %w", err)
+	}
+	if err := validatePath(outputPath); err != nil {
+		return fmt.Errorf("invalid output path: %w", err)
+	}
 	args := []string{
+		"-nostdin", // Security: prevent stdin-based attacks
 		"-i", inputPath,
 		"-c:a", "libopus",
 		"-b:a", "128k",
@@ -111,12 +163,19 @@ func (*Converter) convertOpus(inputPath, outputPath string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), convertTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...) // #nosec G204 -- binary is fixed, args are ffmpeg flags
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	return cmd.Run()
 }
 
-func (*Converter) Thumbnail(inputPath, outputPath string) error {
+func (c *Converter) Thumbnail(inputPath, outputPath string) error {
+	if err := validatePath(inputPath); err != nil {
+		return fmt.Errorf("invalid input path: %w", err)
+	}
+	if err := validatePath(outputPath); err != nil {
+		return fmt.Errorf("invalid output path: %w", err)
+	}
 	args := []string{
+		"-nostdin", // Security: prevent stdin-based attacks
 		"-i", inputPath,
 		"-vframes", "1",
 		"-ss", "00:00:01",
@@ -124,11 +183,14 @@ func (*Converter) Thumbnail(inputPath, outputPath string) error {
 		"-y",
 		outputPath,
 	}
-	cmd := exec.Command("ffmpeg", args...) // #nosec G204 -- binary is fixed, args are ffmpeg flags
+	cmd := exec.Command("ffmpeg", args...)
 	return cmd.Run()
 }
 
-func (*Converter) Probe(inputPath string) (*domain.ProbeResult, error) {
+func (c *Converter) Probe(inputPath string) (*domain.ProbeResult, error) {
+	if err := validatePath(inputPath); err != nil {
+		return nil, fmt.Errorf("invalid input path: %w", err)
+	}
 	args := []string{
 		"-v", "quiet",
 		"-print_format", "json",
@@ -136,7 +198,7 @@ func (*Converter) Probe(inputPath string) (*domain.ProbeResult, error) {
 		"-show_streams",
 		inputPath,
 	}
-	cmd := exec.Command("ffprobe", args...) // #nosec G204 -- binary is fixed, args are ffprobe flags
+	cmd := exec.Command("ffprobe", args...)
 
 	output, err := cmd.Output()
 	if err != nil {
