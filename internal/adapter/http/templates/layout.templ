@@ -360,6 +360,154 @@ templ Layout(props LayoutProps) {
 				}
 				.footer a:hover { color: var(--text-primary); }
 				.footer .sep { opacity: 0.3; }
+
+				/* --- Mobile bottom nav --- */
+				.bottom-nav {
+					display: none;
+				}
+
+				@media (max-width: 767px) {
+					.bottom-nav {
+						display: flex;
+						position: fixed;
+						bottom: 0;
+						left: 0;
+						right: 0;
+						z-index: 100;
+						background: color-mix(in srgb, var(--bg-surface) 85%, transparent);
+						backdrop-filter: blur(12px);
+						-webkit-backdrop-filter: blur(12px);
+						border-top: 1px solid var(--border);
+						padding: var(--s-xs) 0;
+						padding-bottom: max(var(--s-xs), env(safe-area-inset-bottom));
+						justify-content: space-around;
+						align-items: center;
+					}
+
+					.bottom-nav-item {
+						display: flex;
+						flex-direction: column;
+						align-items: center;
+						gap: 2px;
+						padding: var(--s-xs) var(--s-sm);
+						color: var(--text-muted);
+						text-decoration: none;
+						font-size: 0.625rem;
+						font-weight: 500;
+						border-radius: var(--radius-md);
+						transition: color var(--duration) var(--ease);
+						-webkit-tap-highlight-color: transparent;
+						min-width: 44px;
+						min-height: 44px;
+						justify-content: center;
+						background: none;
+						border: none;
+						cursor: pointer;
+						font-family: var(--font-body);
+					}
+
+					.bottom-nav-item:hover,
+					.bottom-nav-item[aria-current="page"] {
+						color: var(--accent);
+					}
+
+					.bottom-nav-item--danger {
+						color: var(--text-muted);
+					}
+					.bottom-nav-item--danger:hover,
+					.bottom-nav-item--danger[aria-current="page"] {
+						color: var(--error);
+					}
+				}
+
+				@media (max-width: 767px) {
+					.nav-links {
+						display: none;
+					}
+
+					.container {
+						padding-bottom: calc(var(--s-md) + 72px);
+					}
+
+					.footer {
+						padding-bottom: calc(var(--s-sm) + 60px);
+					}
+				}
+
+				/* --- Dashboard row responsive --- */
+				.media-row {
+					display: flex;
+					align-items: center;
+					gap: var(--s-md);
+					padding: var(--s-sm) var(--s-md);
+					background: var(--bg-surface);
+					transition: background var(--duration) var(--ease);
+				}
+
+				.media-row-icon {
+					flex-shrink: 0;
+					color: var(--text-muted);
+				}
+
+				.media-row-content {
+					flex: 1;
+					min-width: 0;
+				}
+
+				.media-row-actions {
+					display: flex;
+					align-items: center;
+					gap: var(--s-xs);
+					flex-shrink: 0;
+				}
+
+				@media (max-width: 767px) {
+					.media-row {
+						flex-wrap: wrap;
+						padding: var(--s-md);
+						gap: var(--s-sm);
+					}
+
+					.media-row-icon {
+						order: 0;
+					}
+
+					.media-row-content {
+						order: 1;
+						flex-basis: calc(100% - 36px);
+					}
+
+					.media-row-actions {
+						order: 2;
+						width: 100%;
+						justify-content: flex-end;
+						padding-top: var(--s-xs);
+						border-top: 1px solid var(--border);
+						margin-top: var(--s-xs);
+						gap: var(--s-sm);
+					}
+
+					.media-row-actions .button-ghost,
+					.media-row-actions .button-danger {
+						min-width: 44px;
+						min-height: 44px;
+						padding: var(--s-sm);
+					}
+				}
+
+				@media (max-width: 767px) {
+					.media-list {
+						border: none;
+						border-radius: 0;
+						gap: var(--s-xs);
+						background: transparent;
+					}
+
+					.media-list > .media-row {
+						border: 1px solid var(--border);
+						border-radius: var(--radius-lg);
+					}
+				}
 			</style>
 		</head>
 		<body hx-ext="response-targets">
@@ -404,6 +552,39 @@ templ Layout(props LayoutProps) {
 						<span class="sep">&middot;</span>
 						<a href="https://github.com/bnema/sharm" target="_blank" rel="noopener">GitHub</a>
 					</footer>
+					<!-- Mobile bottom navigation -->
+					<nav class="bottom-nav" aria-label="Mobile navigation">
+						<a
+							href="/"
+							class="bottom-nav-item"
+							if props.ActiveRoute == "dashboard" {
+								aria-current="page"
+							}
+						>
+							@IconLibrary()
+							<span>Library</span>
+						</a>
+						<a
+							href="/upload"
+							class="bottom-nav-item"
+							if props.ActiveRoute == "upload" {
+								aria-current="page"
+							}
+						>
+							@IconUpload()
+							<span>Upload</span>
+						</a>
+						<button class="bottom-nav-item" onclick="document.getElementById('password-dialog').showModal()">
+							@IconLock()
+							<span>Password</span>
+						</button>
+						<form action="/logout" method="post" style="display:contents;">
+							<button type="submit" class="bottom-nav-item bottom-nav-item--danger">
+								@IconLogOut()
+								<span>Logout</span>
+							</button>
+						</form>
+					</nav>
 				}
 			</div>
 			<script>

@@ -72,7 +72,7 @@ templ Dashboard(media []*domain.Media, domainName string, version string) {
 				@EmptyState("No media yet. Upload something to get started.")
 			}
 		} else {
-			<div id="media-list" style="display:flex;flex-direction:column;gap:1px;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+			<div id="media-list" class="media-list" style="display:flex;flex-direction:column;gap:1px;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
 				for _, m := range media {
 					@DashboardRow(m, domainName)
 				}
@@ -87,16 +87,16 @@ templ DashboardRow(m *domain.Media, domainName string) {
 	if m.Status == domain.MediaStatusPending || m.Status == domain.MediaStatusProcessing {
 		<div
 			id={ "row-" + m.ID }
+			class="media-row"
 			hx-ext="sse"
 			sse-connect={ "/events/" + m.ID }
 			sse-swap="row"
 			hx-swap="outerHTML"
-			style="display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);width:100%;"
 		>
 			@DashboardRowContent(m, domainName)
 		</div>
 	} else {
-		<div id={ "row-" + m.ID } style="display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);width:100%;">
+		<div id={ "row-" + m.ID } class="media-row">
 			@DashboardRowContent(m, domainName)
 		</div>
 	}
@@ -105,7 +105,7 @@ templ DashboardRow(m *domain.Media, domainName string) {
 // DashboardRowContent renders just the inner content of a row (for SSE innerHTML swap).
 templ DashboardRowContent(m *domain.Media, domainName string) {
 	<!-- Type icon -->
-	<div style="flex-shrink:0;color:var(--text-muted);">
+	<div class="media-row-icon">
 		if m.Type == domain.MediaTypeVideo {
 			@IconVideo()
 		} else if m.Type == domain.MediaTypeAudio {
@@ -115,7 +115,7 @@ templ DashboardRowContent(m *domain.Media, domainName string) {
 		}
 	</div>
 	<!-- Name + meta -->
-	<div style="flex:1;min-width:0;">
+	<div class="media-row-content">
 		<div style="display:flex;align-items:center;gap:var(--s-sm);">
 			if m.Status == domain.MediaStatusDone {
 				<a href={ templ.SafeURL("/v/" + m.ID) } style="font-size:var(--text-sm);color:var(--text-primary);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{ m.OriginalName }</a>
@@ -172,7 +172,7 @@ templ DashboardRowContent(m *domain.Media, domainName string) {
 			</div>
 		}
 	</div>
-	<div style="display:flex;align-items:center;gap:var(--s-xs);flex-shrink:0;">
+	<div class="media-row-actions">
 		if m.Status == domain.MediaStatusDone {
 			<button
 				onclick={ copyToClipboard(fmt.Sprintf("https://%s/v/%s", domainName, m.ID)) }

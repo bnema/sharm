@@ -100,7 +100,7 @@ func Dashboard(media []*domain.Media, domainName string, version string) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, " <dialog id=\"info-dialog\" style=\"background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-lg);max-width:480px;width:90vw;font-family:var(--font-body);\" onclick=\"closeDialogOnBackdrop(event, this)\"><div id=\"info-dialog-content\"></div></dialog>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, " <dialog id=\"info-dialog\" style=\"background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-lg);max-width:480px;width:90vw;font-family:var(--font-body);\" onclick=\"if(event.target===this)this.close()\"><div id=\"info-dialog-content\"></div></dialog>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -162,7 +162,7 @@ func Dashboard(media []*domain.Media, domainName string, version string) templ.C
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div id=\"media-list\" style=\"display:flex;flex-direction:column;gap:1px;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div id=\"media-list\" class=\"media-list\" style=\"display:flex;flex-direction:column;gap:1px;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -172,7 +172,7 @@ func Dashboard(media []*domain.Media, domainName string, version string) templ.C
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><script>\n\t\t\t\tdocument.body.addEventListener('htmx:afterRequest', function(e) {\n\t\t\t\t\tif (e.detail.requestConfig.verb !== 'delete') return;\n\t\t\t\t\tconst list = document.getElementById('media-list');\n\t\t\t\t\tif (list && list.children.length === 0) {\n\t\t\t\t\t\tlist.outerHTML = '<div class=\"card\"><div style=\"text-align:center;padding:var(--s-2xl) var(--s-md);\"><svg width=\"48\" height=\"48\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--text-muted)\" stroke-width=\"1\" style=\"margin:0 auto var(--s-md);\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"3\"></rect><path d=\"M12 8v4m0 4h.01\"></path></svg><p style=\"color:var(--text-muted);font-size:var(--text-sm);\">No media yet. Upload something to get started.</p></div></div>';\n\t\t\t\t\t}\n\t\t\t\t});\n\n\t\t\t\tdocument.body.addEventListener('htmx:afterSwap', function(e) {\n\t\t\t\t\tif (e.detail.target.id === 'info-dialog-content') {\n\t\t\t\t\t\tconst dialog = document.getElementById('info-dialog');\n\t\t\t\t\t\tif (dialog) dialog.showModal();\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t</script>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -218,26 +218,26 @@ func DashboardRow(m *domain.Media, domainName string) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs("row-" + m.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 89, Col: 21}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 105, Col: 21}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" hx-ext=\"sse\" sse-connect=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" class=\"media-row\" hx-ext=\"sse\" sse-connect=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs("/events/" + m.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 91, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 108, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" sse-swap=\"row\" hx-swap=\"innerHTML\" style=\"display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" sse-swap=\"row\" hx-swap=\"innerHTML\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -257,13 +257,13 @@ func DashboardRow(m *domain.Media, domainName string) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs("row-" + m.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 99, Col: 25}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 115, Col: 25}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" style=\"display:flex;align-items:center;gap:var(--s-md);padding:var(--s-sm) var(--s-md);background:var(--bg-surface);transition:background var(--duration) var(--ease);\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" class=\"media-row\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -302,7 +302,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<!-- Type icon --><div style=\"flex-shrink:0;color:var(--text-muted);\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<!-- Type icon --><div class=\"media-row-icon\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -322,7 +322,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div><!-- Name + meta --><div style=\"flex:1;min-width:0;\"><div style=\"display:flex;align-items:center;gap:var(--s-sm);\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div><!-- Name + meta --><div class=\"media-row-content\"><div style=\"display:flex;align-items:center;gap:var(--s-sm);\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -334,7 +334,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 			var templ_7745c5c3_Var10 templ.SafeURL
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/v/" + m.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 121, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 137, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -347,7 +347,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(m.OriginalName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 121, Col: 199}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 137, Col: 199}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -365,7 +365,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(m.OriginalName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 123, Col: 144}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 139, Col: 144}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -393,7 +393,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(mediaTypeLabel(m.Type))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 131, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 147, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -411,7 +411,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(domain.FormatSize(m.FileSize))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 134, Col: 94}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 150, Col: 94}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -427,9 +427,9 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var15 string
-		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%dd left", m.DaysRemaining()))
+		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%dd left", m.RetentionDays))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 137, Col: 106}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 153, Col: 104}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -475,7 +475,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(codecLabel(v.Codec))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 154, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 170, Col: 113}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -507,7 +507,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 					var templ_7745c5c3_Var17 string
 					templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(domain.FormatSize(v.FileSize))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 162, Col: 97}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 178, Col: 97}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 					if templ_7745c5c3_Err != nil {
@@ -530,7 +530,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 					var templ_7745c5c3_Var18 templ.SafeURL
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/v/" + m.ID + "/" + string(v.Codec)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 166, Col: 68}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 182, Col: 68}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -559,7 +559,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</div><div style=\"display:flex;align-items:center;gap:var(--s-xs);flex-shrink:0;\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</div><div class=\"media-row-actions\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -592,7 +592,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 			var templ_7745c5c3_Var20 templ.SafeURL
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/v/" + m.ID + "/raw"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 184, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 200, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
@@ -618,7 +618,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs("/media/" + m.ID + "/info")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 189, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 205, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -639,7 +639,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs("/media/" + m.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 198, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 214, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -652,7 +652,7 @@ func DashboardRowContent(m *domain.Media, domainName string) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs("#row-" + m.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 199, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/dashboard.templ`, Line: 215, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {

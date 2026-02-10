@@ -222,13 +222,13 @@ templ Share(media *domain.Media, d string) {
 					} else if media.Type == domain.MediaTypeImage {
 						<img src={ "/v/" + media.ID + "/raw" } alt={ media.OriginalName }/>
 					} else if media.Type == domain.MediaTypeAudio {
-						<div class="audio-placeholder">
-							<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-								<path d="M9 18V5l12-2v13"></path>
-								<circle cx="6" cy="18" r="3"></circle>
-								<circle cx="18" cy="16" r="3"></circle>
-							</svg>
-						</div>
+					<div class="audio-placeholder">
+						<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M9 18V5l12-2v13"></path>
+							<circle cx="6" cy="18" r="3"></circle>
+							<circle cx="18" cy="16" r="3"></circle>
+						</svg>
+					</div>
 						<audio controls autoplay>
 							<source src={ "/v/" + media.ID + "/raw" }/>
 							Your browser does not support audio playback.
@@ -241,22 +241,14 @@ templ Share(media *domain.Media, d string) {
 					<div class="download-links">
 						<!-- Original -->
 						<a href={ templ.SafeURL("/v/" + media.ID + "/original") } download class="download-link">
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-								<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-								<polyline points="7 10 12 15 17 10"></polyline>
-								<line x1="12" y1="15" x2="12" y2="3"></line>
-							</svg>
+							@IconDownload()
 							Original
 						</a>
 						<!-- Variant download links -->
 						for _, v := range media.Variants {
 							if v.Status == domain.VariantStatusDone {
 								<a href={ templ.SafeURL("/v/" + media.ID + "/" + string(v.Codec)) } download class="download-link">
-									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-										<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-										<polyline points="7 10 12 15 17 10"></polyline>
-										<line x1="12" y1="15" x2="12" y2="3"></line>
-									</svg>
+									@IconDownload()
 									{ codecLabel(v.Codec) }
 									if v.FileSize > 0 {
 										<span style="color:var(--text-muted);">({ domain.FormatSize(v.FileSize) })</span>
