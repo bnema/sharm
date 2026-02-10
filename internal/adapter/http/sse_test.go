@@ -67,8 +67,9 @@ func TestSendAllEvents_EmitsUpdatedFragments(t *testing.T) {
 	assert.NoError(t, err)
 
 	second := httptest.NewRecorder()
-	_, err = h.sendAllEvents(second, done, state)
+	state2, err := h.sendAllEvents(second, done, state)
 	assert.NoError(t, err)
+	assert.NotNil(t, state2)
 	assert.Equal(t, 1, strings.Count(second.Body.String(), "event: status"))
 	assert.Equal(t, 1, strings.Count(second.Body.String(), "event: row"))
 }
