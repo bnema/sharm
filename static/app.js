@@ -789,6 +789,8 @@ function initThemeModeControl() {
  * Initialize config page PWA controls
  */
 function initConfigPage() {
+  initThemeModeControl();
+
   const installBtn = document.getElementById('pwa-install-btn');
   const reinstallBtn = document.getElementById('pwa-reinstall-btn');
   const deleteBtn = document.getElementById('pwa-delete-btn');
@@ -798,8 +800,6 @@ function initConfigPage() {
   if (!(reinstallBtn instanceof HTMLButtonElement)) return;
   if (!(deleteBtn instanceof HTMLButtonElement)) return;
   if (!(statusEl instanceof HTMLElement)) return;
-
-  initThemeModeControl();
 
   if (!deferredInstallPrompt) {
     if (isLikelyInstalledPWA()) {
