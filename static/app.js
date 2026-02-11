@@ -11,6 +11,8 @@
 
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_RETRIES = 3;
+const SHARM_CACHE_PREFIXES = ['sharm-'];
+const PWA_HELPER_STATE_KEY = 'sharm.pwa.helper';
 
 // =============================================================================
 // Types
@@ -23,6 +25,51 @@ const MAX_RETRIES = 3;
  * @property {number} height - Video height in pixels
  * @property {number} size - File size in bytes
  */
+
+/**
+ * @typedef {Event & {
+ *   prompt: () => Promise<void>,
+ *   userChoice: Promise<{ outcome: 'accepted' | 'dismissed', platform: string }>
+ * }} BeforeInstallPromptEvent
+ */
+
+/** @type {BeforeInstallPromptEvent | null} */
+let deferredInstallPrompt = null;
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', function (event) {
+    event.preventDefault();
+    deferredInstallPrompt = /** @type {BeforeInstallPromptEvent} */ (event);
+    try {
+      localStorage.setItem(PWA_HELPER_STATE_KEY, 'prompt-ready');
+    } catch (_) {
+      // Ignore storage failures
+    }
+
+    const installBtn = document.getElementById('pwa-install-btn');
+    const statusEl = document.getElementById('pwa-status');
+    if (installBtn instanceof HTMLButtonElement) {
+      installBtn.disabled = false;
+    }
+    if (statusEl instanceof HTMLElement) {
+      statusEl.textContent = 'Install prompt is ready.';
+    }
+  });
+
+  window.addEventListener('appinstalled', function () {
+    deferredInstallPrompt = null;
+    try {
+      localStorage.removeItem(PWA_HELPER_STATE_KEY);
+    } catch (_) {
+      // Ignore storage failures
+    }
+
+    const installBtn = document.getElementById('pwa-install-btn');
+    if (installBtn instanceof HTMLButtonElement) {
+      installBtn.disabled = true;
+    }
+  });
+}
 
 // =============================================================================
 // Utilities
@@ -559,6 +606,239 @@ function initConfirmDialog() {
 }
 
 // =============================================================================
+// Config Page (PWA Controls)
+// =============================================================================
+
+/**
+ * @param {HTMLElement} statusEl
+ * @param {string} message
+ * @param {'muted' | 'success' | 'error'} tone
+ */
+function setPWAStatus(statusEl, message, tone) {
+  statusEl.textContent = message;
+  statusEl.classList.remove('text-muted', 'text-success', 'text-error');
+  if (tone === 'success') {
+    statusEl.classList.add('text-success');
+    return;
+  }
+  if (tone === 'error') {
+    statusEl.classList.add('text-error');
+    return;
+  }
+  statusEl.classList.add('text-muted');
+}
+
+/**
+ * @returns {boolean}
+ */
+function isLikelyInstalledPWA() {
+  if (typeof window === 'undefined') return false;
+  const inStandalone =
+    typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches;
+  // @ts-ignore - iOS Safari specific property
+  const iosStandalone = typeof navigator !== 'undefined' && navigator.standalone === true;
+  return inStandalone || iosStandalone;
+}
+
+/**
+ * @returns {Promise<number>}
+ */
+function sharmServiceWorkerScriptURL() {
+  if (typeof window === 'undefined') return '/static/sw.js';
+  return new URL('/static/sw.js', window.location.origin).href;
+}
+
+/**
+ * @param {ServiceWorkerRegistration} registration
+ * @returns {string}
+ */
+function registrationScriptURL(registration) {
+  const worker = registration.active || registration.waiting || registration.installing;
+  if (!worker || !worker.scriptURL) return '';
+  return worker.scriptURL;
+}
+
+/**
+ * @param {string} cacheName
+ * @returns {boolean}
+ */
+function isSharmCacheName(cacheName) {
+  return SHARM_CACHE_PREFIXES.some(function (prefix) {
+    return cacheName.startsWith(prefix);
+  });
+}
+
+/**
+ * @returns {Promise<number>}
+ */
+async function unregisterSharmServiceWorkers() {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return 0;
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  const sharmSWURL = sharmServiceWorkerScriptURL();
+  let count = 0;
+  for (const registration of registrations) {
+    if (registrationScriptURL(registration) !== sharmSWURL) {
+      continue;
+    }
+    const removed = await registration.unregister();
+    if (removed) count++;
+  }
+  return count;
+}
+
+/**
+ * @returns {Promise<number>}
+ */
+async function deleteSharmCaches() {
+  if (typeof caches === 'undefined') return 0;
+  const keys = await caches.keys();
+  let count = 0;
+  for (const key of keys) {
+    if (!isSharmCacheName(key)) {
+      continue;
+    }
+    const removed = await caches.delete(key);
+    if (removed) count++;
+  }
+  return count;
+}
+
+/**
+ * Clear local helper state used by manual PWA controls
+ */
+function clearPWAHelperState() {
+  deferredInstallPrompt = null;
+  try {
+    localStorage.removeItem(PWA_HELPER_STATE_KEY);
+    sessionStorage.removeItem(PWA_HELPER_STATE_KEY);
+  } catch (_) {
+    // Ignore storage failures
+  }
+}
+
+/**
+ * Initialize config page PWA controls
+ */
+function initConfigPage() {
+  const installBtn = document.getElementById('pwa-install-btn');
+  const reinstallBtn = document.getElementById('pwa-reinstall-btn');
+  const deleteBtn = document.getElementById('pwa-delete-btn');
+  const statusEl = document.getElementById('pwa-status');
+
+  if (!(installBtn instanceof HTMLButtonElement)) return;
+  if (!(reinstallBtn instanceof HTMLButtonElement)) return;
+  if (!(deleteBtn instanceof HTMLButtonElement)) return;
+  if (!(statusEl instanceof HTMLElement)) return;
+
+  if (!deferredInstallPrompt) {
+    installBtn.disabled = true;
+    if (isLikelyInstalledPWA()) {
+      setPWAStatus(statusEl, 'PWA appears to be installed already.', 'muted');
+    } else {
+      setPWAStatus(
+        statusEl,
+        'Install prompt is not available yet. Use browser install menu if needed.',
+        'muted'
+      );
+    }
+  }
+
+  if (!('serviceWorker' in navigator)) {
+    reinstallBtn.disabled = true;
+    deleteBtn.disabled = true;
+    setPWAStatus(statusEl, 'Service workers are not supported in this browser.', 'muted');
+  }
+
+  installBtn.addEventListener('click', async function () {
+    if (!deferredInstallPrompt) {
+      if (isLikelyInstalledPWA()) {
+        setPWAStatus(statusEl, 'PWA appears to be installed already.', 'muted');
+      } else {
+        setPWAStatus(
+          statusEl,
+          'Install prompt is not available. Use your browser menu to install if supported.',
+          'muted'
+        );
+      }
+      return;
+    }
+
+    installBtn.disabled = true;
+    try {
+      const promptEvent = deferredInstallPrompt;
+      deferredInstallPrompt = null;
+      await promptEvent.prompt();
+      const choice = await promptEvent.userChoice;
+      if (choice.outcome === 'accepted') {
+        setPWAStatus(statusEl, 'Install accepted. Finish setup in your browser.', 'success');
+      } else {
+        setPWAStatus(statusEl, 'Install dismissed.', 'muted');
+      }
+    } catch (_) {
+      setPWAStatus(statusEl, 'Install prompt failed. Please retry.', 'error');
+    } finally {
+      installBtn.disabled = false;
+    }
+  });
+
+  reinstallBtn.addEventListener('click', async function () {
+    if (!('serviceWorker' in navigator)) {
+      setPWAStatus(statusEl, 'Reinstall is unavailable: service workers are unsupported.', 'error');
+      return;
+    }
+
+    reinstallBtn.disabled = true;
+    try {
+      const removed = await unregisterSharmServiceWorkers();
+      await navigator.serviceWorker.register('/static/sw.js');
+      setPWAStatus(
+        statusEl,
+        'Reinstall complete: unregistered ' +
+          removed +
+          ' Sharm service worker(s) and registered /static/sw.js.',
+        'success'
+      );
+    } catch (_) {
+      setPWAStatus(statusEl, 'Reinstall failed. Check browser service worker permissions.', 'error');
+    } finally {
+      reinstallBtn.disabled = false;
+    }
+  });
+
+  deleteBtn.addEventListener('click', async function () {
+    if (typeof window !== 'undefined') {
+      const proceed = window.confirm(
+        'Clear local Sharm PWA data on this browser? This does not uninstall the app from your OS.'
+      );
+      if (!proceed) {
+        setPWAStatus(statusEl, 'Clear action cancelled.', 'muted');
+        return;
+      }
+    }
+
+    deleteBtn.disabled = true;
+    try {
+      const swRemoved = await unregisterSharmServiceWorkers();
+      const cachesRemoved = await deleteSharmCaches();
+      clearPWAHelperState();
+      setPWAStatus(
+        statusEl,
+        'Cleared local Sharm PWA data: ' +
+          swRemoved +
+          ' service worker(s), ' +
+          cachesRemoved +
+          ' Sharm cache bucket(s). Uninstall from your OS/app launcher manually if still installed.',
+        'success'
+      );
+    } catch (_) {
+      setPWAStatus(statusEl, 'Delete failed. You can still uninstall manually from your OS/browser.', 'error');
+    } finally {
+      deleteBtn.disabled = false;
+    }
+  });
+}
+
+// =============================================================================
 // Global Exports (for inline handlers)
 // =============================================================================
 
@@ -574,4 +854,5 @@ document.addEventListener('DOMContentLoaded', function () {
   initUploadPage();
   initDashboardPage();
   initConfirmDialog();
+  initConfigPage();
 });

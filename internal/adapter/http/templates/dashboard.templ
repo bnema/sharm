@@ -91,7 +91,7 @@ templ DashboardRow(m *domain.Media, domainName string) {
 			hx-ext="sse"
 			sse-connect={ "/events/" + m.ID }
 			sse-swap="row"
-			hx-swap="outerHTML"
+			hx-swap="innerHTML"
 		>
 			@DashboardRowContent(m, domainName)
 		</div>

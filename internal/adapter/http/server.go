@@ -81,6 +81,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /{$}", AuthMiddleware(s.authSvc, s.handlers.Dashboard()))
 
 	s.mux.HandleFunc("GET /upload", AuthMiddleware(s.authSvc, s.handlers.UploadPage()))
+	s.mux.HandleFunc("GET /config", AuthMiddleware(s.authSvc, s.handlers.ConfigPage()))
 
 	s.mux.HandleFunc("POST /upload", AuthMiddleware(s.authSvc, s.handlers.Upload()))
 	s.mux.HandleFunc("POST /upload/chunk", AuthMiddleware(s.authSvc, s.handlers.ChunkUpload()))

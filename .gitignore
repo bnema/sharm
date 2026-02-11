@@ -49,3 +49,6 @@ data/
 
 # Air tmp directory
 tmp/
+
+# Local planning artifacts
+docs/plans/

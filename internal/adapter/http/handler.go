@@ -67,6 +67,13 @@ func (h *Handlers) UploadPage() http.HandlerFunc {
 	}
 }
 
+func (h *Handlers) ConfigPage() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = templates.Config("", h.version).Render(r.Context(), w)
+	}
+}
+
 func (h *Handlers) Upload() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, int64(h.maxSizeMB)*1024*1024)

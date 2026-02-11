@@ -490,7 +490,8 @@ templ Layout(props LayoutProps) {
 
 				@media (max-width: 767px) {
 					.media-row {
-						flex-wrap: wrap;
+						flex-wrap: nowrap;
+						align-items: flex-start;
 						padding: var(--s-md);
 						gap: var(--s-sm);
 					}
@@ -501,40 +502,43 @@ templ Layout(props LayoutProps) {
 
 					.media-row-content {
 						order: 1;
-						flex-basis: calc(100% - 36px);
+						flex-basis: auto;
 					}
 
 					.media-row-actions {
 						order: 2;
-						width: 100%;
+						width: auto;
 						justify-content: flex-end;
-						padding-top: var(--s-xs);
-						border-top: 1px solid var(--border);
-						margin-top: var(--s-xs);
-						gap: var(--s-sm);
+						padding-top: 0;
+						border-top: none;
+						margin-top: 0;
+						margin-left: 0;
+						gap: 0.125rem;
 					}
 
 					.media-row-actions .button-ghost,
 					.media-row-actions .button-danger {
-						min-width: 44px;
-						min-height: 44px;
-						padding: var(--s-sm);
+						min-width: 1.9rem;
+						min-height: 1.9rem;
+						padding: clamp(0.1rem, 0.45vw, 0.2rem);
+						border-radius: var(--radius-sm);
+						line-height: 1;
 					}
 				}
 
-				@media (max-width: 767px) {
-					.media-list {
-						border: none;
-						border-radius: 0;
-						gap: var(--s-xs);
-						background: transparent;
-					}
-
-					.media-list > .media-row {
-						border: 1px solid var(--border);
-						border-radius: var(--radius-lg);
-					}
+			@media (max-width: 767px) {
+				.media-list {
+					border: 1px solid var(--border) !important;
+					border-radius: var(--radius-lg) !important;
+					gap: 1px;
+					background: var(--border);
 				}
+
+				.media-list > .media-row {
+					border: none;
+					border-radius: 0;
+				}
+			}
 			</style>
 		</head>
 		<body hx-ext="response-targets">
@@ -566,9 +570,15 @@ templ Layout(props LayoutProps) {
 							Upload
 						</a>
 						<span class="nav-sep"></span>
-						<button class="nav-link nav-link--icon" onclick="document.getElementById('password-dialog').showModal()" title="Change Password">
-							@IconLock()
-						</button>
+						<a href="/config"
+							class="nav-link nav-link--icon"
+							if props.ActiveRoute == "config" {
+								aria-current="page"
+							}
+							title="Configuration"
+						>
+							@IconSettings()
+						</a>
 						<form action="/logout" method="post" style="display:inline;">
 							<button type="submit" class="nav-link nav-link--icon nav-link--danger" title="Logout">
 								@IconLogOut()
@@ -576,10 +586,6 @@ templ Layout(props LayoutProps) {
 						</form>
 					</div>
 					</nav>
-					<dialog id="password-dialog" style="background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-lg);max-width:400px;width:90vw;font-family:var(--font-body);" onclick="closeDialogOnBackdrop(event, this)">
-						<h2 style="font-size:var(--text-sm);font-weight:600;margin-bottom:var(--s-md);">Change Password</h2>
-						@ChangePassword("")
-					</dialog>
 				}
 				{ children... }
 				if props.ShowNav {
@@ -612,10 +618,16 @@ templ Layout(props LayoutProps) {
 							@IconUpload()
 							<span>Upload</span>
 						</a>
-						<button class="bottom-nav-item" onclick="document.getElementById('password-dialog').showModal()">
-							@IconLock()
-							<span>Password</span>
-						</button>
+						<a
+							href="/config"
+							class="bottom-nav-item"
+							if props.ActiveRoute == "config" {
+								aria-current="page"
+							}
+						>
+							@IconSettings()
+							<span>Config</span>
+						</a>
 						<form action="/logout" method="post" style="display:inline;margin:0;padding:0;">
 							<button type="submit" class="bottom-nav-item bottom-nav-item--danger" aria-label="Logout">
 								@IconLogOut()
