@@ -28,6 +28,20 @@ templ Layout(props LayoutProps) {
 		<script src="https://cdn.jsdelivr.net/npm/htmx-ext-response-targets@2.0.4" integrity="sha384-T41oglUPvXLGBVyRdZsVRxNWnOOqCynaPubjUVjxhsjFTKrFJGEMm3/0KGmNQ+Pg" crossorigin="anonymous"></script>
 		<script src="https://cdn.jsdelivr.net/npm/htmx-ext-sse@2.2.4/dist/sse.min.js"></script>
 			<script>
+				(function() {
+					try {
+						var mode = localStorage.getItem('sharm.theme.mode');
+						if (mode === 'light' || mode === 'dark') {
+							document.documentElement.setAttribute('data-theme', mode);
+						} else {
+							document.documentElement.removeAttribute('data-theme');
+						}
+					} catch (_) {
+						document.documentElement.removeAttribute('data-theme');
+					}
+				})();
+			</script>
+			<script>
 				document.addEventListener('DOMContentLoaded', function() {
 					var csrfToken = document.cookie.split('; ')
 						.find(function(row) { return row.startsWith('csrf_token='); });
@@ -101,6 +115,44 @@ templ Layout(props LayoutProps) {
 						--progress-bg: #e4e4e7;
 						--progress-fill: #2563eb;
 					}
+				}
+
+				html[data-theme="dark"] {
+					--bg-primary: #09090b;
+					--bg-surface: #111113;
+					--bg-elevated: #1a1a1e;
+					--bg-hover: #222228;
+					--border: #27272a;
+					--border-focus: #3b82f6;
+					--text-primary: #e4e4e7;
+					--text-secondary: #a1a1aa;
+					--text-muted: #52525b;
+					--accent: #3b82f6;
+					--accent-hover: #2563eb;
+					--success: #22c55e;
+					--error: #ef4444;
+					--warning: #eab308;
+					--progress-bg: #1a1a1e;
+					--progress-fill: #3b82f6;
+				}
+
+				html[data-theme="light"] {
+					--bg-primary: #fafafa;
+					--bg-surface: #ffffff;
+					--bg-elevated: #f4f4f5;
+					--bg-hover: #e4e4e7;
+					--border: #d4d4d8;
+					--border-focus: #2563eb;
+					--text-primary: #09090b;
+					--text-secondary: #52525b;
+					--text-muted: #a1a1aa;
+					--accent: #2563eb;
+					--accent-hover: #1d4ed8;
+					--success: #16a34a;
+					--error: #dc2626;
+					--warning: #ca8a04;
+					--progress-bg: #e4e4e7;
+					--progress-fill: #2563eb;
 				}
 
 				* {

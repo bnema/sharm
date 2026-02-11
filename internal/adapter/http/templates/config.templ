@@ -4,6 +4,18 @@ templ Config(errorMsg string, version string) {
 	@Layout(LayoutProps{Title: "Config - Sharm", Version: version, ShowNav: true, ActiveRoute: "config"}) {
 		<div style="display:flex;flex-direction:column;gap:var(--s-md);">
 			@Card() {
+				<h2 style="font-size:var(--text-lg);font-weight:600;margin-bottom:var(--s-xs);">Appearance</h2>
+				<p class="text-muted" style="font-size:var(--text-sm);margin-bottom:var(--s-sm);">Pick theme mode for this device.</p>
+				<label for="theme-mode-select" class="text-muted" style="display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);">Theme mode</label>
+				<select id="theme-mode-select" class="input" style="max-width:260px;">
+					<option value="auto">Auto (system)</option>
+					<option value="dark">Dark</option>
+					<option value="light">Light</option>
+				</select>
+				<p id="theme-mode-status" class="text-muted" role="status" aria-live="polite" style="font-size:var(--text-xs);margin-top:var(--s-xs);">Auto mode follows your system setting.</p>
+			}
+
+			@Card() {
 				<h1 style="font-size:var(--text-lg);font-weight:600;margin-bottom:var(--s-md);">Change Password</h1>
 				@ChangePassword(errorMsg)
 			}
@@ -15,6 +27,7 @@ templ Config(errorMsg string, version string) {
 					<button type="button" id="pwa-reinstall-btn" class="button-outline">Reinstall</button>
 					<button type="button" id="pwa-delete-btn" class="button-danger">Clear local PWA data</button>
 				</div>
+				<p class="text-muted" style="font-size:var(--text-xs);margin-bottom:var(--s-xs);">If install does not appear in Chrome mobile, use Menu &gt; Install app.</p>
 				<p class="text-muted" style="font-size:var(--text-xs);margin-bottom:var(--s-xs);">This clears Sharm browser data only. OS app uninstall is manual.</p>
 				<p id="pwa-status" class="text-muted" role="status" aria-live="polite" style="font-size:var(--text-sm);">PWA controls are ready.</p>
 			}

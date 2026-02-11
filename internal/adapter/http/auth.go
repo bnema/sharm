@@ -16,7 +16,7 @@ const (
 	CookieName     = "auth_token"
 	CookieMaxAge   = 7 * 24 * 60 * 60
 	CookiePath     = "/"
-	CookieSameSite = http.SameSiteStrictMode
+	CookieSameSite = http.SameSiteLaxMode
 	HXRequestTrue  = "true"
 )
 
