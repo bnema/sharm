@@ -57,11 +57,7 @@ func Config(errorMsg string, version string) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<h1 style=\"font-size:var(--text-lg);font-weight:600;margin-bottom:var(--s-md);\">Change Password</h1>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = ChangePassword(errorMsg).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<h2 style=\"font-size:var(--text-lg);font-weight:600;margin-bottom:var(--s-xs);\">Appearance</h2><p class=\"text-muted\" style=\"font-size:var(--text-sm);margin-bottom:var(--s-sm);\">Pick theme mode for this device.</p><label for=\"theme-mode-select\" class=\"text-muted\" style=\"display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);\">Theme mode</label> <select id=\"theme-mode-select\" class=\"input\" style=\"max-width:260px;\"><option value=\"auto\">Auto (system)</option> <option value=\"dark\">Dark</option> <option value=\"light\">Light</option></select><p id=\"theme-mode-status\" class=\"text-muted\" role=\"status\" aria-live=\"polite\" style=\"font-size:var(--text-xs);margin-top:var(--s-xs);\">Auto mode follows your system setting.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -83,7 +79,11 @@ func Config(errorMsg string, version string) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h2 style=\"font-size:var(--text-lg);font-weight:600;margin-bottom:var(--s-xs);\">PWA</h2><p class=\"text-muted\" style=\"font-size:var(--text-sm);margin-bottom:var(--s-md);\">Manual controls for install and service worker lifecycle.</p><div style=\"display:flex;flex-wrap:wrap;gap:var(--s-xs);margin-bottom:var(--s-sm);\"><button type=\"button\" id=\"pwa-install-btn\" class=\"button\">Install</button> <button type=\"button\" id=\"pwa-reinstall-btn\" class=\"button-outline\">Reinstall</button> <button type=\"button\" id=\"pwa-delete-btn\" class=\"button-danger\">Clear local PWA data</button></div><p class=\"text-muted\" style=\"font-size:var(--text-xs);margin-bottom:var(--s-xs);\">This clears Sharm browser data only. OS app uninstall is manual.</p><p id=\"pwa-status\" class=\"text-muted\" role=\"status\" aria-live=\"polite\" style=\"font-size:var(--text-sm);\">PWA controls are ready.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h1 style=\"font-size:var(--text-lg);font-weight:600;margin-bottom:var(--s-md);\">Change Password</h1>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = ChangePassword(errorMsg).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -93,7 +93,29 @@ func Config(errorMsg string, version string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div>")
+			templ_7745c5c3_Var5 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+				if !templ_7745c5c3_IsBuffer {
+					defer func() {
+						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+						if templ_7745c5c3_Err == nil {
+							templ_7745c5c3_Err = templ_7745c5c3_BufErr
+						}
+					}()
+				}
+				ctx = templ.InitializeContext(ctx)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<h2 style=\"font-size:var(--text-lg);font-weight:600;margin-bottom:var(--s-xs);\">PWA</h2><p class=\"text-muted\" style=\"font-size:var(--text-sm);margin-bottom:var(--s-md);\">Manual controls for install and service worker lifecycle.</p><div style=\"display:flex;flex-wrap:wrap;gap:var(--s-xs);margin-bottom:var(--s-sm);\"><button type=\"button\" id=\"pwa-install-btn\" class=\"button\">Install</button> <button type=\"button\" id=\"pwa-reinstall-btn\" class=\"button-outline\">Reinstall</button> <button type=\"button\" id=\"pwa-delete-btn\" class=\"button-danger\">Clear local PWA data</button></div><p class=\"text-muted\" style=\"font-size:var(--text-xs);margin-bottom:var(--s-xs);\">If install does not appear in Chrome mobile, use Menu &gt; Install app.</p><p class=\"text-muted\" style=\"font-size:var(--text-xs);margin-bottom:var(--s-xs);\">This clears Sharm browser data only. OS app uninstall is manual.</p><p id=\"pwa-status\" class=\"text-muted\" role=\"status\" aria-live=\"polite\" style=\"font-size:var(--text-sm);\">PWA controls are ready.</p>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				return nil
+			})
+			templ_7745c5c3_Err = Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -123,12 +145,12 @@ func ChangePassword(errorMsg string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var5 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var5 == nil {
-			templ_7745c5c3_Var5 = templ.NopComponent
+		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var6 == nil {
+			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div id=\"change-password-errors\"></div><form id=\"change-password-form\" hx-post=\"/change-password\" hx-target-error=\"#change-password-errors\" hx-swap=\"innerHTML\" style=\"display:flex;flex-direction:column;gap:var(--s-sm);\"><input type=\"password\" name=\"old_password\" class=\"input\" placeholder=\"Current password\" required autofocus> <input type=\"password\" name=\"new_password\" class=\"input\" placeholder=\"New password\" required> <input type=\"password\" name=\"confirm_password\" class=\"input\" placeholder=\"Confirm new password\" required><div style=\"display:flex;gap:var(--s-xs);margin-top:var(--s-xs);\"><button type=\"submit\" class=\"button\" style=\"flex:1;\">Change Password</button> <button type=\"reset\" class=\"button-outline\">Cancel</button></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div id=\"change-password-errors\"></div><form id=\"change-password-form\" hx-post=\"/change-password\" hx-target-error=\"#change-password-errors\" hx-swap=\"innerHTML\" style=\"display:flex;flex-direction:column;gap:var(--s-sm);\"><input type=\"password\" name=\"old_password\" class=\"input\" placeholder=\"Current password\" required autofocus> <input type=\"password\" name=\"new_password\" class=\"input\" placeholder=\"New password\" required> <input type=\"password\" name=\"confirm_password\" class=\"input\" placeholder=\"Confirm new password\" required><div style=\"display:flex;gap:var(--s-xs);margin-top:var(--s-xs);\"><button type=\"submit\" class=\"button\" style=\"flex:1;\">Change Password</button> <button type=\"reset\" class=\"button-outline\">Cancel</button></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -152,12 +174,12 @@ func ChangePasswordSuccess() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var6 == nil {
-			templ_7745c5c3_Var6 = templ.NopComponent
+		templ_7745c5c3_Var7 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var7 == nil {
+			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div style=\"text-align:center;padding:var(--s-md);\"><p style=\"color:var(--success);margin-bottom:var(--s-sm);\">Password changed successfully!</p><button class=\"button\" type=\"button\" onclick=\"window.location.href='/config'\">Back to Config</button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div style=\"text-align:center;padding:var(--s-md);\"><p style=\"color:var(--success);margin-bottom:var(--s-sm);\">Password changed successfully!</p><button class=\"button\" type=\"button\" onclick=\"window.location.href='/config'\">Back to Config</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

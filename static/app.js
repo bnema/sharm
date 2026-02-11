@@ -13,6 +13,7 @@ const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_RETRIES = 3;
 const SHARM_CACHE_PREFIXES = ['sharm-'];
 const PWA_HELPER_STATE_KEY = 'sharm.pwa.helper';
+const THEME_MODE_KEY = 'sharm.theme.mode';
 
 // =============================================================================
 // Types
@@ -67,6 +68,11 @@ if (typeof window !== 'undefined') {
     const installBtn = document.getElementById('pwa-install-btn');
     if (installBtn instanceof HTMLButtonElement) {
       installBtn.disabled = true;
+    }
+
+    const statusEl = document.getElementById('pwa-status');
+    if (statusEl instanceof HTMLElement) {
+      statusEl.textContent = 'PWA is installed.';
     }
   });
 }
@@ -717,9 +723,74 @@ function clearPWAHelperState() {
 }
 
 /**
+ * @param {'auto' | 'light' | 'dark'} mode
+ */
+function applyThemeMode(mode) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (mode === 'light' || mode === 'dark') {
+    root.setAttribute('data-theme', mode);
+    return;
+  }
+  root.removeAttribute('data-theme');
+}
+
+/**
+ * @param {'auto' | 'light' | 'dark'} mode
+ * @returns {string}
+ */
+function themeModeStatusText(mode) {
+  if (mode === 'light') return 'Light mode forced on this device.';
+  if (mode === 'dark') return 'Dark mode forced on this device.';
+  return 'Auto mode follows your system setting.';
+}
+
+function initThemeModeControl() {
+  const select = document.getElementById('theme-mode-select');
+  const statusEl = document.getElementById('theme-mode-status');
+  if (!(select instanceof HTMLSelectElement)) return;
+
+  let mode = 'auto';
+  try {
+    const saved = localStorage.getItem(THEME_MODE_KEY);
+    if (saved === 'light' || saved === 'dark' || saved === 'auto') {
+      mode = saved;
+    }
+  } catch (_) {
+    mode = 'auto';
+  }
+
+  select.value = mode;
+  applyThemeMode(/** @type {'auto' | 'light' | 'dark'} */ (mode));
+  if (statusEl instanceof HTMLElement) {
+    statusEl.textContent = themeModeStatusText(/** @type {'auto' | 'light' | 'dark'} */ (mode));
+  }
+
+  select.addEventListener('change', function () {
+    const nextMode =
+      select.value === 'light' || select.value === 'dark' || select.value === 'auto'
+        ? select.value
+        : 'auto';
+
+    try {
+      localStorage.setItem(THEME_MODE_KEY, nextMode);
+    } catch (_) {
+      // Ignore storage failures
+    }
+
+    applyThemeMode(/** @type {'auto' | 'light' | 'dark'} */ (nextMode));
+    if (statusEl instanceof HTMLElement) {
+      statusEl.textContent = themeModeStatusText(/** @type {'auto' | 'light' | 'dark'} */ (nextMode));
+    }
+  });
+}
+
+/**
  * Initialize config page PWA controls
  */
 function initConfigPage() {
+  initThemeModeControl();
+
   const installBtn = document.getElementById('pwa-install-btn');
   const reinstallBtn = document.getElementById('pwa-reinstall-btn');
   const deleteBtn = document.getElementById('pwa-delete-btn');
@@ -731,13 +802,12 @@ function initConfigPage() {
   if (!(statusEl instanceof HTMLElement)) return;
 
   if (!deferredInstallPrompt) {
-    installBtn.disabled = true;
     if (isLikelyInstalledPWA()) {
       setPWAStatus(statusEl, 'PWA appears to be installed already.', 'muted');
     } else {
       setPWAStatus(
         statusEl,
-        'Install prompt is not available yet. Use browser install menu if needed.',
+        'Install prompt is not available yet. In Chrome mobile use Menu > Install app.',
         'muted'
       );
     }
@@ -756,7 +826,7 @@ function initConfigPage() {
       } else {
         setPWAStatus(
           statusEl,
-          'Install prompt is not available. Use your browser menu to install if supported.',
+          'Install prompt is not available. In Chrome mobile use Menu > Install app.',
           'muted'
         );
       }
