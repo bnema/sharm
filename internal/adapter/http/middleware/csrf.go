@@ -50,14 +50,24 @@ func (c *CSRFProtection) Middleware(next http.Handler) http.Handler {
 
 		// Unsafe methods require token validation
 		if !c.validateRequest(r) {
+			// Flush the bad cookie and issue a fresh token so the
+			// next request succeeds without a full page refresh.
+			newToken := c.GenerateToken()
+			c.setCSRFCookie(w, r, newToken)
+
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusForbidden)
-			// Return an HTML error fragment for HTMX requests so
-			// hx-target-error can render it in the error container.
 			if strings.Contains(r.Header.Get("HX-Request"), "true") {
-				_, _ = w.Write([]byte(`<div style="display:flex;align-items:center;gap:var(--s-sm);padding:var(--s-sm) var(--s-md);border-radius:var(--radius-md);font-size:var(--text-sm);border:1px solid;margin-bottom:var(--s-md);background:color-mix(in srgb,var(--error) 8%,var(--bg-surface));border-color:color-mix(in srgb,var(--error) 25%,transparent);color:var(--error);">` +
-					`<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM5.47 5.47a.75.75 0 0 0 0 1.06L6.94 8 5.47 9.47a.75.75 0 1 0 1.06 1.06L8 9.06l1.47 1.47a.75.75 0 1 0 1.06-1.06L9.06 8l1.47-1.47a.75.75 0 0 0-1.06-1.06L8 6.94 6.53 5.47a.75.75 0 0 0-1.06 0z"/></svg>` +
-					`<span>Session expired. Please refresh the page and try again.</span></div>`))
+				// Return an error toast + a script that updates the
+				// HTMX CSRF header with the fresh token from the cookie.
+				_, _ = w.Write([]byte(
+					`<div style="display:flex;align-items:center;gap:var(--s-sm);padding:var(--s-sm) var(--s-md);border-radius:var(--radius-md);font-size:var(--text-sm);border:1px solid;margin-bottom:var(--s-md);background:color-mix(in srgb,var(--error) 8%,var(--bg-surface));border-color:color-mix(in srgb,var(--error) 25%,transparent);color:var(--error);">` +
+						`<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM5.47 5.47a.75.75 0 0 0 0 1.06L6.94 8 5.47 9.47a.75.75 0 1 0 1.06 1.06L8 9.06l1.47 1.47a.75.75 0 1 0 1.06-1.06L9.06 8l1.47-1.47a.75.75 0 0 0-1.06-1.06L8 6.94 6.53 5.47a.75.75 0 0 0-1.06 0z"/></svg>` +
+						`<span>Invalid CSRF token. Please try again.</span></div>` +
+						`<script>` +
+						`var c=document.cookie.split('; ').find(function(r){return r.startsWith('csrf_token=')});` +
+						`if(c){document.body.setAttribute('hx-headers',JSON.stringify({'X-CSRF-Token':c.substring('csrf_token='.length)}));}` +
+						`</script>`))
 			} else {
 				http.Error(w, "Forbidden", http.StatusForbidden)
 			}
