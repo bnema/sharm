@@ -70,11 +70,18 @@ func (configTestAuthService) ChangePassword(string, string, string) error {
 }
 
 func newTestServer(authSvc AuthService, mediaSvc MediaService) *Server {
-	rl := ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute)
-	bt := ratelimit.NewLoginAttemptTracker()
-	bo := ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0)
-	cs := middleware.NewCSRFProtection("test-secret")
-	return NewServer(authSvc, mediaSvc, nil, service.NewEventBus(), "example.com", 10, "dev", false, rl, bt, bo, cs)
+	return NewServer(ServerConfig{
+		AuthSvc:         authSvc,
+		MediaSvc:        mediaSvc,
+		EventBus:        service.NewEventBus(),
+		Domain:          "example.com",
+		MaxUploadSizeMB: 10,
+		Version:         "dev",
+		RateLimiter:     ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute),
+		BackoffTracker:  ratelimit.NewLoginAttemptTracker(),
+		Backoff:         ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0),
+		CSRF:            middleware.NewCSRFProtection("test-secret"),
+	})
 }
 
 func TestConfigPage_ReturnsRenderedConfigPage(t *testing.T) {

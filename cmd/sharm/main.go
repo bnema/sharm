@@ -117,14 +117,18 @@ func main() {
 }
 
 func newHTTPServer(cfg *config.Config, authSvc *service.AuthService, mediaSvc *service.MediaService, chunkSvc *service.ChunkService, eventBus *service.EventBus) *HTTPAdapter.Server {
-	rateLimiter := ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute)
-	backoffTracker := ratelimit.NewLoginAttemptTracker()
-	backoff := ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0)
-	csrf := middleware.NewCSRFProtection(cfg.SecretKey)
-
-	return HTTPAdapter.NewServer(
-		authSvc, mediaSvc, chunkSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB,
-		Version, cfg.BehindProxy,
-		rateLimiter, backoffTracker, backoff, csrf,
-	)
+	return HTTPAdapter.NewServer(HTTPAdapter.ServerConfig{
+		AuthSvc:         authSvc,
+		MediaSvc:        mediaSvc,
+		ChunkSvc:        chunkSvc,
+		EventBus:        eventBus,
+		Domain:          cfg.Domain,
+		MaxUploadSizeMB: cfg.MaxUploadSizeMB,
+		Version:         Version,
+		BehindProxy:     cfg.BehindProxy,
+		RateLimiter:     ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute),
+		BackoffTracker:  ratelimit.NewLoginAttemptTracker(),
+		Backoff:         ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0),
+		CSRF:            middleware.NewCSRFProtection(cfg.SecretKey),
+	})
 }

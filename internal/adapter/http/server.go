@@ -24,36 +24,39 @@ type Server struct {
 	version        string
 }
 
-func NewServer(
-	authSvc AuthService,
-	mediaSvc MediaService,
-	chunkSvc *service.ChunkService,
-	eventBus port.EventSubscriber,
-	domain string,
-	maxSizeMB int,
-	version string,
-	behindProxy bool,
-	rateLimiter *ratelimit.LoginRateLimiter,
-	backoffTracker *ratelimit.LoginAttemptTracker,
-	backoff *ratelimit.Backoff,
-	csrf *middleware.CSRFProtection,
-) *Server {
+// ServerConfig holds all dependencies and settings needed to create an HTTP server.
+type ServerConfig struct {
+	AuthSvc         AuthService
+	MediaSvc        MediaService
+	ChunkSvc        *service.ChunkService
+	EventBus        port.EventSubscriber
+	Domain          string
+	MaxUploadSizeMB int
+	Version         string
+	BehindProxy     bool
+	RateLimiter     *ratelimit.LoginRateLimiter
+	BackoffTracker  *ratelimit.LoginAttemptTracker
+	Backoff         *ratelimit.Backoff
+	CSRF            *middleware.CSRFProtection
+}
+
+func NewServer(cfg ServerConfig) *Server {
 	mux := http.NewServeMux()
-	handlers := NewHandlers(mediaSvc, chunkSvc, domain, maxSizeMB, version)
-	sseHandler := NewSSEHandler(eventBus, mediaSvc, domain)
+	handlers := NewHandlers(cfg.MediaSvc, cfg.ChunkSvc, cfg.Domain, cfg.MaxUploadSizeMB, cfg.Version)
+	sseHandler := NewSSEHandler(cfg.EventBus, cfg.MediaSvc, cfg.Domain)
 
 	s := &Server{
 		mux:            mux,
 		handlers:       handlers,
 		sseHandler:     sseHandler,
-		authSvc:        authSvc,
-		mediaSvc:       mediaSvc,
-		rateLimiter:    rateLimiter,
-		backoffTracker: backoffTracker,
-		backoff:        backoff,
-		csrf:           csrf,
-		behindProxy:    behindProxy,
-		version:        version,
+		authSvc:        cfg.AuthSvc,
+		mediaSvc:       cfg.MediaSvc,
+		rateLimiter:    cfg.RateLimiter,
+		backoffTracker: cfg.BackoffTracker,
+		backoff:        cfg.Backoff,
+		csrf:           cfg.CSRF,
+		behindProxy:    cfg.BehindProxy,
+		version:        cfg.Version,
 	}
 
 	s.registerRoutes()
