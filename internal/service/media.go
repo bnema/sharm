@@ -255,7 +255,7 @@ func (s *MediaService) copyFile(src *os.File, dstPath string) error {
 		return fmt.Errorf("failed to stat source file: %w", err)
 	}
 
-	if err := os.Chmod(dstPath, srcInfo.Mode()); err != nil {
+	if err := s.fs.Chmod(dstPath, srcInfo.Mode()); err != nil {
 		return fmt.Errorf("failed to set file permissions: %w", err)
 	}
 

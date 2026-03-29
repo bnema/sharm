@@ -3,6 +3,8 @@ package logger
 import (
 	"log"
 	"os"
+
+	"github.com/bnema/sharm/internal/port"
 )
 
 var (
@@ -20,6 +22,8 @@ func init() {
 	Debug = log.New(os.Stdout, "DEBUG: ", logFlags)
 	Warn = log.New(os.Stdout, "WARN: ", logFlags)
 }
+
+var _ port.Logger = (*StdLogger)(nil)
 
 // StdLogger wraps the package-level loggers as a port.Logger implementation.
 type StdLogger struct{}

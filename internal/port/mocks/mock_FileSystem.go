@@ -37,6 +37,63 @@ func (_m *FileSystemMock) EXPECT() *FileSystemMock_Expecter {
 	return &FileSystemMock_Expecter{mock: &_m.Mock}
 }
 
+// Chmod provides a mock function for the type FileSystemMock
+func (_mock *FileSystemMock) Chmod(path string, mode os.FileMode) error {
+	ret := _mock.Called(path, mode)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Chmod")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string, os.FileMode) error); ok {
+		r0 = returnFunc(path, mode)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// FileSystemMock_Chmod_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Chmod'
+type FileSystemMock_Chmod_Call struct {
+	*mock.Call
+}
+
+// Chmod is a helper method to define mock.On call
+//   - path string
+//   - mode os.FileMode
+func (_e *FileSystemMock_Expecter) Chmod(path interface{}, mode interface{}) *FileSystemMock_Chmod_Call {
+	return &FileSystemMock_Chmod_Call{Call: _e.mock.On("Chmod", path, mode)}
+}
+
+func (_c *FileSystemMock_Chmod_Call) Run(run func(path string, mode os.FileMode)) *FileSystemMock_Chmod_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 os.FileMode
+		if args[1] != nil {
+			arg1 = args[1].(os.FileMode)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *FileSystemMock_Chmod_Call) Return(err error) *FileSystemMock_Chmod_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *FileSystemMock_Chmod_Call) RunAndReturn(run func(path string, mode os.FileMode) error) *FileSystemMock_Chmod_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Create provides a mock function for the type FileSystemMock
 func (_mock *FileSystemMock) Create(path string) (*os.File, error) {
 	ret := _mock.Called(path)
@@ -95,6 +152,74 @@ func (_c *FileSystemMock_Create_Call) Return(file *os.File, err error) *FileSyst
 }
 
 func (_c *FileSystemMock_Create_Call) RunAndReturn(run func(path string) (*os.File, error)) *FileSystemMock_Create_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateTemp provides a mock function for the type FileSystemMock
+func (_mock *FileSystemMock) CreateTemp(dir string, pattern string) (*os.File, error) {
+	ret := _mock.Called(dir, pattern)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateTemp")
+	}
+
+	var r0 *os.File
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, string) (*os.File, error)); ok {
+		return returnFunc(dir, pattern)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, string) *os.File); ok {
+		r0 = returnFunc(dir, pattern)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*os.File)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = returnFunc(dir, pattern)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// FileSystemMock_CreateTemp_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateTemp'
+type FileSystemMock_CreateTemp_Call struct {
+	*mock.Call
+}
+
+// CreateTemp is a helper method to define mock.On call
+//   - dir string
+//   - pattern string
+func (_e *FileSystemMock_Expecter) CreateTemp(dir interface{}, pattern interface{}) *FileSystemMock_CreateTemp_Call {
+	return &FileSystemMock_CreateTemp_Call{Call: _e.mock.On("CreateTemp", dir, pattern)}
+}
+
+func (_c *FileSystemMock_CreateTemp_Call) Run(run func(dir string, pattern string)) *FileSystemMock_CreateTemp_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *FileSystemMock_CreateTemp_Call) Return(file *os.File, err error) *FileSystemMock_CreateTemp_Call {
+	_c.Call.Return(file, err)
+	return _c
+}
+
+func (_c *FileSystemMock_CreateTemp_Call) RunAndReturn(run func(dir string, pattern string) (*os.File, error)) *FileSystemMock_CreateTemp_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -269,6 +394,57 @@ func (_c *FileSystemMock_Remove_Call) RunAndReturn(run func(path string) error) 
 	return _c
 }
 
+// RemoveAll provides a mock function for the type FileSystemMock
+func (_mock *FileSystemMock) RemoveAll(path string) error {
+	ret := _mock.Called(path)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveAll")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string) error); ok {
+		r0 = returnFunc(path)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// FileSystemMock_RemoveAll_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveAll'
+type FileSystemMock_RemoveAll_Call struct {
+	*mock.Call
+}
+
+// RemoveAll is a helper method to define mock.On call
+//   - path string
+func (_e *FileSystemMock_Expecter) RemoveAll(path interface{}) *FileSystemMock_RemoveAll_Call {
+	return &FileSystemMock_RemoveAll_Call{Call: _e.mock.On("RemoveAll", path)}
+}
+
+func (_c *FileSystemMock_RemoveAll_Call) Run(run func(path string)) *FileSystemMock_RemoveAll_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *FileSystemMock_RemoveAll_Call) Return(err error) *FileSystemMock_RemoveAll_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *FileSystemMock_RemoveAll_Call) RunAndReturn(run func(path string) error) *FileSystemMock_RemoveAll_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Rename provides a mock function for the type FileSystemMock
 func (_mock *FileSystemMock) Rename(oldpath string, newpath string) error {
 	ret := _mock.Called(oldpath, newpath)
@@ -384,6 +560,69 @@ func (_c *FileSystemMock_Stat_Call) Return(v os.FileInfo, err error) *FileSystem
 }
 
 func (_c *FileSystemMock_Stat_Call) RunAndReturn(run func(path string) (os.FileInfo, error)) *FileSystemMock_Stat_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// WriteFile provides a mock function for the type FileSystemMock
+func (_mock *FileSystemMock) WriteFile(path string, data []byte, perm os.FileMode) error {
+	ret := _mock.Called(path, data, perm)
+
+	if len(ret) == 0 {
+		panic("no return value specified for WriteFile")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string, []byte, os.FileMode) error); ok {
+		r0 = returnFunc(path, data, perm)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// FileSystemMock_WriteFile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WriteFile'
+type FileSystemMock_WriteFile_Call struct {
+	*mock.Call
+}
+
+// WriteFile is a helper method to define mock.On call
+//   - path string
+//   - data []byte
+//   - perm os.FileMode
+func (_e *FileSystemMock_Expecter) WriteFile(path interface{}, data interface{}, perm interface{}) *FileSystemMock_WriteFile_Call {
+	return &FileSystemMock_WriteFile_Call{Call: _e.mock.On("WriteFile", path, data, perm)}
+}
+
+func (_c *FileSystemMock_WriteFile_Call) Run(run func(path string, data []byte, perm os.FileMode)) *FileSystemMock_WriteFile_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 []byte
+		if args[1] != nil {
+			arg1 = args[1].([]byte)
+		}
+		var arg2 os.FileMode
+		if args[2] != nil {
+			arg2 = args[2].(os.FileMode)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *FileSystemMock_WriteFile_Call) Return(err error) *FileSystemMock_WriteFile_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *FileSystemMock_WriteFile_Call) RunAndReturn(run func(path string, data []byte, perm os.FileMode) error) *FileSystemMock_WriteFile_Call {
 	_c.Call.Return(run)
 	return _c
 }

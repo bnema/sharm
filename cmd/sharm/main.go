@@ -63,18 +63,9 @@ func main() {
 	workerPool := service.NewWorkerPool(jobQueue, store, converter, eventBus, cfg.DataDir, 2, log, fs)
 	workerPool.Start(workerCtx)
 
-	chunkSvc := service.NewChunkService(os.TempDir(), log)
+	chunkSvc := service.NewChunkService(os.TempDir(), log, fs)
 
-	rateLimiter := ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute)
-	backoffTracker := ratelimit.NewLoginAttemptTracker()
-	backoff := ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0)
-	csrf := middleware.NewCSRFProtection(cfg.SecretKey)
-
-	server := HTTPAdapter.NewServer(
-		authSvc, mediaSvc, chunkSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB,
-		Version, cfg.BehindProxy,
-		rateLimiter, backoffTracker, backoff, csrf,
-	)
+	server := newHTTPServer(cfg, authSvc, mediaSvc, chunkSvc, eventBus)
 
 	// Periodic cleanup of expired media
 	go func() {
@@ -108,7 +99,6 @@ func main() {
 		sig := <-sigChan
 		logger.Info.Printf("received %s, shutting down", sig)
 
-		// Stop accepting new requests
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer shutdownCancel()
 
@@ -116,9 +106,7 @@ func main() {
 			logger.Error.Printf("http shutdown error: %v", err)
 		}
 
-		// Stop workers (lets in-flight jobs finish)
 		workerCancel()
-
 		logger.Info.Printf("shutdown complete")
 	}()
 
@@ -126,4 +114,17 @@ func main() {
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error.Printf("server failed: %v", err)
 	}
+}
+
+func newHTTPServer(cfg *config.Config, authSvc *service.AuthService, mediaSvc *service.MediaService, chunkSvc *service.ChunkService, eventBus *service.EventBus) *HTTPAdapter.Server {
+	rateLimiter := ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute)
+	backoffTracker := ratelimit.NewLoginAttemptTracker()
+	backoff := ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0)
+	csrf := middleware.NewCSRFProtection(cfg.SecretKey)
+
+	return HTTPAdapter.NewServer(
+		authSvc, mediaSvc, chunkSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB,
+		Version, cfg.BehindProxy,
+		rateLimiter, backoffTracker, backoff, csrf,
+	)
 }

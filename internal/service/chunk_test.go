@@ -5,13 +5,17 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/bnema/sharm/internal/adapter/storage/osfs"
+	"github.com/bnema/sharm/internal/port"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func testFS() port.FileSystem { return osfs.New() }
+
 func TestChunkService_StoreChunk(t *testing.T) {
 	tmpDir := t.TempDir()
-	svc := NewChunkService(tmpDir, &nopLogger{})
+	svc := NewChunkService(tmpDir, &nopLogger{}, testFS())
 
 	data := []byte("chunk data")
 	err := svc.StoreChunk("upload-123", 0, data)
@@ -25,7 +29,7 @@ func TestChunkService_StoreChunk(t *testing.T) {
 
 func TestChunkService_StoreChunk_InvalidUploadID(t *testing.T) {
 	tmpDir := t.TempDir()
-	svc := NewChunkService(tmpDir, &nopLogger{})
+	svc := NewChunkService(tmpDir, &nopLogger{}, testFS())
 
 	err := svc.StoreChunk("", 0, []byte("data"))
 	assert.Error(t, err)
@@ -36,7 +40,7 @@ func TestChunkService_StoreChunk_InvalidUploadID(t *testing.T) {
 
 func TestChunkService_Assemble(t *testing.T) {
 	tmpDir := t.TempDir()
-	svc := NewChunkService(tmpDir, &nopLogger{})
+	svc := NewChunkService(tmpDir, &nopLogger{}, testFS())
 
 	require.NoError(t, svc.StoreChunk("upload-456", 0, []byte("aaa")))
 	require.NoError(t, svc.StoreChunk("upload-456", 1, []byte("bbb")))
@@ -56,7 +60,7 @@ func TestChunkService_Assemble(t *testing.T) {
 
 func TestChunkService_Assemble_MissingChunk(t *testing.T) {
 	tmpDir := t.TempDir()
-	svc := NewChunkService(tmpDir, &nopLogger{})
+	svc := NewChunkService(tmpDir, &nopLogger{}, testFS())
 
 	require.NoError(t, svc.StoreChunk("upload-789", 0, []byte("aaa")))
 
@@ -66,7 +70,7 @@ func TestChunkService_Assemble_MissingChunk(t *testing.T) {
 
 func TestChunkService_Cleanup(t *testing.T) {
 	tmpDir := t.TempDir()
-	svc := NewChunkService(tmpDir, &nopLogger{})
+	svc := NewChunkService(tmpDir, &nopLogger{}, testFS())
 
 	require.NoError(t, svc.StoreChunk("upload-clean", 0, []byte("data")))
 	chunkDir := filepath.Join(tmpDir, "sharm-chunks", "upload-clean")
