@@ -74,11 +74,11 @@ func newTestServer(authSvc AuthService, mediaSvc MediaService) *Server {
 	bt := ratelimit.NewLoginAttemptTracker()
 	bo := ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0)
 	cs := middleware.NewCSRFProtection("test-secret")
-	return NewServer(authSvc, mediaSvc, service.NewEventBus(), "example.com", 10, "dev", false, rl, bt, bo, cs)
+	return NewServer(authSvc, mediaSvc, nil, service.NewEventBus(), "example.com", 10, "dev", false, rl, bt, bo, cs)
 }
 
 func TestConfigPage_ReturnsRenderedConfigPage(t *testing.T) {
-	h := NewHandlers(configTestMediaService{}, "example.com", 10, "dev")
+	h := NewHandlers(configTestMediaService{}, nil, "example.com", 10, "dev")
 
 	req := httptest.NewRequest(http.MethodGet, "/config", http.NoBody)
 	rr := httptest.NewRecorder()

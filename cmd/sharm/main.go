@@ -63,13 +63,15 @@ func main() {
 	workerPool := service.NewWorkerPool(jobQueue, store, converter, eventBus, cfg.DataDir, 2, log, fs)
 	workerPool.Start(workerCtx)
 
+	chunkSvc := service.NewChunkService(os.TempDir(), log)
+
 	rateLimiter := ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute)
 	backoffTracker := ratelimit.NewLoginAttemptTracker()
 	backoff := ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0)
 	csrf := middleware.NewCSRFProtection(cfg.SecretKey)
 
 	server := HTTPAdapter.NewServer(
-		authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB,
+		authSvc, mediaSvc, chunkSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB,
 		Version, cfg.BehindProxy,
 		rateLimiter, backoffTracker, backoff, csrf,
 	)

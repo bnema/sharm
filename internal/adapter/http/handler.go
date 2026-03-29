@@ -14,6 +14,7 @@ import (
 	"github.com/bnema/sharm/internal/adapter/http/validation"
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/bnema/sharm/internal/infrastructure/logger"
+	"github.com/bnema/sharm/internal/service"
 )
 
 const (
@@ -34,14 +35,16 @@ type MediaService interface {
 
 type Handlers struct {
 	mediaSvc  MediaService
+	chunkSvc  *service.ChunkService
 	domain    string
 	maxSizeMB int
 	version   string
 }
 
-func NewHandlers(mediaSvc MediaService, domainName string, maxSizeMB int, version string) *Handlers {
+func NewHandlers(mediaSvc MediaService, chunkSvc *service.ChunkService, domainName string, maxSizeMB int, version string) *Handlers {
 	return &Handlers{
 		mediaSvc:  mediaSvc,
+		chunkSvc:  chunkSvc,
 		domain:    domainName,
 		maxSizeMB: maxSizeMB,
 		version:   version,
@@ -174,19 +177,6 @@ func (h *Handlers) Upload() http.HandlerFunc {
 
 const chunkSize = 5 * 1024 * 1024 // 5MB
 
-// validateUploadID checks that uploadID is a valid UUID-like string (alphanumeric with dashes).
-func validateUploadID(uploadID string) bool {
-	if uploadID == "" || len(uploadID) > 64 {
-		return false
-	}
-	for _, c := range uploadID {
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
-			return false
-		}
-	}
-	return true
-}
-
 func (h *Handlers) ChunkUpload() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, chunkSize+1024*1024) // chunk + overhead
@@ -203,7 +193,7 @@ func (h *Handlers) ChunkUpload() http.HandlerFunc {
 			return
 		}
 
-		if !validateUploadID(uploadID) {
+		if !service.ValidateUploadID(uploadID) {
 			http.Error(w, "Invalid uploadId format", http.StatusBadRequest)
 			return
 		}
@@ -226,28 +216,15 @@ func (h *Handlers) ChunkUpload() http.HandlerFunc {
 			}
 		}()
 
-		chunkDir := filepath.Join(os.TempDir(), "sharm-chunks", uploadID)
-		if mkdirErr := os.MkdirAll(chunkDir, 0750); mkdirErr != nil {
-			logger.Error.Printf("failed to create chunk dir: %v", mkdirErr)
-			http.Error(w, "Server error", http.StatusInternalServerError)
-			return
-		}
-
-		chunkPath := filepath.Join(chunkDir, strconv.Itoa(chunkIdx))
-		out, err := os.OpenFile(chunkPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+		data, err := io.ReadAll(file)
 		if err != nil {
-			logger.Error.Printf("failed to create chunk file %s: %v", chunkPath, err)
+			logger.Error.Printf("failed to read chunk data: %v", err)
 			http.Error(w, "Server error", http.StatusInternalServerError)
 			return
 		}
-		defer func() {
-			if closeErr := out.Close(); closeErr != nil {
-				logger.Error.Printf("failed to close output file %s: %v", chunkPath, closeErr)
-			}
-		}()
 
-		if _, err := io.Copy(out, file); err != nil {
-			logger.Error.Printf("failed to write chunk: %v", err)
+		if err := h.chunkSvc.StoreChunk(uploadID, chunkIdx, data); err != nil {
+			logger.Error.Printf("failed to store chunk %d for upload %s: %v", chunkIdx, uploadID, err)
 			http.Error(w, "Server error", http.StatusInternalServerError)
 			return
 		}
@@ -276,7 +253,7 @@ func (h *Handlers) CompleteUpload() http.HandlerFunc {
 			return
 		}
 
-		if !validateUploadID(uploadID) {
+		if !service.ValidateUploadID(uploadID) {
 			http.Error(w, "Invalid uploadId format", http.StatusBadRequest)
 			return
 		}
@@ -308,54 +285,17 @@ func (h *Handlers) CompleteUpload() http.HandlerFunc {
 
 		fps, _ := strconv.Atoi(r.FormValue("fps"))
 
-		chunkDir := filepath.Join(os.TempDir(), "sharm-chunks", uploadID)
-		defer func() {
-			if removeErr := os.RemoveAll(chunkDir); removeErr != nil {
-				logger.Error.Printf("failed to cleanup chunk dir %s: %v", chunkDir, removeErr)
-			}
-		}()
-
-		// Assemble chunks into temp file
-		assembled, err := os.CreateTemp("", "upload-assembled-*.tmp")
+		assembled, err := h.chunkSvc.Assemble(uploadID, totalChunks)
 		if err != nil {
-			logger.Error.Printf("failed to create assembled file: %v", err)
+			logger.Error.Printf("failed to assemble chunks for upload %s: %v", uploadID, err)
 			http.Error(w, "Server error", http.StatusInternalServerError)
 			return
 		}
+		defer h.chunkSvc.Cleanup(uploadID)
 		defer func() {
-			if closeErr := assembled.Close(); closeErr != nil {
-				logger.Error.Printf("failed to close assembled file: %v", closeErr)
-			}
-			if removeErr := os.Remove(assembled.Name()); removeErr != nil && !os.IsNotExist(removeErr) {
-				logger.Error.Printf("failed to remove assembled file: %v", removeErr)
-			}
+			_ = assembled.Close()
+			_ = os.Remove(assembled.Name())
 		}()
-
-		for i := range totalChunks {
-			chunkPath := filepath.Join(chunkDir, strconv.Itoa(i))
-			chunk, openErr := os.Open(chunkPath)
-			if openErr != nil {
-				logger.Error.Printf("missing chunk %d for upload %s: %v", i, uploadID, openErr)
-				http.Error(w, fmt.Sprintf("Missing chunk %d", i), http.StatusBadRequest)
-				return
-			}
-			_, copyErr := io.Copy(assembled, chunk)
-			if closeErr := chunk.Close(); closeErr != nil {
-				logger.Error.Printf("failed to close chunk %d for upload %s: %v", i, uploadID, closeErr)
-			}
-			if copyErr != nil {
-				logger.Error.Printf("failed to copy chunk %d: %v", i, copyErr)
-				http.Error(w, "Server error", http.StatusInternalServerError)
-				return
-			}
-		}
-
-		// Reset file position for reading
-		if _, seekErr := assembled.Seek(0, 0); seekErr != nil {
-			logger.Error.Printf("failed to seek assembled file: %v", seekErr)
-			http.Error(w, "Server error", http.StatusInternalServerError)
-			return
-		}
 
 		// Validate assembled file type using magic bytes
 		_, allowed, err := validation.ValidateMagicBytes(assembled)
