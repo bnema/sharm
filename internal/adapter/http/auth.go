@@ -85,6 +85,18 @@ func AuthMiddleware(authSvc AuthService, next http.HandlerFunc) http.HandlerFunc
 
 func LoginHandler(authSvc AuthService, rateLimiter *ratelimit.LoginRateLimiter, tracker *ratelimit.LoginAttemptTracker, backoff *ratelimit.Backoff, version string, behindProxy bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Redirect to setup if no user exists yet
+		hasUser, err := authSvc.HasUser()
+		if err != nil {
+			logger.Error.Printf("login: failed to check user existence: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		if !hasUser {
+			http.Redirect(w, r, "/setup", http.StatusSeeOther)
+			return
+		}
+
 		clientID := getClientID(r)
 
 		if r.Method == http.MethodGet {

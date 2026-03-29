@@ -3,12 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/bnema/sharm/internal/domain"
-	"github.com/bnema/sharm/internal/infrastructure/logger"
 	"github.com/bnema/sharm/internal/port"
 )
 
@@ -16,28 +14,22 @@ type WorkerPool struct {
 	jobQueue  port.JobQueue
 	store     port.MediaStore
 	converter port.MediaConverter
-	eventBus  EventPublisher
+	eventBus  port.EventPublisher
 	dataDir   string
 	workers   int
-}
-
-type EventPublisher interface {
-	Publish(mediaID string, event Event)
-}
-
-type Event struct {
-	Type    string // "status", "progress"
-	Status  string
-	Message string
+	log       port.Logger
+	fs        port.FileSystem
 }
 
 func NewWorkerPool(
 	jobQueue port.JobQueue,
 	store port.MediaStore,
 	converter port.MediaConverter,
-	eventBus EventPublisher,
+	eventBus port.EventPublisher,
 	dataDir string,
 	workers int,
+	log port.Logger,
+	fs port.FileSystem,
 ) *WorkerPool {
 	return &WorkerPool{
 		jobQueue:  jobQueue,
@@ -46,33 +38,35 @@ func NewWorkerPool(
 		eventBus:  eventBus,
 		dataDir:   dataDir,
 		workers:   workers,
+		log:       log,
+		fs:        fs,
 	}
 }
 
 func (wp *WorkerPool) Start(ctx context.Context) {
 	// Reset any stalled jobs from previous runs
 	if err := wp.jobQueue.ResetStalled(); err != nil {
-		logger.Error.Printf("failed to reset stalled jobs: %v", err)
+		wp.log.Errorf("failed to reset stalled jobs: %v", err)
 	}
 
 	for i := range wp.workers {
 		go wp.runWorker(ctx, i)
 	}
-	logger.Info.Printf("started %d workers", wp.workers)
+	wp.log.Infof("started %d workers", wp.workers)
 }
 
 func (wp *WorkerPool) runWorker(ctx context.Context, id int) {
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Info.Printf("worker %d shutting down", id)
+			wp.log.Infof("worker %d shutting down", id)
 			return
 		default:
 		}
 
 		job, err := wp.jobQueue.Claim()
 		if err != nil {
-			logger.Error.Printf("worker %d: failed to claim job: %v", id, err)
+			wp.log.Errorf("worker %d: failed to claim job: %v", id, err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
@@ -83,7 +77,7 @@ func (wp *WorkerPool) runWorker(ctx context.Context, id int) {
 			continue
 		}
 
-		logger.Info.Printf("worker %d: processing job %d (type=%s, media=%s, codec=%s)", id, job.ID, job.Type, job.MediaID, job.Codec)
+		wp.log.Infof("worker %d: processing job %d (type=%s, media=%s, codec=%s)", id, job.ID, job.Type, job.MediaID, job.Codec)
 		wp.processJob(job)
 	}
 }
@@ -103,7 +97,7 @@ func (wp *WorkerPool) processJob(job *domain.Job) {
 	}
 
 	if err != nil {
-		logger.Error.Printf("job %d failed: %v", job.ID, err)
+		wp.log.Errorf("job %d failed: %v", job.ID, err)
 		_ = wp.jobQueue.Fail(job.ID, err.Error())
 
 		// If this was a convert job with a codec, mark the variant as failed
@@ -118,7 +112,7 @@ func (wp *WorkerPool) processJob(job *domain.Job) {
 	}
 
 	_ = wp.jobQueue.Complete(job.ID)
-	logger.Info.Printf("job %d completed", job.ID)
+	wp.log.Infof("job %d completed", job.ID)
 }
 
 func (wp *WorkerPool) handleConvert(job *domain.Job) error {
@@ -134,7 +128,7 @@ func (wp *WorkerPool) handleConvert(job *domain.Job) error {
 	}
 
 	convertedDir := filepath.Join(wp.dataDir, "converted")
-	if err := os.MkdirAll(convertedDir, 0755); err != nil {
+	if err := wp.fs.MkdirAll(convertedDir, 0750); err != nil {
 		return fmt.Errorf("create converted directory: %w", err)
 	}
 
@@ -156,11 +150,6 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 	_ = wp.store.UpdateVariantStatus(variant.ID, domain.VariantStatusProcessing, "")
 	wp.publishEvent(media.ID, "status", string(domain.MediaStatusProcessing), "")
 
-	convertedDir = filepath.Join(wp.dataDir, "converted")
-	if err := os.MkdirAll(convertedDir, 0750); err != nil {
-		return fmt.Errorf("create converted directory: %w", err)
-	}
-
 	outputPath, err := wp.converter.ConvertCodec(media.OriginalPath, convertedDir, media.ID, job.Codec, job.Fps)
 	if err != nil {
 		return fmt.Errorf("convert %s: %w", job.Codec, err)
@@ -171,7 +160,7 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 	if media.Type == domain.MediaTypeVideo {
 		probeResult, probeErr := wp.converter.Probe(outputPath)
 		if probeErr != nil {
-			logger.Error.Printf("probe failed for variant %s: %v", job.Codec, probeErr)
+			wp.log.Errorf("probe failed for variant %s: %v", job.Codec, probeErr)
 		} else {
 			width, height = probeResult.Dimensions()
 			probeJSON = probeResult.RawJSON
@@ -181,7 +170,7 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 		}
 	}
 
-	fileInfo, _ := os.Stat(outputPath)
+	fileInfo, _ := wp.fs.Stat(outputPath)
 	var fileSize int64
 	if fileInfo != nil {
 		fileSize = fileInfo.Size()
@@ -199,7 +188,7 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 	if media.Type == domain.MediaTypeVideo && media.ThumbPath == "" {
 		thumbPath := filepath.Join(convertedDir, media.ID+"_thumb.jpg")
 		if thumbErr := wp.converter.Thumbnail(outputPath, thumbPath); thumbErr != nil {
-			logger.Error.Printf("thumbnail failed for %s: %v", media.ID, err)
+			wp.log.Errorf("thumbnail failed for %s: %v", media.ID, thumbErr)
 		} else {
 			media.ThumbPath = thumbPath
 		}
@@ -249,14 +238,18 @@ func (wp *WorkerPool) handleLegacyConvert(job *domain.Job, media *domain.Media, 
 		return fmt.Errorf("thumbnail: %w", err)
 	}
 
-	fileInfo, _ := os.Stat(convertedPath)
-	media.MarkAsDone(convertedPath, domain.Codec(codec), width, height, thumbPath, fileInfo.Size())
+	fileInfo, _ := wp.fs.Stat(convertedPath)
+	var fileSize int64
+	if fileInfo != nil {
+		fileSize = fileInfo.Size()
+	}
+	media.MarkAsDone(convertedPath, domain.Codec(codec), width, height, thumbPath, fileSize)
 
 	if err := wp.store.UpdateDone(media); err != nil {
 		return fmt.Errorf("update media done: %w", err)
 	}
 
-	_ = os.Remove(media.OriginalPath)
+	_ = wp.fs.Remove(media.OriginalPath)
 
 	wp.publishEvent(media.ID, "status", string(domain.MediaStatusDone), "")
 	return nil
@@ -265,7 +258,7 @@ func (wp *WorkerPool) handleLegacyConvert(job *domain.Job, media *domain.Media, 
 func (wp *WorkerPool) failVariant(job *domain.Job) {
 	variant, err := wp.store.GetVariantByMediaAndCodec(job.MediaID, job.Codec)
 	if err != nil {
-		logger.Error.Printf("failed to get variant for failure update: %v", err)
+		wp.log.Errorf("failed to get variant for failure update: %v", err)
 		return
 	}
 	_ = wp.store.UpdateVariantStatus(variant.ID, domain.VariantStatusFailed, job.ErrorMessage)
@@ -273,7 +266,7 @@ func (wp *WorkerPool) failVariant(job *domain.Job) {
 	// Re-fetch media to check if all variants are terminal
 	media, err := wp.store.Get(job.MediaID)
 	if err != nil {
-		logger.Error.Printf("failed to re-fetch media after variant failure: %v", err)
+		wp.log.Errorf("failed to re-fetch media after variant failure: %v", err)
 		return
 	}
 
@@ -282,7 +275,7 @@ func (wp *WorkerPool) failVariant(job *domain.Job) {
 			best := media.BestVariant()
 			media.MarkAsDone(best.Path, best.Codec, best.Width, best.Height, media.ThumbPath, best.FileSize)
 			if err := wp.store.UpdateDone(media); err != nil {
-				logger.Error.Printf("failed to mark media done after variant failures: %v", err)
+				wp.log.Errorf("failed to mark media done after variant failures: %v", err)
 			}
 			wp.publishEvent(media.ID, "status", string(domain.MediaStatusDone), "")
 		} else {
@@ -299,7 +292,7 @@ func (wp *WorkerPool) handleThumbnail(job *domain.Job) error {
 	}
 
 	convertedDir := filepath.Join(wp.dataDir, "converted")
-	if err := os.MkdirAll(convertedDir, 0750); err != nil {
+	if err := wp.fs.MkdirAll(convertedDir, 0750); err != nil {
 		return fmt.Errorf("create converted directory: %w", err)
 	}
 	thumbPath := filepath.Join(convertedDir, media.ID+"_thumb.jpg")
@@ -339,7 +332,7 @@ func (wp *WorkerPool) handleProbe(job *domain.Job) error {
 
 func (wp *WorkerPool) publishEvent(mediaID, eventType, status, message string) {
 	if wp.eventBus != nil {
-		wp.eventBus.Publish(mediaID, Event{
+		wp.eventBus.Publish(mediaID, port.Event{
 			Type:    eventType,
 			Status:  status,
 			Message: message,

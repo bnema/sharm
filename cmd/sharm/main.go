@@ -12,6 +12,9 @@ import (
 	"github.com/bnema/sharm/config"
 	"github.com/bnema/sharm/internal/adapter/converter/ffmpeg"
 	HTTPAdapter "github.com/bnema/sharm/internal/adapter/http"
+	"github.com/bnema/sharm/internal/adapter/http/middleware"
+	"github.com/bnema/sharm/internal/adapter/http/ratelimit"
+	"github.com/bnema/sharm/internal/adapter/storage/osfs"
 	sqlitestore "github.com/bnema/sharm/internal/adapter/storage/sqlite"
 	"github.com/bnema/sharm/internal/infrastructure/logger"
 	"github.com/bnema/sharm/internal/service"
@@ -47,18 +50,22 @@ func main() {
 	converter := ffmpeg.NewConverter()
 	jobQueue := sqlitestore.NewJobQueue(store)
 	eventBus := service.NewEventBus()
+	log := logger.NewStdLogger()
 
-	mediaSvc := service.NewMediaService(store, converter, jobQueue, cfg.DataDir)
+	fs := osfs.New()
+	mediaSvc := service.NewMediaService(store, converter, jobQueue, cfg.DataDir, log, fs)
 	authSvc := service.NewAuthService(store, cfg.SecretKey)
 
 	// Worker pool for async jobs (conversion, thumbnails)
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	defer workerCancel()
 
-	workerPool := service.NewWorkerPool(jobQueue, store, converter, eventBus, cfg.DataDir, 2)
+	workerPool := service.NewWorkerPool(jobQueue, store, converter, eventBus, cfg.DataDir, 2, log, fs)
 	workerPool.Start(workerCtx)
 
-	server := HTTPAdapter.NewServer(authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB, Version, cfg.BehindProxy, cfg.SecretKey)
+	chunkSvc := service.NewChunkService(os.TempDir(), log, fs)
+
+	server := newHTTPServer(cfg, authSvc, mediaSvc, chunkSvc, eventBus)
 
 	// Periodic cleanup of expired media
 	go func() {
@@ -92,7 +99,6 @@ func main() {
 		sig := <-sigChan
 		logger.Info.Printf("received %s, shutting down", sig)
 
-		// Stop accepting new requests
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer shutdownCancel()
 
@@ -100,9 +106,7 @@ func main() {
 			logger.Error.Printf("http shutdown error: %v", err)
 		}
 
-		// Stop workers (lets in-flight jobs finish)
 		workerCancel()
-
 		logger.Info.Printf("shutdown complete")
 	}()
 
@@ -110,4 +114,21 @@ func main() {
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error.Printf("server failed: %v", err)
 	}
+}
+
+func newHTTPServer(cfg *config.Config, authSvc *service.AuthService, mediaSvc *service.MediaService, chunkSvc *service.ChunkService, eventBus *service.EventBus) *HTTPAdapter.Server {
+	return HTTPAdapter.NewServer(HTTPAdapter.ServerConfig{
+		AuthSvc:         authSvc,
+		MediaSvc:        mediaSvc,
+		ChunkSvc:        chunkSvc,
+		EventBus:        eventBus,
+		Domain:          cfg.Domain,
+		MaxUploadSizeMB: cfg.MaxUploadSizeMB,
+		Version:         Version,
+		BehindProxy:     cfg.BehindProxy,
+		RateLimiter:     ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute),
+		BackoffTracker:  ratelimit.NewLoginAttemptTracker(),
+		Backoff:         ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0),
+		CSRF:            middleware.NewCSRFProtection(cfg.SecretKey, HTTPAdapter.CSRFErrorHandler),
+	})
 }

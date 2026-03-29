@@ -6,6 +6,17 @@ templ ErrorInline(message string) {
 	@Toast(message, ToastError)
 }
 
+// CSRFError renders a CSRF validation error with a script that
+// updates the HTMX CSRF header from the fresh cookie so the
+// next request succeeds without a page refresh.
+templ CSRFError() {
+	@FormError("Invalid CSRF token. Please try again.")
+	<script>
+		var c = document.cookie.split('; ').find(function(r) { return r.startsWith('csrf_token='); });
+		if (c) { document.body.setAttribute('hx-headers', JSON.stringify({'X-CSRF-Token': c.substring('csrf_token='.length)})); }
+	</script>
+}
+
 // ErrorPage renders a full-page error (404, 500, etc.)
 templ ErrorPage(code string, message string, version string) {
 	@Layout(LayoutProps{Title: message + " — Sharm", Version: version}) {

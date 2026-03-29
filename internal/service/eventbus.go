@@ -2,29 +2,36 @@ package service
 
 import (
 	"sync"
+
+	"github.com/bnema/sharm/internal/port"
+)
+
+var (
+	_ port.EventPublisher  = (*EventBus)(nil)
+	_ port.EventSubscriber = (*EventBus)(nil)
 )
 
 type EventBus struct {
-	subscribers map[string][]chan Event
+	subscribers map[string][]chan port.Event
 	mu          sync.RWMutex
 }
 
 func NewEventBus() *EventBus {
 	return &EventBus{
-		subscribers: make(map[string][]chan Event),
+		subscribers: make(map[string][]chan port.Event),
 	}
 }
 
-func (eb *EventBus) Subscribe(mediaID string) chan Event {
+func (eb *EventBus) Subscribe(mediaID string) chan port.Event {
 	eb.mu.Lock()
 	defer eb.mu.Unlock()
 
-	ch := make(chan Event, 16)
+	ch := make(chan port.Event, 16)
 	eb.subscribers[mediaID] = append(eb.subscribers[mediaID], ch)
 	return ch
 }
 
-func (eb *EventBus) Unsubscribe(mediaID string, ch chan Event) {
+func (eb *EventBus) Unsubscribe(mediaID string, ch chan port.Event) {
 	eb.mu.Lock()
 	defer eb.mu.Unlock()
 
@@ -42,7 +49,7 @@ func (eb *EventBus) Unsubscribe(mediaID string, ch chan Event) {
 	}
 }
 
-func (eb *EventBus) Publish(mediaID string, event Event) {
+func (eb *EventBus) Publish(mediaID string, event port.Event) {
 	eb.mu.RLock()
 	defer eb.mu.RUnlock()
 

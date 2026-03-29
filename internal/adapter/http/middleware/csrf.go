@@ -17,15 +17,22 @@ const (
 	tokenSize      = 32    // 32 bytes random data
 )
 
+// CSRFErrorHandler is called when CSRF validation fails.
+// It receives the response writer, request, and a fresh token
+// that has already been set as a cookie on the response.
+type CSRFErrorHandler func(w http.ResponseWriter, r *http.Request, newToken string)
+
 // CSRFProtection provides CSRF token protection middleware.
 type CSRFProtection struct {
-	secretKey []byte
+	secretKey    []byte
+	errorHandler CSRFErrorHandler
 }
 
 // NewCSRFProtection creates a new CSRF protection instance.
-func NewCSRFProtection(secretKey string) *CSRFProtection {
+func NewCSRFProtection(secretKey string, errorHandler CSRFErrorHandler) *CSRFProtection {
 	return &CSRFProtection{
-		secretKey: []byte(secretKey),
+		secretKey:    []byte(secretKey),
+		errorHandler: errorHandler,
 	}
 }
 
@@ -34,9 +41,14 @@ func NewCSRFProtection(secretKey string) *CSRFProtection {
 // Unsafe methods (POST, PUT, PATCH, DELETE) require a valid token.
 func (c *CSRFProtection) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if we need to set a new token cookie
-		if _, err := r.Cookie(csrfCookieName); err != nil {
-			// No valid cookie, generate new token
+		// Ensure a valid CSRF cookie exists. Replace it if missing
+		// or if the signature doesn't match the current secret key
+		// (e.g. after a server restart with a new SECRET_KEY).
+		needNewToken := true
+		if cookie, err := r.Cookie(csrfCookieName); err == nil {
+			needNewToken = !c.ValidateToken(cookie.Value)
+		}
+		if needNewToken {
 			token := c.GenerateToken()
 			c.setCSRFCookie(w, r, token)
 		}
@@ -49,7 +61,11 @@ func (c *CSRFProtection) Middleware(next http.Handler) http.Handler {
 
 		// Unsafe methods require token validation
 		if !c.validateRequest(r) {
-			http.Error(w, "Forbidden - Invalid CSRF token", http.StatusForbidden)
+			// Flush the bad cookie and issue a fresh token so the
+			// next request succeeds without a full page refresh.
+			newToken := c.GenerateToken()
+			c.setCSRFCookie(w, r, newToken)
+			c.errorHandler(w, r, newToken)
 			return
 		}
 

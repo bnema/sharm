@@ -10,11 +10,11 @@ import (
 	"github.com/bnema/sharm/internal/adapter/http/templates"
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/bnema/sharm/internal/infrastructure/logger"
-	"github.com/bnema/sharm/internal/service"
+	"github.com/bnema/sharm/internal/port"
 )
 
 type SSEHandler struct {
-	eventBus *service.EventBus
+	eventBus port.EventSubscriber
 	mediaSvc MediaService
 	domain   string
 }
@@ -24,7 +24,7 @@ type renderedFragments struct {
 	rowHTML    string
 }
 
-func NewSSEHandler(eventBus *service.EventBus, mediaSvc MediaService, domainName string) *SSEHandler {
+func NewSSEHandler(eventBus port.EventSubscriber, mediaSvc MediaService, domainName string) *SSEHandler {
 	return &SSEHandler{
 		eventBus: eventBus,
 		mediaSvc: mediaSvc,

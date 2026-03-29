@@ -2,10 +2,11 @@ package http
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/bnema/sharm/internal/adapter/http/middleware"
 	"github.com/bnema/sharm/internal/adapter/http/ratelimit"
+	"github.com/bnema/sharm/internal/adapter/http/templates"
+	"github.com/bnema/sharm/internal/port"
 	"github.com/bnema/sharm/internal/service"
 	"github.com/bnema/sharm/static"
 )
@@ -24,39 +25,39 @@ type Server struct {
 	version        string
 }
 
-func NewServer(authSvc AuthService, mediaSvc MediaService, eventBus *service.EventBus, domain string, maxSizeMB int, version string, behindProxy bool, secretKey string) *Server {
+// ServerConfig holds all dependencies and settings needed to create an HTTP server.
+type ServerConfig struct {
+	AuthSvc         AuthService
+	MediaSvc        MediaService
+	ChunkSvc        *service.ChunkService
+	EventBus        port.EventSubscriber
+	Domain          string
+	MaxUploadSizeMB int
+	Version         string
+	BehindProxy     bool
+	RateLimiter     *ratelimit.LoginRateLimiter
+	BackoffTracker  *ratelimit.LoginAttemptTracker
+	Backoff         *ratelimit.Backoff
+	CSRF            *middleware.CSRFProtection
+}
+
+func NewServer(cfg ServerConfig) *Server {
 	mux := http.NewServeMux()
-	handlers := NewHandlers(mediaSvc, domain, maxSizeMB, version)
-	sseHandler := NewSSEHandler(eventBus, mediaSvc, domain)
-
-	rateLimiter := ratelimit.NewLoginRateLimiter(
-		5,
-		15*time.Minute,
-		30*time.Minute,
-	)
-
-	backoffTracker := ratelimit.NewLoginAttemptTracker()
-
-	backoff := ratelimit.NewBackoff(
-		500*time.Millisecond,
-		10*time.Second,
-		2.0,
-	)
-
-	csrf := middleware.NewCSRFProtection(secretKey)
+	handlers := NewHandlers(cfg.MediaSvc, cfg.ChunkSvc, cfg.Domain, cfg.MaxUploadSizeMB, cfg.Version)
+	sseHandler := NewSSEHandler(cfg.EventBus, cfg.MediaSvc, cfg.Domain)
 
 	s := &Server{
 		mux:            mux,
 		handlers:       handlers,
 		sseHandler:     sseHandler,
-		authSvc:        authSvc,
-		mediaSvc:       mediaSvc,
-		rateLimiter:    rateLimiter,
-		backoffTracker: backoffTracker,
-		backoff:        backoff,
-		csrf:           csrf,
-		behindProxy:    behindProxy,
-		version:        version,
+		authSvc:        cfg.AuthSvc,
+		mediaSvc:       cfg.MediaSvc,
+		rateLimiter:    cfg.RateLimiter,
+		backoffTracker: cfg.BackoffTracker,
+		backoff:        cfg.Backoff,
+		csrf:           cfg.CSRF,
+		behindProxy:    cfg.BehindProxy,
+		version:        cfg.Version,
 	}
 
 	s.registerRoutes()
@@ -105,4 +106,18 @@ func (s *Server) registerStatic() {
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Chain: SecurityHeaders -> CSRF -> mux
 	middleware.SecurityHeaders(s.csrf.Middleware(s.mux)).ServeHTTP(w, r)
+}
+
+// CSRFErrorHandler renders a CSRF error using templ components.
+// For HTMX requests it returns an HTML error fragment with a script
+// that updates the CSRF header from the fresh cookie. For plain
+// requests it returns a 403 text response.
+func CSRFErrorHandler(w http.ResponseWriter, r *http.Request, _ string) {
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusForbidden)
+		_ = templates.CSRFError().Render(r.Context(), w)
+	} else {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+	}
 }
