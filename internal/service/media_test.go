@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bnema/sharm/internal/adapter/storage/osfs"
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/bnema/sharm/internal/port/mocks"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +28,7 @@ func TestMediaService_Upload_VideoNoCodecs(t *testing.T) {
 	mockJobQueue := mocks.NewJobQueueMock(t)
 	tempDir := t.TempDir()
 
-	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{})
+	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{}, osfs.New())
 
 	tmpFile, err := os.CreateTemp("", "test_upload_*.mp4")
 	require.NoError(t, err)
@@ -73,7 +74,7 @@ func TestMediaService_Upload_VideoWithCodecs(t *testing.T) {
 	mockJobQueue := mocks.NewJobQueueMock(t)
 	tempDir := t.TempDir()
 
-	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{})
+	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{}, osfs.New())
 
 	tmpFile, err := os.CreateTemp("", "test_upload_*.mp4")
 	require.NoError(t, err)
@@ -117,7 +118,7 @@ func TestMediaService_Upload_CreateDirectoryFails(t *testing.T) {
 	mockConverter := mocks.NewMediaConverterMock(t)
 	mockJobQueue := mocks.NewJobQueueMock(t)
 
-	service := NewMediaService(mockStore, mockConverter, mockJobQueue, "/invalid/path/that/cannot/be/created/\x00", nopLogger{})
+	service := NewMediaService(mockStore, mockConverter, mockJobQueue, "/invalid/path/that/cannot/be/created/\x00", nopLogger{}, osfs.New())
 
 	tmpFile, err := os.CreateTemp("", "test_upload_*.mp4")
 	require.NoError(t, err)
@@ -136,7 +137,7 @@ func TestMediaService_Upload_FileMoveFails(t *testing.T) {
 	mockJobQueue := mocks.NewJobQueueMock(t)
 	tempDir := t.TempDir()
 
-	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{})
+	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{}, osfs.New())
 
 	tmpFile, err := os.CreateTemp("", "test_upload_*.mp4")
 	require.NoError(t, err)
@@ -156,7 +157,7 @@ func TestMediaService_Upload_StoreSaveFails(t *testing.T) {
 	mockJobQueue := mocks.NewJobQueueMock(t)
 	tempDir := t.TempDir()
 
-	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{})
+	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{}, osfs.New())
 
 	tmpFile, err := os.CreateTemp("", "test_upload_*.mp4")
 	require.NoError(t, err)
@@ -191,7 +192,7 @@ func TestMediaService_Get_Success(t *testing.T) {
 	mockJobQueue := mocks.NewJobQueueMock(t)
 	tempDir := t.TempDir()
 
-	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{})
+	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{}, osfs.New())
 
 	media := domain.NewMedia(domain.MediaTypeVideo, "test.mp4", "/path/to/test.mp4", 7)
 
@@ -212,7 +213,7 @@ func TestMediaService_Get_NotFound(t *testing.T) {
 	mockJobQueue := mocks.NewJobQueueMock(t)
 	tempDir := t.TempDir()
 
-	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{})
+	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{}, osfs.New())
 
 	mockStore.EXPECT().Get("media-id").
 		Return(nil, errors.New("not found")).
@@ -231,7 +232,7 @@ func TestMediaService_Get_Expired(t *testing.T) {
 	mockJobQueue := mocks.NewJobQueueMock(t)
 	tempDir := t.TempDir()
 
-	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{})
+	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{}, osfs.New())
 
 	media := domain.NewMedia(domain.MediaTypeVideo, "test.mp4", "/path/to/test.mp4", -1)
 
@@ -252,7 +253,7 @@ func TestMediaService_Cleanup_Success(t *testing.T) {
 	mockJobQueue := mocks.NewJobQueueMock(t)
 	tempDir := t.TempDir()
 
-	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{})
+	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{}, osfs.New())
 
 	uploadDir := filepath.Join(tempDir, "uploads")
 	convertedDir := filepath.Join(tempDir, "converted")
@@ -309,7 +310,7 @@ func TestMediaService_Cleanup_NoExpiredMedia(t *testing.T) {
 	mockJobQueue := mocks.NewJobQueueMock(t)
 	tempDir := t.TempDir()
 
-	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{})
+	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{}, osfs.New())
 
 	mockStore.EXPECT().ListExpired().
 		Return([]*domain.Media{}, nil).
@@ -326,7 +327,7 @@ func TestMediaService_Cleanup_ContinuesOnFileDeletionErrors(t *testing.T) {
 	mockJobQueue := mocks.NewJobQueueMock(t)
 	tempDir := t.TempDir()
 
-	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{})
+	service := NewMediaService(mockStore, mockConverter, mockJobQueue, tempDir, nopLogger{}, osfs.New())
 
 	media := &domain.Media{
 		ID:            "expired-media",

@@ -12,6 +12,7 @@ import (
 	"github.com/bnema/sharm/config"
 	"github.com/bnema/sharm/internal/adapter/converter/ffmpeg"
 	HTTPAdapter "github.com/bnema/sharm/internal/adapter/http"
+	"github.com/bnema/sharm/internal/adapter/storage/osfs"
 	sqlitestore "github.com/bnema/sharm/internal/adapter/storage/sqlite"
 	"github.com/bnema/sharm/internal/infrastructure/logger"
 	"github.com/bnema/sharm/internal/service"
@@ -49,14 +50,15 @@ func main() {
 	eventBus := service.NewEventBus()
 	log := logger.NewStdLogger()
 
-	mediaSvc := service.NewMediaService(store, converter, jobQueue, cfg.DataDir, log)
+	fs := osfs.New()
+	mediaSvc := service.NewMediaService(store, converter, jobQueue, cfg.DataDir, log, fs)
 	authSvc := service.NewAuthService(store, cfg.SecretKey)
 
 	// Worker pool for async jobs (conversion, thumbnails)
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	defer workerCancel()
 
-	workerPool := service.NewWorkerPool(jobQueue, store, converter, eventBus, cfg.DataDir, 2, log)
+	workerPool := service.NewWorkerPool(jobQueue, store, converter, eventBus, cfg.DataDir, 2, log, fs)
 	workerPool.Start(workerCtx)
 
 	server := HTTPAdapter.NewServer(authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB, Version, cfg.BehindProxy, cfg.SecretKey)

@@ -18,34 +18,36 @@ type MediaService struct {
 	jobQueue  port.JobQueue
 	uploadDir string
 	log       port.Logger
+	fs        port.FileSystem
 }
 
-func NewMediaService(store port.MediaStore, converter port.MediaConverter, jobQueue port.JobQueue, dataDir string, log port.Logger) *MediaService {
+func NewMediaService(store port.MediaStore, converter port.MediaConverter, jobQueue port.JobQueue, dataDir string, log port.Logger, fs port.FileSystem) *MediaService {
 	return &MediaService{
 		store:     store,
 		converter: converter,
 		jobQueue:  jobQueue,
 		uploadDir: filepath.Join(dataDir, "uploads"),
 		log:       log,
+		fs:        fs,
 	}
 }
 
 func (s *MediaService) Upload(filename string, file *os.File, retentionDays int, mediaType domain.MediaType, codecs []domain.Codec, fps int) (*domain.Media, error) {
-	if err := os.MkdirAll(s.uploadDir, 0750); err != nil {
+	if err := s.fs.MkdirAll(s.uploadDir, 0750); err != nil {
 		s.log.Errorf("failed to create upload directory: %v", err)
 		return nil, fmt.Errorf("failed to create upload directory: %w", err)
 	}
 
 	uploadPath := filepath.Join(s.uploadDir, filepath.Base(filename))
 
-	err := os.Rename(file.Name(), uploadPath)
+	err := s.fs.Rename(file.Name(), uploadPath)
 	if err != nil {
 		if isCrossDeviceError(err) {
-			if copyErr := copyFile(file, uploadPath); copyErr != nil {
+			if copyErr := s.copyFile(file, uploadPath); copyErr != nil {
 				s.log.Errorf("failed to copy upload %s: %v", filename, copyErr)
 				return nil, fmt.Errorf("failed to copy upload: %w", copyErr)
 			}
-			_ = os.Remove(file.Name())
+			_ = s.fs.Remove(file.Name())
 		} else {
 			s.log.Errorf("failed to save upload %s: %v", filename, err)
 			return nil, fmt.Errorf("failed to save upload: %w", err)
@@ -55,9 +57,9 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 	media := domain.NewMedia(mediaType, filename, uploadPath, retentionDays)
 
 	finalUploadPath := filepath.Join(s.uploadDir, fmt.Sprintf("%s_%s", media.ID, filepath.Base(filename)))
-	if err := os.Rename(uploadPath, finalUploadPath); err != nil {
+	if err := s.fs.Rename(uploadPath, finalUploadPath); err != nil {
 		s.log.Errorf("failed to rename upload with ID prefix: %v", err)
-		_ = os.Remove(uploadPath)
+		_ = s.fs.Remove(uploadPath)
 		return nil, fmt.Errorf("failed to finalize upload: %w", err)
 	}
 	media.OriginalPath = finalUploadPath
@@ -75,7 +77,7 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 	}
 
 	if err := s.store.Save(media); err != nil {
-		_ = os.Remove(uploadPath)
+		_ = s.fs.Remove(uploadPath)
 		s.log.Errorf("failed to save media metadata %s: %v", media.ID, err)
 		return nil, fmt.Errorf("failed to save media metadata: %w", err)
 	}
@@ -83,7 +85,7 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 	s.log.Infof("media uploaded: id=%s, type=%s, filename=%s, retention=%d days, codecs=%v", media.ID, mediaType, filename, retentionDays, codecs)
 
 	if mediaType == domain.MediaTypeImage {
-		fileInfo, _ := os.Stat(finalUploadPath)
+		fileInfo, _ := s.fs.Stat(finalUploadPath)
 		var fileSize int64
 		if fileInfo != nil {
 			fileSize = fileInfo.Size()
@@ -101,7 +103,7 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 	}
 
 	if len(codecs) == 0 {
-		fileInfo, _ := os.Stat(finalUploadPath)
+		fileInfo, _ := s.fs.Stat(finalUploadPath)
 		var fileSize int64
 		if fileInfo != nil {
 			fileSize = fileInfo.Size()
@@ -166,19 +168,19 @@ func (s *MediaService) Delete(id string) error {
 	// Remove variant files
 	for _, v := range media.Variants {
 		if v.Path != "" {
-			_ = os.Remove(v.Path)
+			_ = s.fs.Remove(v.Path)
 		}
 	}
 
 	// Remove files from disk
 	if media.OriginalPath != "" {
-		_ = os.Remove(media.OriginalPath)
+		_ = s.fs.Remove(media.OriginalPath)
 	}
 	if media.ConvertedPath != "" {
-		_ = os.Remove(media.ConvertedPath)
+		_ = s.fs.Remove(media.ConvertedPath)
 	}
 	if media.ThumbPath != "" {
-		_ = os.Remove(media.ThumbPath)
+		_ = s.fs.Remove(media.ThumbPath)
 	}
 
 	return s.store.Delete(id)
@@ -193,12 +195,12 @@ func (s *MediaService) Cleanup() error {
 	for _, media := range expired {
 		for _, v := range media.Variants {
 			if v.Path != "" {
-				_ = os.Remove(v.Path)
+				_ = s.fs.Remove(v.Path)
 			}
 		}
-		_ = os.Remove(media.OriginalPath)
-		_ = os.Remove(media.ConvertedPath)
-		_ = os.Remove(media.ThumbPath)
+		_ = s.fs.Remove(media.OriginalPath)
+		_ = s.fs.Remove(media.ConvertedPath)
+		_ = s.fs.Remove(media.ThumbPath)
 		_ = s.store.Delete(media.ID)
 	}
 
@@ -217,14 +219,14 @@ func isCrossDeviceError(err error) bool {
 		strings.Contains(err.Error(), "cross-device")
 }
 
-func copyFile(src *os.File, dstPath string) error {
-	srcFile, err := os.Open(src.Name())
+func (s *MediaService) copyFile(src *os.File, dstPath string) error {
+	srcFile, err := s.fs.Open(src.Name())
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %w", err)
 	}
 	defer srcFile.Close() //nolint:errcheck
 
-	dstFile, err := os.Create(dstPath)
+	dstFile, err := s.fs.Create(dstPath)
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}

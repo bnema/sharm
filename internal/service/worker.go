@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -19,6 +18,7 @@ type WorkerPool struct {
 	dataDir   string
 	workers   int
 	log       port.Logger
+	fs        port.FileSystem
 }
 
 func NewWorkerPool(
@@ -29,6 +29,7 @@ func NewWorkerPool(
 	dataDir string,
 	workers int,
 	log port.Logger,
+	fs port.FileSystem,
 ) *WorkerPool {
 	return &WorkerPool{
 		jobQueue:  jobQueue,
@@ -38,6 +39,7 @@ func NewWorkerPool(
 		dataDir:   dataDir,
 		workers:   workers,
 		log:       log,
+		fs:        fs,
 	}
 }
 
@@ -126,7 +128,7 @@ func (wp *WorkerPool) handleConvert(job *domain.Job) error {
 	}
 
 	convertedDir := filepath.Join(wp.dataDir, "converted")
-	if err := os.MkdirAll(convertedDir, 0755); err != nil {
+	if err := wp.fs.MkdirAll(convertedDir, 0755); err != nil {
 		return fmt.Errorf("create converted directory: %w", err)
 	}
 
@@ -149,7 +151,7 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 	wp.publishEvent(media.ID, "status", string(domain.MediaStatusProcessing), "")
 
 	convertedDir = filepath.Join(wp.dataDir, "converted")
-	if err := os.MkdirAll(convertedDir, 0750); err != nil {
+	if err := wp.fs.MkdirAll(convertedDir, 0750); err != nil {
 		return fmt.Errorf("create converted directory: %w", err)
 	}
 
@@ -173,7 +175,7 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 		}
 	}
 
-	fileInfo, _ := os.Stat(outputPath)
+	fileInfo, _ := wp.fs.Stat(outputPath)
 	var fileSize int64
 	if fileInfo != nil {
 		fileSize = fileInfo.Size()
@@ -241,14 +243,14 @@ func (wp *WorkerPool) handleLegacyConvert(job *domain.Job, media *domain.Media, 
 		return fmt.Errorf("thumbnail: %w", err)
 	}
 
-	fileInfo, _ := os.Stat(convertedPath)
+	fileInfo, _ := wp.fs.Stat(convertedPath)
 	media.MarkAsDone(convertedPath, domain.Codec(codec), width, height, thumbPath, fileInfo.Size())
 
 	if err := wp.store.UpdateDone(media); err != nil {
 		return fmt.Errorf("update media done: %w", err)
 	}
 
-	_ = os.Remove(media.OriginalPath)
+	_ = wp.fs.Remove(media.OriginalPath)
 
 	wp.publishEvent(media.ID, "status", string(domain.MediaStatusDone), "")
 	return nil
@@ -291,7 +293,7 @@ func (wp *WorkerPool) handleThumbnail(job *domain.Job) error {
 	}
 
 	convertedDir := filepath.Join(wp.dataDir, "converted")
-	if err := os.MkdirAll(convertedDir, 0750); err != nil {
+	if err := wp.fs.MkdirAll(convertedDir, 0750); err != nil {
 		return fmt.Errorf("create converted directory: %w", err)
 	}
 	thumbPath := filepath.Join(convertedDir, media.ID+"_thumb.jpg")
