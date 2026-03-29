@@ -12,6 +12,8 @@ import (
 	"github.com/bnema/sharm/config"
 	"github.com/bnema/sharm/internal/adapter/converter/ffmpeg"
 	HTTPAdapter "github.com/bnema/sharm/internal/adapter/http"
+	"github.com/bnema/sharm/internal/adapter/http/middleware"
+	"github.com/bnema/sharm/internal/adapter/http/ratelimit"
 	"github.com/bnema/sharm/internal/adapter/storage/osfs"
 	sqlitestore "github.com/bnema/sharm/internal/adapter/storage/sqlite"
 	"github.com/bnema/sharm/internal/infrastructure/logger"
@@ -61,7 +63,16 @@ func main() {
 	workerPool := service.NewWorkerPool(jobQueue, store, converter, eventBus, cfg.DataDir, 2, log, fs)
 	workerPool.Start(workerCtx)
 
-	server := HTTPAdapter.NewServer(authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB, Version, cfg.BehindProxy, cfg.SecretKey)
+	rateLimiter := ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute)
+	backoffTracker := ratelimit.NewLoginAttemptTracker()
+	backoff := ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0)
+	csrf := middleware.NewCSRFProtection(cfg.SecretKey)
+
+	server := HTTPAdapter.NewServer(
+		authSvc, mediaSvc, eventBus, cfg.Domain, cfg.MaxUploadSizeMB,
+		Version, cfg.BehindProxy,
+		rateLimiter, backoffTracker, backoff, csrf,
+	)
 
 	// Periodic cleanup of expired media
 	go func() {

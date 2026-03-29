@@ -2,7 +2,6 @@ package http
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/bnema/sharm/internal/adapter/http/middleware"
 	"github.com/bnema/sharm/internal/adapter/http/ratelimit"
@@ -24,26 +23,22 @@ type Server struct {
 	version        string
 }
 
-func NewServer(authSvc AuthService, mediaSvc MediaService, eventBus port.EventSubscriber, domain string, maxSizeMB int, version string, behindProxy bool, secretKey string) *Server {
+func NewServer(
+	authSvc AuthService,
+	mediaSvc MediaService,
+	eventBus port.EventSubscriber,
+	domain string,
+	maxSizeMB int,
+	version string,
+	behindProxy bool,
+	rateLimiter *ratelimit.LoginRateLimiter,
+	backoffTracker *ratelimit.LoginAttemptTracker,
+	backoff *ratelimit.Backoff,
+	csrf *middleware.CSRFProtection,
+) *Server {
 	mux := http.NewServeMux()
 	handlers := NewHandlers(mediaSvc, domain, maxSizeMB, version)
 	sseHandler := NewSSEHandler(eventBus, mediaSvc, domain)
-
-	rateLimiter := ratelimit.NewLoginRateLimiter(
-		5,
-		15*time.Minute,
-		30*time.Minute,
-	)
-
-	backoffTracker := ratelimit.NewLoginAttemptTracker()
-
-	backoff := ratelimit.NewBackoff(
-		500*time.Millisecond,
-		10*time.Second,
-		2.0,
-	)
-
-	csrf := middleware.NewCSRFProtection(secretKey)
 
 	s := &Server{
 		mux:            mux,

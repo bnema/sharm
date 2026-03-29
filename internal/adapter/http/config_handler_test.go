@@ -6,7 +6,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/bnema/sharm/internal/adapter/http/middleware"
+	"github.com/bnema/sharm/internal/adapter/http/ratelimit"
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/bnema/sharm/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -66,6 +69,14 @@ func (configTestAuthService) ChangePassword(string, string, string) error {
 	return nil
 }
 
+func newTestServer(authSvc AuthService, mediaSvc MediaService) *Server {
+	rl := ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute)
+	bt := ratelimit.NewLoginAttemptTracker()
+	bo := ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0)
+	cs := middleware.NewCSRFProtection("test-secret")
+	return NewServer(authSvc, mediaSvc, service.NewEventBus(), "example.com", 10, "dev", false, rl, bt, bo, cs)
+}
+
 func TestConfigPage_ReturnsRenderedConfigPage(t *testing.T) {
 	h := NewHandlers(configTestMediaService{}, "example.com", 10, "dev")
 
@@ -82,7 +93,7 @@ func TestConfigPage_ReturnsRenderedConfigPage(t *testing.T) {
 
 func TestConfigRoute_RequiresAuthentication(t *testing.T) {
 	authSvc := configTestAuthService{hasUser: true}
-	s := NewServer(authSvc, configTestMediaService{}, service.NewEventBus(), "example.com", 10, "dev", false, "secret")
+	s := newTestServer(authSvc, configTestMediaService{})
 
 	req := httptest.NewRequest(http.MethodGet, "/config", http.NoBody)
 	rr := httptest.NewRecorder()
@@ -95,7 +106,7 @@ func TestConfigRoute_RequiresAuthentication(t *testing.T) {
 
 func TestConfigRoute_AllowsAuthenticatedUser(t *testing.T) {
 	authSvc := configTestAuthService{hasUser: true}
-	s := NewServer(authSvc, configTestMediaService{}, service.NewEventBus(), "example.com", 10, "dev", false, "secret")
+	s := newTestServer(authSvc, configTestMediaService{})
 
 	req := httptest.NewRequest(http.MethodGet, "/config", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: CookieName, Value: "valid-token"})
@@ -110,7 +121,7 @@ func TestConfigRoute_AllowsAuthenticatedUser(t *testing.T) {
 
 func TestConfigRoute_RedirectsOnInvalidToken(t *testing.T) {
 	authSvc := configTestAuthService{hasUser: true, validateTokenErr: errors.New("invalid token")}
-	s := NewServer(authSvc, configTestMediaService{}, service.NewEventBus(), "example.com", 10, "dev", false, "secret")
+	s := newTestServer(authSvc, configTestMediaService{})
 
 	req := httptest.NewRequest(http.MethodGet, "/config", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: CookieName, Value: "bad-token"})
