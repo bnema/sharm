@@ -15,27 +15,17 @@ type WorkerPool struct {
 	jobQueue  port.JobQueue
 	store     port.MediaStore
 	converter port.MediaConverter
-	eventBus  EventPublisher
+	eventBus  port.EventPublisher
 	dataDir   string
 	workers   int
 	log       port.Logger
-}
-
-type EventPublisher interface {
-	Publish(mediaID string, event Event)
-}
-
-type Event struct {
-	Type    string // "status", "progress"
-	Status  string
-	Message string
 }
 
 func NewWorkerPool(
 	jobQueue port.JobQueue,
 	store port.MediaStore,
 	converter port.MediaConverter,
-	eventBus EventPublisher,
+	eventBus port.EventPublisher,
 	dataDir string,
 	workers int,
 	log port.Logger,
@@ -341,7 +331,7 @@ func (wp *WorkerPool) handleProbe(job *domain.Job) error {
 
 func (wp *WorkerPool) publishEvent(mediaID, eventType, status, message string) {
 	if wp.eventBus != nil {
-		wp.eventBus.Publish(mediaID, Event{
+		wp.eventBus.Publish(mediaID, port.Event{
 			Type:    eventType,
 			Status:  status,
 			Message: message,

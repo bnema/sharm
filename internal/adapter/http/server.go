@@ -6,7 +6,7 @@ import (
 
 	"github.com/bnema/sharm/internal/adapter/http/middleware"
 	"github.com/bnema/sharm/internal/adapter/http/ratelimit"
-	"github.com/bnema/sharm/internal/service"
+	"github.com/bnema/sharm/internal/port"
 	"github.com/bnema/sharm/static"
 )
 
@@ -24,7 +24,7 @@ type Server struct {
 	version        string
 }
 
-func NewServer(authSvc AuthService, mediaSvc MediaService, eventBus *service.EventBus, domain string, maxSizeMB int, version string, behindProxy bool, secretKey string) *Server {
+func NewServer(authSvc AuthService, mediaSvc MediaService, eventBus port.EventSubscriber, domain string, maxSizeMB int, version string, behindProxy bool, secretKey string) *Server {
 	mux := http.NewServeMux()
 	handlers := NewHandlers(mediaSvc, domain, maxSizeMB, version)
 	sseHandler := NewSSEHandler(eventBus, mediaSvc, domain)
