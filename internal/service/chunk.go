@@ -105,6 +105,9 @@ func (s *ChunkService) Assemble(uploadID string, totalChunks int) (*os.File, err
 
 // Cleanup removes the chunk directory for an upload.
 func (s *ChunkService) Cleanup(uploadID string) {
+	if !ValidateUploadID(uploadID) {
+		return
+	}
 	dir := s.chunkDir(uploadID)
 	if err := s.fs.RemoveAll(dir); err != nil {
 		s.log.Errorf("failed to cleanup chunk dir %s: %v", dir, err)

@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"syscall"
 
 	"github.com/bnema/sharm/internal/domain"
@@ -227,11 +226,7 @@ func categorizeIOError(err error) error {
 }
 
 func isCrossDeviceError(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(err.Error(), "invalid cross-device link") ||
-		strings.Contains(err.Error(), "cross-device")
+	return errors.Is(err, syscall.EXDEV)
 }
 
 func (s *MediaService) copyFile(src *os.File, dstPath string) error {
