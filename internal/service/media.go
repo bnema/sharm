@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/bnema/sharm/internal/domain"
-	"github.com/bnema/sharm/internal/infrastructure/logger"
 	"github.com/bnema/sharm/internal/port"
 )
 
@@ -18,20 +17,22 @@ type MediaService struct {
 	converter port.MediaConverter
 	jobQueue  port.JobQueue
 	uploadDir string
+	log       port.Logger
 }
 
-func NewMediaService(store port.MediaStore, converter port.MediaConverter, jobQueue port.JobQueue, dataDir string) *MediaService {
+func NewMediaService(store port.MediaStore, converter port.MediaConverter, jobQueue port.JobQueue, dataDir string, log port.Logger) *MediaService {
 	return &MediaService{
 		store:     store,
 		converter: converter,
 		jobQueue:  jobQueue,
 		uploadDir: filepath.Join(dataDir, "uploads"),
+		log:       log,
 	}
 }
 
 func (s *MediaService) Upload(filename string, file *os.File, retentionDays int, mediaType domain.MediaType, codecs []domain.Codec, fps int) (*domain.Media, error) {
 	if err := os.MkdirAll(s.uploadDir, 0750); err != nil {
-		logger.Error.Printf("failed to create upload directory: %v", err)
+		s.log.Errorf("failed to create upload directory: %v", err)
 		return nil, fmt.Errorf("failed to create upload directory: %w", err)
 	}
 
@@ -41,12 +42,12 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 	if err != nil {
 		if isCrossDeviceError(err) {
 			if copyErr := copyFile(file, uploadPath); copyErr != nil {
-				logger.Error.Printf("failed to copy upload %s: %v", filename, copyErr)
+				s.log.Errorf("failed to copy upload %s: %v", filename, copyErr)
 				return nil, fmt.Errorf("failed to copy upload: %w", copyErr)
 			}
 			_ = os.Remove(file.Name())
 		} else {
-			logger.Error.Printf("failed to save upload %s: %v", filename, err)
+			s.log.Errorf("failed to save upload %s: %v", filename, err)
 			return nil, fmt.Errorf("failed to save upload: %w", err)
 		}
 	}
@@ -55,7 +56,7 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 
 	finalUploadPath := filepath.Join(s.uploadDir, fmt.Sprintf("%s_%s", media.ID, filepath.Base(filename)))
 	if err := os.Rename(uploadPath, finalUploadPath); err != nil {
-		logger.Error.Printf("failed to rename upload with ID prefix: %v", err)
+		s.log.Errorf("failed to rename upload with ID prefix: %v", err)
 		_ = os.Remove(uploadPath)
 		return nil, fmt.Errorf("failed to finalize upload: %w", err)
 	}
@@ -75,11 +76,11 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 
 	if err := s.store.Save(media); err != nil {
 		_ = os.Remove(uploadPath)
-		logger.Error.Printf("failed to save media metadata %s: %v", media.ID, err)
+		s.log.Errorf("failed to save media metadata %s: %v", media.ID, err)
 		return nil, fmt.Errorf("failed to save media metadata: %w", err)
 	}
 
-	logger.Info.Printf("media uploaded: id=%s, type=%s, filename=%s, retention=%d days, codecs=%v", media.ID, mediaType, filename, retentionDays, codecs)
+	s.log.Infof("media uploaded: id=%s, type=%s, filename=%s, retention=%d days, codecs=%v", media.ID, mediaType, filename, retentionDays, codecs)
 
 	if mediaType == domain.MediaTypeImage {
 		fileInfo, _ := os.Stat(finalUploadPath)
@@ -89,7 +90,7 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 		}
 		media.MarkAsDone(finalUploadPath, "", 0, 0, "", fileSize)
 		if err := s.store.UpdateDone(media); err != nil {
-			logger.Error.Printf("failed to update image as done: %v", err)
+			s.log.Errorf("failed to update image as done: %v", err)
 		}
 		return media, nil
 	}
@@ -107,12 +108,12 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 		}
 		media.MarkAsDone(finalUploadPath, "", 0, 0, "", fileSize)
 		if err := s.store.UpdateDone(media); err != nil {
-			logger.Error.Printf("failed to update media as done: %v", err)
+			s.log.Errorf("failed to update media as done: %v", err)
 		}
 
 		if mediaType == domain.MediaTypeVideo && s.jobQueue != nil {
 			if _, err := s.jobQueue.Enqueue(media.ID, domain.JobTypeThumbnail, "", 0); err != nil {
-				logger.Error.Printf("failed to enqueue thumbnail job for %s: %v", media.ID, err)
+				s.log.Errorf("failed to enqueue thumbnail job for %s: %v", media.ID, err)
 			}
 		}
 
@@ -127,11 +128,11 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 				Status:  domain.VariantStatusPending,
 			}
 			if err := s.store.SaveVariant(v); err != nil {
-				logger.Error.Printf("failed to save variant for %s codec %s: %v", media.ID, codec, err)
+				s.log.Errorf("failed to save variant for %s codec %s: %v", media.ID, codec, err)
 				continue
 			}
 			if _, err := s.jobQueue.Enqueue(media.ID, domain.JobTypeConvert, codec, fps); err != nil {
-				logger.Error.Printf("failed to enqueue convert job for %s codec %s: %v", media.ID, codec, err)
+				s.log.Errorf("failed to enqueue convert job for %s codec %s: %v", media.ID, codec, err)
 			}
 		}
 	}
