@@ -55,7 +55,7 @@ func (c *CSRFProtection) Middleware(next http.Handler) http.Handler {
 			// Return an HTML error fragment for HTMX requests so
 			// hx-target-error can render it in the error container.
 			if strings.Contains(r.Header.Get("HX-Request"), "true") {
-				_, _ = w.Write([]byte(`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;font-size:14px;border:1px solid;background:color-mix(in srgb,var(--error) 8%,var(--bg-surface));border-color:color-mix(in srgb,var(--error) 25%,transparent);color:var(--error);">` +
+				_, _ = w.Write([]byte(`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;font-size:14px;border:1px solid;margin-bottom:12px;background:color-mix(in srgb,var(--error) 8%,var(--bg-surface));border-color:color-mix(in srgb,var(--error) 25%,transparent);color:var(--error);">` +
 					`<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM5.47 5.47a.75.75 0 0 0 0 1.06L6.94 8 5.47 9.47a.75.75 0 1 0 1.06 1.06L8 9.06l1.47 1.47a.75.75 0 1 0 1.06-1.06L9.06 8l1.47-1.47a.75.75 0 0 0-1.06-1.06L8 6.94 6.53 5.47a.75.75 0 0 0-1.06 0z"/></svg>` +
 					`<span>Session expired. Please refresh the page and try again.</span></div>`))
 			} else {
