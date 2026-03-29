@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -156,9 +157,9 @@ func (h *Handlers) Upload() http.HandlerFunc {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
 			msg := "Upload failed"
-			if strings.Contains(err.Error(), "no space left") {
+			if errors.Is(err, domain.ErrDiskFull) {
 				msg = "Upload failed: disk full"
-			} else if strings.Contains(err.Error(), "permission denied") {
+			} else if errors.Is(err, domain.ErrPermission) {
 				msg = "Upload failed: permission error"
 			}
 			_ = templates.ErrorInline(msg).Render(r.Context(), w)
@@ -377,9 +378,9 @@ func (h *Handlers) CompleteUpload() http.HandlerFunc {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
 			msg := "Upload failed"
-			if strings.Contains(err.Error(), "no space left") {
+			if errors.Is(err, domain.ErrDiskFull) {
 				msg = "Upload failed: disk full"
-			} else if strings.Contains(err.Error(), "permission denied") {
+			} else if errors.Is(err, domain.ErrPermission) {
 				msg = "Upload failed: permission error"
 			}
 			_ = templates.ErrorInline(msg).Render(r.Context(), w)

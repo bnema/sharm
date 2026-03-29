@@ -35,7 +35,7 @@ func NewMediaService(store port.MediaStore, converter port.MediaConverter, jobQu
 func (s *MediaService) Upload(filename string, file *os.File, retentionDays int, mediaType domain.MediaType, codecs []domain.Codec, fps int) (*domain.Media, error) {
 	if err := s.fs.MkdirAll(s.uploadDir, 0750); err != nil {
 		s.log.Errorf("failed to create upload directory: %v", err)
-		return nil, fmt.Errorf("failed to create upload directory: %w", err)
+		return nil, fmt.Errorf("failed to create upload directory: %w", categorizeIOError(err))
 	}
 
 	uploadPath := filepath.Join(s.uploadDir, filepath.Base(filename))
@@ -45,12 +45,12 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 		if isCrossDeviceError(err) {
 			if copyErr := s.copyFile(file, uploadPath); copyErr != nil {
 				s.log.Errorf("failed to copy upload %s: %v", filename, copyErr)
-				return nil, fmt.Errorf("failed to copy upload: %w", copyErr)
+				return nil, fmt.Errorf("failed to copy upload: %w", categorizeIOError(copyErr))
 			}
 			_ = s.fs.Remove(file.Name())
 		} else {
 			s.log.Errorf("failed to save upload %s: %v", filename, err)
-			return nil, fmt.Errorf("failed to save upload: %w", err)
+			return nil, fmt.Errorf("failed to save upload: %w", categorizeIOError(err))
 		}
 	}
 
@@ -60,7 +60,7 @@ func (s *MediaService) Upload(filename string, file *os.File, retentionDays int,
 	if err := s.fs.Rename(uploadPath, finalUploadPath); err != nil {
 		s.log.Errorf("failed to rename upload with ID prefix: %v", err)
 		_ = s.fs.Remove(uploadPath)
-		return nil, fmt.Errorf("failed to finalize upload: %w", err)
+		return nil, fmt.Errorf("failed to finalize upload: %w", categorizeIOError(err))
 	}
 	media.OriginalPath = finalUploadPath
 
@@ -209,6 +209,20 @@ func (s *MediaService) Cleanup() error {
 
 func (s *MediaService) ProbeFile(filePath string) (*domain.ProbeResult, error) {
 	return s.converter.Probe(filePath)
+}
+
+func categorizeIOError(err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "no space left") {
+		return fmt.Errorf("%w: %w", domain.ErrDiskFull, err)
+	}
+	if strings.Contains(msg, "permission denied") {
+		return fmt.Errorf("%w: %w", domain.ErrPermission, err)
+	}
+	return err
 }
 
 func isCrossDeviceError(err error) bool {
