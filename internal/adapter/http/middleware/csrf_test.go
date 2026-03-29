@@ -15,13 +15,17 @@ import (
 
 const testSecretKey = "test-secret-key-for-csrf-protection"
 
+var testCSRFErrorHandler = func(w http.ResponseWriter, r *http.Request, _ string) {
+	http.Error(w, "Forbidden", http.StatusForbidden)
+}
+
 func TestNewCSRFProtection(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	assert.NotNil(t, csrf)
 }
 
 func TestCSRFMiddleware_SetsCookieOnGET(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -51,7 +55,7 @@ func TestCSRFMiddleware_SetsCookieOnGET(t *testing.T) {
 }
 
 func TestCSRFMiddleware_GETDoesNotRequireToken(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -65,7 +69,7 @@ func TestCSRFMiddleware_GETDoesNotRequireToken(t *testing.T) {
 }
 
 func TestCSRFMiddleware_HEADDoesNotRequireToken(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -79,7 +83,7 @@ func TestCSRFMiddleware_HEADDoesNotRequireToken(t *testing.T) {
 }
 
 func TestCSRFMiddleware_OPTIONSDoesNotRequireToken(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -93,7 +97,7 @@ func TestCSRFMiddleware_OPTIONSDoesNotRequireToken(t *testing.T) {
 }
 
 func TestCSRFMiddleware_POSTRequiresToken(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -107,7 +111,7 @@ func TestCSRFMiddleware_POSTRequiresToken(t *testing.T) {
 }
 
 func TestCSRFMiddleware_PUTRequiresToken(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -121,7 +125,7 @@ func TestCSRFMiddleware_PUTRequiresToken(t *testing.T) {
 }
 
 func TestCSRFMiddleware_PATCHRequiresToken(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -135,7 +139,7 @@ func TestCSRFMiddleware_PATCHRequiresToken(t *testing.T) {
 }
 
 func TestCSRFMiddleware_DELETERequiresToken(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -149,7 +153,7 @@ func TestCSRFMiddleware_DELETERequiresToken(t *testing.T) {
 }
 
 func TestCSRFMiddleware_POSTWithValidHeaderToken(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -180,7 +184,7 @@ func TestCSRFMiddleware_POSTWithValidHeaderToken(t *testing.T) {
 }
 
 func TestCSRFMiddleware_POSTWithValidFormToken(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -211,7 +215,7 @@ func TestCSRFMiddleware_POSTWithValidFormToken(t *testing.T) {
 }
 
 func TestCSRFMiddleware_POSTWithMismatchedTokens(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -242,7 +246,7 @@ func TestCSRFMiddleware_POSTWithMismatchedTokens(t *testing.T) {
 }
 
 func TestCSRFMiddleware_POSTWithInvalidSignature(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -261,7 +265,7 @@ func TestCSRFMiddleware_POSTWithInvalidSignature(t *testing.T) {
 }
 
 func TestCSRFMiddleware_POSTWithoutCookie(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -291,7 +295,7 @@ func TestCSRFMiddleware_POSTWithoutCookie(t *testing.T) {
 }
 
 func TestCSRFMiddleware_HeaderTakesPrecedenceOverForm(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -323,7 +327,7 @@ func TestCSRFMiddleware_HeaderTakesPrecedenceOverForm(t *testing.T) {
 }
 
 func TestCSRFMiddleware_CallsNextHandler(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	called := false
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
@@ -339,7 +343,7 @@ func TestCSRFMiddleware_CallsNextHandler(t *testing.T) {
 }
 
 func TestCSRFMiddleware_PreservesResponseStatus(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 	}))
@@ -353,7 +357,7 @@ func TestCSRFMiddleware_PreservesResponseStatus(t *testing.T) {
 }
 
 func TestCSRFMiddleware_PreservesResponseBody(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("test response"))
 	}))
@@ -367,7 +371,7 @@ func TestCSRFMiddleware_PreservesResponseBody(t *testing.T) {
 }
 
 func TestCSRFToken_TokenFormat(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -393,7 +397,7 @@ func TestCSRFToken_TokenFormat(t *testing.T) {
 }
 
 func TestCSRFToken_SignatureVerification(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -426,7 +430,7 @@ func TestCSRFToken_SignatureVerification(t *testing.T) {
 }
 
 func TestCSRFToken_TokenNotReusedAcrossSessions(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -462,7 +466,7 @@ func TestCSRFToken_TokenNotReusedAcrossSessions(t *testing.T) {
 }
 
 func TestCSRFToken_ExistingCookiePreserved(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -503,7 +507,7 @@ func TestCSRFMiddleware_ConstantTimeComparison(t *testing.T) {
 	// We can't directly test timing, but we can verify hmac.Equal is used
 	// by checking that tampered tokens are rejected
 
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -535,7 +539,7 @@ func TestCSRFMiddleware_ConstantTimeComparison(t *testing.T) {
 }
 
 func TestCSRFMiddleware_UsesSecureCookieWhenTLS(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -559,7 +563,7 @@ func TestCSRFMiddleware_UsesSecureCookieWhenTLS(t *testing.T) {
 }
 
 func TestCSRFToken_HelperFunction(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 
 	token := csrf.GenerateToken()
 	assert.NotEmpty(t, token)
@@ -569,7 +573,7 @@ func TestCSRFToken_HelperFunction(t *testing.T) {
 }
 
 func TestCSRFToken_InvalidTokenRejected(t *testing.T) {
-	csrf := NewCSRFProtection(testSecretKey)
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
 
 	// Completely invalid token
 	assert.False(t, csrf.ValidateToken("not-a-valid-token"))

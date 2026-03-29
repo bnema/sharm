@@ -41,9 +41,14 @@ func NewCSRFProtection(secretKey string, errorHandler CSRFErrorHandler) *CSRFPro
 // Unsafe methods (POST, PUT, PATCH, DELETE) require a valid token.
 func (c *CSRFProtection) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if we need to set a new token cookie
-		if _, err := r.Cookie(csrfCookieName); err != nil {
-			// No valid cookie, generate new token
+		// Ensure a valid CSRF cookie exists. Replace it if missing
+		// or if the signature doesn't match the current secret key
+		// (e.g. after a server restart with a new SECRET_KEY).
+		needNewToken := true
+		if cookie, err := r.Cookie(csrfCookieName); err == nil {
+			needNewToken = !c.ValidateToken(cookie.Value)
+		}
+		if needNewToken {
 			token := c.GenerateToken()
 			c.setCSRFCookie(w, r, token)
 		}
