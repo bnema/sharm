@@ -343,6 +343,80 @@ func (_c *FileSystemMock_Open_Call) RunAndReturn(run func(path string) (*os.File
 	return _c
 }
 
+// OpenFile provides a mock function for the type FileSystemMock
+func (_mock *FileSystemMock) OpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+	ret := _mock.Called(path, flag, perm)
+
+	if len(ret) == 0 {
+		panic("no return value specified for OpenFile")
+	}
+
+	var r0 *os.File
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, int, os.FileMode) (*os.File, error)); ok {
+		return returnFunc(path, flag, perm)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, int, os.FileMode) *os.File); ok {
+		r0 = returnFunc(path, flag, perm)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*os.File)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, int, os.FileMode) error); ok {
+		r1 = returnFunc(path, flag, perm)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// FileSystemMock_OpenFile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OpenFile'
+type FileSystemMock_OpenFile_Call struct {
+	*mock.Call
+}
+
+// OpenFile is a helper method to define mock.On call
+//   - path string
+//   - flag int
+//   - perm os.FileMode
+func (_e *FileSystemMock_Expecter) OpenFile(path interface{}, flag interface{}, perm interface{}) *FileSystemMock_OpenFile_Call {
+	return &FileSystemMock_OpenFile_Call{Call: _e.mock.On("OpenFile", path, flag, perm)}
+}
+
+func (_c *FileSystemMock_OpenFile_Call) Run(run func(path string, flag int, perm os.FileMode)) *FileSystemMock_OpenFile_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		var arg2 os.FileMode
+		if args[2] != nil {
+			arg2 = args[2].(os.FileMode)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *FileSystemMock_OpenFile_Call) Return(file *os.File, err error) *FileSystemMock_OpenFile_Call {
+	_c.Call.Return(file, err)
+	return _c
+}
+
+func (_c *FileSystemMock_OpenFile_Call) RunAndReturn(run func(path string, flag int, perm os.FileMode) (*os.File, error)) *FileSystemMock_OpenFile_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Remove provides a mock function for the type FileSystemMock
 func (_mock *FileSystemMock) Remove(path string) error {
 	ret := _mock.Called(path)

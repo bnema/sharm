@@ -50,7 +50,7 @@ func (s *ChunkService) StoreChunk(uploadID string, index int, src io.Reader) err
 	}
 
 	chunkPath := filepath.Join(dir, strconv.Itoa(index))
-	out, err := s.fs.Create(chunkPath)
+	out, err := s.fs.OpenFile(chunkPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return fmt.Errorf("create chunk %d: %w", index, err)
 	}
@@ -94,7 +94,7 @@ func (s *ChunkService) Assemble(uploadID string, totalChunks int) (*os.File, err
 		}
 	}
 
-	if _, err := assembled.Seek(0, 0); err != nil {
+	if _, err := assembled.Seek(0, io.SeekStart); err != nil {
 		_ = assembled.Close()
 		_ = s.fs.Remove(assembled.Name())
 		return nil, fmt.Errorf("seek assembled file: %w", err)

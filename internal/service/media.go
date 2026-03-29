@@ -1,12 +1,14 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/bnema/sharm/internal/port"
@@ -215,11 +217,10 @@ func categorizeIOError(err error) error {
 	if err == nil {
 		return nil
 	}
-	msg := err.Error()
-	if strings.Contains(msg, "no space left") {
+	if errors.Is(err, syscall.ENOSPC) {
 		return fmt.Errorf("%w: %w", domain.ErrDiskFull, err)
 	}
-	if strings.Contains(msg, "permission denied") {
+	if errors.Is(err, os.ErrPermission) {
 		return fmt.Errorf("%w: %w", domain.ErrPermission, err)
 	}
 	return err

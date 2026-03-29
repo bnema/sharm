@@ -15,13 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type nopLogger struct{}
-
-func (nopLogger) Infof(string, ...any)  {}
-func (nopLogger) Errorf(string, ...any) {}
-func (nopLogger) Debugf(string, ...any) {}
-func (nopLogger) Warnf(string, ...any)  {}
-
 func TestMediaService_Upload_VideoNoCodecs(t *testing.T) {
 	mockStore := mocks.NewMediaStoreMock(t)
 	mockConverter := mocks.NewMediaConverterMock(t)

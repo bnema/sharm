@@ -12,6 +12,7 @@ type FileSystem interface {
 	Chmod(path string, mode os.FileMode) error
 	Open(path string) (*os.File, error)
 	Create(path string) (*os.File, error)
+	OpenFile(path string, flag int, perm os.FileMode) (*os.File, error)
 	CreateTemp(dir, pattern string) (*os.File, error)
 	WriteFile(path string, data []byte, perm os.FileMode) error
 }

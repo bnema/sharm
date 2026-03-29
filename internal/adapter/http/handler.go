@@ -138,9 +138,6 @@ func (h *Handlers) Upload() http.HandlerFunc {
 		if parseErr != nil {
 			retentionDays = 7
 		}
-		if err != nil {
-			retentionDays = 7
-		}
 
 		// Parse selected codecs from form
 		var codecs []domain.Codec
