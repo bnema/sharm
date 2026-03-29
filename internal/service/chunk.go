@@ -38,8 +38,8 @@ func (s *ChunkService) chunkDir(uploadID string) string {
 	return filepath.Join(s.baseDir, "sharm-chunks", uploadID)
 }
 
-// StoreChunk writes a single chunk to disk.
-func (s *ChunkService) StoreChunk(uploadID string, index int, data []byte) error {
+// StoreChunk streams a chunk from src directly to disk without buffering.
+func (s *ChunkService) StoreChunk(uploadID string, index int, src io.Reader) error {
 	if !ValidateUploadID(uploadID) {
 		return fmt.Errorf("invalid upload ID")
 	}
@@ -50,7 +50,14 @@ func (s *ChunkService) StoreChunk(uploadID string, index int, data []byte) error
 	}
 
 	chunkPath := filepath.Join(dir, strconv.Itoa(index))
-	if err := s.fs.WriteFile(chunkPath, data, 0600); err != nil {
+	out, err := s.fs.Create(chunkPath)
+	if err != nil {
+		return fmt.Errorf("create chunk %d: %w", index, err)
+	}
+	defer out.Close() //nolint:errcheck
+
+	if _, err := io.Copy(out, src); err != nil {
+		_ = s.fs.Remove(chunkPath)
 		return fmt.Errorf("write chunk %d: %w", index, err)
 	}
 

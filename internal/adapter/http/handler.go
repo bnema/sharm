@@ -216,14 +216,7 @@ func (h *Handlers) ChunkUpload() http.HandlerFunc {
 			}
 		}()
 
-		data, err := io.ReadAll(file)
-		if err != nil {
-			logger.Error.Printf("failed to read chunk data: %v", err)
-			http.Error(w, "Server error", http.StatusInternalServerError)
-			return
-		}
-
-		if err := h.chunkSvc.StoreChunk(uploadID, chunkIdx, data); err != nil {
+		if err := h.chunkSvc.StoreChunk(uploadID, chunkIdx, file); err != nil {
 			logger.Error.Printf("failed to store chunk %d for upload %s: %v", chunkIdx, uploadID, err)
 			http.Error(w, "Server error", http.StatusInternalServerError)
 			return
