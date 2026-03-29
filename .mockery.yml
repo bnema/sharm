@@ -18,3 +18,7 @@ packages:
       MediaStore:
       MediaConverter:
       JobQueue:
+      Logger:
+      EventPublisher:
+      EventSubscriber:
+      FileSystem:
