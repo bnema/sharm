@@ -129,6 +129,6 @@ func newHTTPServer(cfg *config.Config, authSvc *service.AuthService, mediaSvc *s
 		RateLimiter:     ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute),
 		BackoffTracker:  ratelimit.NewLoginAttemptTracker(),
 		Backoff:         ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0),
-		CSRF:            middleware.NewCSRFProtection(cfg.SecretKey),
+		CSRF:            middleware.NewCSRFProtection(cfg.SecretKey, HTTPAdapter.CSRFErrorHandler),
 	})
 }

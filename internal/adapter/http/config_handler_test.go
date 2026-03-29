@@ -80,7 +80,7 @@ func newTestServer(authSvc AuthService, mediaSvc MediaService) *Server {
 		RateLimiter:     ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute),
 		BackoffTracker:  ratelimit.NewLoginAttemptTracker(),
 		Backoff:         ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0),
-		CSRF:            middleware.NewCSRFProtection("test-secret"),
+		CSRF:            middleware.NewCSRFProtection("test-secret", CSRFErrorHandler),
 	})
 }
 

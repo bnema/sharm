@@ -5,6 +5,7 @@ import (
 
 	"github.com/bnema/sharm/internal/adapter/http/middleware"
 	"github.com/bnema/sharm/internal/adapter/http/ratelimit"
+	"github.com/bnema/sharm/internal/adapter/http/templates"
 	"github.com/bnema/sharm/internal/port"
 	"github.com/bnema/sharm/internal/service"
 	"github.com/bnema/sharm/static"
@@ -105,4 +106,18 @@ func (s *Server) registerStatic() {
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Chain: SecurityHeaders -> CSRF -> mux
 	middleware.SecurityHeaders(s.csrf.Middleware(s.mux)).ServeHTTP(w, r)
+}
+
+// CSRFErrorHandler renders a CSRF error using templ components.
+// For HTMX requests it returns an HTML error fragment with a script
+// that updates the CSRF header from the fresh cookie. For plain
+// requests it returns a 403 text response.
+func CSRFErrorHandler(w http.ResponseWriter, r *http.Request, _ string) {
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusForbidden)
+		_ = templates.CSRFError().Render(r.Context(), w)
+	} else {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+	}
 }
