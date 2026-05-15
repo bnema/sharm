@@ -45,20 +45,33 @@ func (s *ChunkService) StoreChunk(uploadID string, index int, src io.Reader) err
 	}
 
 	dir := s.chunkDir(uploadID)
-	if err := s.fs.MkdirAll(dir, 0750); err != nil {
+	if err := s.fs.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create chunk dir: %w", err)
 	}
 
 	chunkPath := filepath.Join(dir, strconv.Itoa(index))
-	out, err := s.fs.OpenFile(chunkPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		return fmt.Errorf("create chunk %d: %w", index, err)
-	}
-	defer out.Close() //nolint:errcheck
 
-	if _, err := io.Copy(out, src); err != nil {
-		_ = s.fs.Remove(chunkPath)
+	tempFile, err := s.fs.CreateTemp(dir, strconv.Itoa(index)+".*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temp chunk file: %w", err)
+	}
+
+	tempPath := tempFile.Name()
+	defer func() {
+		_ = s.fs.Remove(tempPath)
+	}()
+
+	if _, err := io.Copy(tempFile, src); err != nil {
+		_ = tempFile.Close()
 		return fmt.Errorf("write chunk %d: %w", index, err)
+	}
+
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf("close temp chunk %d: %w", index, err)
+	}
+
+	if err := s.fs.Rename(tempPath, chunkPath); err != nil {
+		return fmt.Errorf("replace chunk %d: %w", index, err)
 	}
 
 	return nil
