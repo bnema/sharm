@@ -732,6 +732,7 @@ async function handleFileSelect(input) {
   if (
     form instanceof HTMLFormElement &&
     activeUploadSession &&
+    activeUploadSession.status === 'paused' &&
     activeUploadSession.fileFingerprint !== selectedFingerprint
   ) {
     resetUploadSession(form);
