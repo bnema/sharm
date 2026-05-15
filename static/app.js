@@ -347,6 +347,41 @@ function resetUploadSession(form) {
 }
 
 /**
+ * @param {string} text
+ * @param {string} fallback
+ * @returns {string}
+ */
+function extractUploadErrorMessage(text, fallback) {
+  if (!text) {
+    return fallback;
+  }
+
+  if (typeof DOMParser !== 'undefined') {
+    const parsed = new DOMParser().parseFromString(text, 'text/html');
+    const parsedText = parsed.body.textContent?.trim();
+    if (parsedText) {
+      return parsedText;
+    }
+  }
+
+  const strippedText = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return strippedText || fallback;
+}
+
+/**
+ * @param {HTMLElement} result
+ * @param {string} text
+ * @param {string} fallback
+ */
+function renderUploadError(result, text, fallback) {
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'text-error';
+  errorDiv.style.fontSize = 'var(--text-sm)';
+  errorDiv.textContent = extractUploadErrorMessage(text, fallback);
+  result.replaceChildren(errorDiv);
+}
+
+/**
  * Upload a single chunk with retry logic
  * @param {string} uploadId - Unique upload identifier
  * @param {number} chunkIndex - Index of this chunk
@@ -483,16 +518,7 @@ async function chunkedUpload(file, form) {
 
     const text = await resp.text();
     if (result) {
-      if (text) {
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'text-error';
-        errorDiv.style.fontSize = 'var(--text-sm)';
-        errorDiv.textContent = text;
-        result.replaceChildren(errorDiv);
-      } else {
-        result.innerHTML =
-          '<div class="text-error" style="font-size:var(--text-sm);">Upload failed</div>';
-      }
+      renderUploadError(result, text, 'Upload failed');
     }
 
     activeUploadSession = null;
