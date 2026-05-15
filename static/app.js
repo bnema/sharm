@@ -39,9 +39,16 @@ const THEME_MODE_KEY = 'sharm.theme.mode';
  */
 
 /**
+ * @typedef {Object} UploadFingerprint
+ * @property {string} value
+ * @property {boolean} resumeSupported
+ */
+
+/**
  * @typedef {Object} UploadSession
  * @property {string} uploadId
  * @property {string} fileFingerprint
+ * @property {boolean} resumeSupported
  * @property {number} totalChunks
  * @property {number} nextChunkIndex
  * @property {UploadStatus} status
@@ -294,8 +301,10 @@ function renderProbeResult(container, result) {
 
 const FILE_FINGERPRINT_SAMPLE_BYTES = 1024 * 1024;
 
-/** @type {WeakMap<File, Promise<string>>} */
+/** @type {WeakMap<File, Promise<UploadFingerprint>>} */
 const fileFingerprintCache = new WeakMap();
+/** @type {WeakMap<File, string>} */
+const fallbackFingerprintSuffixes = new WeakMap();
 
 /**
  * @param {Uint8Array} bytes
@@ -326,7 +335,24 @@ function getFileFingerprintSources(file) {
 
 /**
  * @param {File} file
- * @returns {Promise<string>}
+ * @returns {UploadFingerprint}
+ */
+function getFallbackFileFingerprint(file) {
+  let suffix = fallbackFingerprintSuffixes.get(file);
+  if (!suffix) {
+    suffix = generateUUID().slice(0, 8);
+    fallbackFingerprintSuffixes.set(file, suffix);
+  }
+
+  return {
+    value: ['fallback', file.name, String(file.size), String(file.lastModified), suffix].join(':'),
+    resumeSupported: false,
+  };
+}
+
+/**
+ * @param {File} file
+ * @returns {Promise<UploadFingerprint>}
  */
 function getFileFingerprint(file) {
   const cachedFingerprint = fileFingerprintCache.get(file);
@@ -336,7 +362,7 @@ function getFileFingerprint(file) {
 
   const fingerprintPromise = (async function () {
     if (!globalThis.crypto?.subtle) {
-      throw new Error('SubtleCrypto is unavailable for upload fingerprinting');
+      return getFallbackFileFingerprint(file);
     }
 
     const prefix = new TextEncoder().encode(String(file.size) + ':');
@@ -361,7 +387,10 @@ function getFileFingerprint(file) {
     }
 
     const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', fingerprintBytes);
-    return bytesToHex(new Uint8Array(hashBuffer));
+    return {
+      value: bytesToHex(new Uint8Array(hashBuffer)),
+      resumeSupported: true,
+    };
   })().catch(function (error) {
     fileFingerprintCache.delete(file);
     throw error;
@@ -508,9 +537,9 @@ async function uploadChunk(uploadId, chunkIndex, chunk, maxRetries) {
  */
 async function chunkedUpload(file, form) {
   const result = document.getElementById('result');
-  let fileFingerprint;
+  let fingerprint;
   try {
-    fileFingerprint = await getFileFingerprint(file);
+    fingerprint = await getFileFingerprint(file);
   } catch (error) {
     console.warn('Upload fingerprinting failed during upload preparation', error);
     showUploadPreparationError(form, 'Could not read this file for resumable upload. Re-select it and try again.');
@@ -520,8 +549,10 @@ async function chunkedUpload(file, form) {
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
   const resumableSession =
+    fingerprint.resumeSupported &&
     activeUploadSession &&
-    activeUploadSession.fileFingerprint === fileFingerprint &&
+    activeUploadSession.resumeSupported &&
+    activeUploadSession.fileFingerprint === fingerprint.value &&
     activeUploadSession.status === 'paused'
       ? activeUploadSession
       : null;
@@ -530,12 +561,14 @@ async function chunkedUpload(file, form) {
   const session =
     resumableSession || {
       uploadId: generateUUID(),
-      fileFingerprint,
+      fileFingerprint: fingerprint.value,
+      resumeSupported: fingerprint.resumeSupported,
       totalChunks,
       nextChunkIndex: 0,
       status: 'uploading',
     };
 
+  session.resumeSupported = fingerprint.resumeSupported;
   session.status = 'uploading';
   session.totalChunks = totalChunks;
   activeUploadSession = session;
@@ -552,6 +585,16 @@ async function chunkedUpload(file, form) {
 
     const ok = await uploadChunk(session.uploadId, i, chunk, MAX_RETRIES);
     if (!ok) {
+      if (!session.resumeSupported) {
+        activeUploadSession = null;
+        if (result) {
+          renderUploadError(result, '', 'Upload failed. Retry will restart from the beginning in this browser.');
+        }
+        setUploadSubmitButtonLabel(form, 'Upload');
+        hideProgress();
+        return false;
+      }
+
       session.status = 'paused';
       session.nextChunkIndex = i;
       if (result) {
@@ -733,7 +776,7 @@ async function handleFileSelect(input) {
     form instanceof HTMLFormElement &&
     activeUploadSession &&
     activeUploadSession.status === 'paused' &&
-    activeUploadSession.fileFingerprint !== selectedFingerprint
+    activeUploadSession.fileFingerprint !== selectedFingerprint.value
   ) {
     resetUploadSession(form);
   }
