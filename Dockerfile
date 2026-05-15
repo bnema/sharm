@@ -1,7 +1,7 @@
 # =============================================================
 # Stage 1: Fetch Go modules (cached layer)
 # =============================================================
-FROM golang:1.26-bookworm AS fetch-stage
+FROM golang:1.26.2-bookworm AS fetch-stage
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
@@ -9,7 +9,7 @@ RUN go mod download
 # =============================================================
 # Stage 2: Build Go binary
 # =============================================================
-FROM golang:1.26-bookworm AS build-stage
+FROM golang:1.26.2-bookworm AS build-stage
 WORKDIR /app
 COPY --from=fetch-stage /go/pkg/mod /go/pkg/mod
 COPY . .

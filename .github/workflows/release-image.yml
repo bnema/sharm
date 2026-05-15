@@ -1,0 +1,94 @@
+name: Release Image
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing v* tag to publish'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  release-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Resolve release metadata
+        id: release
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+
+          tag="${INPUT_TAG:-${GITHUB_REF_NAME}}"
+          case "$tag" in
+            v*) ;;
+            *)
+              echo "Expected a v* tag, got: $tag" >&2
+              exit 1
+              ;;
+          esac
+
+          git fetch --force --tags origin
+          git switch --detach "refs/tags/$tag"
+
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          commit="$(git rev-parse HEAD)"
+          tags="${image}:${tag}"
+          case "$tag" in
+            *-*) ;;
+            *) tags="${tags},${image}:latest" ;;
+          esac
+
+          {
+            echo "tag=$tag"
+            echo "image=$image"
+            echo "commit=$commit"
+            echo "tags=$tags"
+            echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.release.outputs.tags }}
+          build-args: |
+            VERSION=${{ steps.release.outputs.tag }}
+            COMMIT=${{ steps.release.outputs.commit }}
+            BUILD_TIME=${{ steps.release.outputs.build_time }}
+          labels: |
+            org.opencontainers.image.title=sharm
+            org.opencontainers.image.description=Self-hosted ephemeral media sharing with auto-transcoding and rich embeds.
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.release.outputs.commit }}
+            org.opencontainers.image.version=${{ steps.release.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

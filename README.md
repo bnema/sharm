@@ -73,7 +73,7 @@ server {
 
 ## Development
 
-Requires Go 1.25+, FFmpeg, and a few code generation tools (sqlc, templ, mockery).
+Requires Go 1.26+, FFmpeg, and a few code generation tools (sqlc, templ, mockery).
 
 ```bash
 cp .env.example .env
