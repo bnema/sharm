@@ -58,6 +58,9 @@ func (s *ChunkService) StoreChunk(uploadID string, index int, src io.Reader) err
 
 	tempPath := tempFile.Name()
 	defer func() {
+		if tempPath == "" {
+			return
+		}
 		_ = s.fs.Remove(tempPath)
 	}()
 
@@ -74,6 +77,7 @@ func (s *ChunkService) StoreChunk(uploadID string, index int, src io.Reader) err
 		return fmt.Errorf("replace chunk %d: %w", index, err)
 	}
 
+	tempPath = ""
 	return nil
 }
 

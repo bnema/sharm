@@ -483,9 +483,16 @@ async function chunkedUpload(file, form) {
 
     const text = await resp.text();
     if (result) {
-      result.innerHTML =
-        text ||
-        '<div class="text-error" style="font-size:var(--text-sm);">Upload failed</div>';
+      if (text) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'text-error';
+        errorDiv.style.fontSize = 'var(--text-sm)';
+        errorDiv.textContent = text;
+        result.replaceChildren(errorDiv);
+      } else {
+        result.innerHTML =
+          '<div class="text-error" style="font-size:var(--text-sm);">Upload failed</div>';
+      }
     }
 
     activeUploadSession = null;
