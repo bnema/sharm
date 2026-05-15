@@ -2,15 +2,19 @@ package service
 
 import (
 	"bytes"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/iotest"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/bnema/sharm/internal/adapter/storage/osfs"
 	"github.com/bnema/sharm/internal/port"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func testFS() port.FileSystem { return osfs.New() }
@@ -79,4 +83,44 @@ func TestChunkService_Cleanup(t *testing.T) {
 
 	svc.Cleanup("upload-clean")
 	assert.NoDirExists(t, chunkDir)
+}
+
+func TestChunkService_StoreChunk_AllowsRetriedChunkIndex(t *testing.T) {
+	tmpDir := t.TempDir()
+	svc := NewChunkService(tmpDir, &nopLogger{}, testFS())
+
+	require.NoError(t, svc.StoreChunk("upload-retry", 3, strings.NewReader("first")))
+	require.NoError(t, svc.StoreChunk("upload-retry", 3, strings.NewReader("second")))
+
+	chunkPath := filepath.Join(tmpDir, "sharm-chunks", "upload-retry", "3")
+	content, err := os.ReadFile(chunkPath)
+	require.NoError(t, err)
+	assert.Equal(t, "second", string(content))
+}
+
+func TestChunkService_StoreChunk_DoesNotCorruptExistingChunkOnWriteFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+	svc := NewChunkService(tmpDir, &nopLogger{}, testFS())
+
+	require.NoError(t, svc.StoreChunk("upload-retry", 3, strings.NewReader("stable")))
+
+	err := svc.StoreChunk(
+		"upload-retry",
+		3,
+		io.MultiReader(
+			strings.NewReader("new"),
+			iotest.ErrReader(errors.New("boom")),
+		),
+	)
+	require.Error(t, err)
+
+	chunkPath := filepath.Join(tmpDir, "sharm-chunks", "upload-retry", "3")
+	content, readErr := os.ReadFile(chunkPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, "stable", string(content))
+
+	entries, listErr := os.ReadDir(filepath.Dir(chunkPath))
+	require.NoError(t, listErr)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "3", entries[0].Name())
 }
