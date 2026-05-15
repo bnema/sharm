@@ -34,8 +34,24 @@ const THEME_MODE_KEY = 'sharm.theme.mode';
  * }} BeforeInstallPromptEvent
  */
 
+/**
+ * @typedef {'idle' | 'uploading' | 'paused' | 'finalizing'} UploadStatus
+ */
+
+/**
+ * @typedef {Object} UploadSession
+ * @property {string} uploadId
+ * @property {string} fileFingerprint
+ * @property {number} totalChunks
+ * @property {number} nextChunkIndex
+ * @property {UploadStatus} status
+ */
+
 /** @type {BeforeInstallPromptEvent | null} */
 let deferredInstallPrompt = null;
+
+/** @type {UploadSession | null} */
+let activeUploadSession = null;
 
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', function (event) {
@@ -277,6 +293,60 @@ function renderProbeResult(container, result) {
 // =============================================================================
 
 /**
+ * @param {File} file
+ * @returns {string}
+ */
+function getFileFingerprint(file) {
+  return [file.name, String(file.size), String(file.lastModified)].join(':');
+}
+
+/**
+ * @returns {Record<string, string>}
+ */
+function getUploadHeaders() {
+  /** @type {Record<string, string>} */
+  const headers = {};
+  const csrfToken = getCSRFToken();
+  if (csrfToken) {
+    headers['X-CSRF-Token'] = csrfToken;
+  }
+  return headers;
+}
+
+/**
+ * @param {HTMLFormElement} form
+ * @returns {HTMLButtonElement | null}
+ */
+function getUploadSubmitButton(form) {
+  const submitBtn = form.querySelector('button[type="submit"]');
+  return submitBtn instanceof HTMLButtonElement ? submitBtn : null;
+}
+
+/**
+ * @param {HTMLFormElement} form
+ * @param {string} label
+ */
+function setUploadSubmitButtonLabel(form, label) {
+  const submitBtn = getUploadSubmitButton(form);
+  if (submitBtn) {
+    submitBtn.textContent = label;
+  }
+}
+
+/**
+ * @param {HTMLFormElement} form
+ */
+function resetUploadSession(form) {
+  activeUploadSession = null;
+  hideProgress();
+  const result = document.getElementById('result');
+  if (result) {
+    result.innerHTML = '';
+  }
+  setUploadSubmitButtonLabel(form, 'Upload');
+}
+
+/**
  * Upload a single chunk with retry logic
  * @param {string} uploadId - Unique upload identifier
  * @param {number} chunkIndex - Index of this chunk
@@ -285,17 +355,14 @@ function renderProbeResult(container, result) {
  * @returns {Promise<boolean>} - True if successful
  */
 async function uploadChunk(uploadId, chunkIndex, chunk, maxRetries) {
-  const fd = new FormData();
-  fd.append('uploadId', uploadId);
-  fd.append('chunkIndex', String(chunkIndex));
-  fd.append('chunk', chunk);
-
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const fd = new FormData();
+    fd.append('uploadId', uploadId);
+    fd.append('chunkIndex', String(chunkIndex));
+    fd.append('chunk', chunk);
+
     try {
-      const headers = {};
-      const csrfToken = getCSRFToken();
-      if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
-      const resp = await fetch('/upload/chunk', { method: 'POST', body: fd, headers });
+      const resp = await fetch('/upload/chunk', { method: 'POST', body: fd, headers: getUploadHeaders() });
       if (resp.ok) return true;
       // Don't retry on client errors (4xx) - these won't succeed on retry
       if (resp.status < 500) return false;
@@ -320,39 +387,68 @@ async function uploadChunk(uploadId, chunkIndex, chunk, maxRetries) {
  * @returns {Promise<boolean>} - True if successful
  */
 async function chunkedUpload(file, form) {
-  const uploadId = generateUUID();
+  const fileFingerprint = getFileFingerprint(file);
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
   const result = document.getElementById('result');
 
-  for (let i = 0; i < totalChunks; i++) {
+  const resumableSession =
+    activeUploadSession &&
+    activeUploadSession.fileFingerprint === fileFingerprint &&
+    activeUploadSession.status === 'paused'
+      ? activeUploadSession
+      : null;
+
+  /** @type {UploadSession} */
+  const session =
+    resumableSession || {
+      uploadId: generateUUID(),
+      fileFingerprint,
+      totalChunks,
+      nextChunkIndex: 0,
+      status: 'uploading',
+    };
+
+  session.status = 'uploading';
+  session.totalChunks = totalChunks;
+  activeUploadSession = session;
+
+  for (let i = session.nextChunkIndex; i < session.totalChunks; i++) {
     const start = i * CHUNK_SIZE;
     const end = Math.min(start + CHUNK_SIZE, file.size);
     const chunk = file.slice(start, end);
 
     updateProgress(
-      (i / totalChunks) * 90,
-      'Uploading chunk ' + (i + 1) + '/' + totalChunks
+      (i / session.totalChunks) * 90,
+      'Uploading chunk ' + (i + 1) + '/' + session.totalChunks
     );
 
-    const ok = await uploadChunk(uploadId, i, chunk, MAX_RETRIES);
+    const ok = await uploadChunk(session.uploadId, i, chunk, MAX_RETRIES);
     if (!ok) {
+      session.status = 'paused';
+      session.nextChunkIndex = i;
       if (result) {
         result.innerHTML =
-          '<div class="text-error" style="font-size:var(--text-sm);">Upload failed at chunk ' +
+          '<div class="text-error" style="font-size:var(--text-sm);">Upload paused at chunk ' +
           (i + 1) +
-          '. Please try again.</div>';
+          '/' +
+          session.totalChunks +
+          '. Retry to continue from here.</div>';
       }
-      hideProgress();
+      updateProgress((i / session.totalChunks) * 90, 'Paused at chunk ' + (i + 1) + '/' + session.totalChunks);
+      setUploadSubmitButtonLabel(form, 'Resume upload');
       return false;
     }
+
+    session.nextChunkIndex = i + 1;
   }
 
+  session.status = 'finalizing';
   updateProgress(95, 'Finalizing...');
 
   const fd = new FormData();
-  fd.append('uploadId', uploadId);
+  fd.append('uploadId', session.uploadId);
   fd.append('filename', file.name);
-  fd.append('totalChunks', String(totalChunks));
+  fd.append('totalChunks', String(session.totalChunks));
 
   const retentionSelect = form.querySelector('[name="retention"]');
   if (retentionSelect instanceof HTMLSelectElement) {
@@ -371,11 +467,10 @@ async function chunkedUpload(file, form) {
   }
 
   try {
-    const headers = {};
-    const csrfToken = getCSRFToken();
-    if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
-    const resp = await fetch('/upload/complete', { method: 'POST', body: fd, headers });
+    const resp = await fetch('/upload/complete', { method: 'POST', body: fd, headers: getUploadHeaders() });
     if (resp.ok) {
+      activeUploadSession = null;
+      setUploadSubmitButtonLabel(form, 'Upload');
       const redirect = resp.headers.get('HX-Redirect');
       if (redirect) {
         window.location.href = redirect;
@@ -384,21 +479,26 @@ async function chunkedUpload(file, form) {
         window.location.href = '/';
       }
       return true;
-    } else {
-      const text = await resp.text();
-      if (result) {
-        result.innerHTML =
-          text ||
-          '<div class="text-error" style="font-size:var(--text-sm);">Upload failed</div>';
-      }
-      hideProgress();
-      return false;
     }
-  } catch (e) {
+
+    const text = await resp.text();
+    if (result) {
+      result.innerHTML =
+        text ||
+        '<div class="text-error" style="font-size:var(--text-sm);">Upload failed</div>';
+    }
+
+    activeUploadSession = null;
+    setUploadSubmitButtonLabel(form, 'Upload');
+    hideProgress();
+    return false;
+  } catch (_) {
     if (result) {
       result.innerHTML =
         '<div class="text-error" style="font-size:var(--text-sm);">Upload failed. Please try again.</div>';
     }
+    activeUploadSession = null;
+    setUploadSubmitButtonLabel(form, 'Upload');
     hideProgress();
     return false;
   }
@@ -469,14 +569,29 @@ function handleFileSelect(input) {
   const opus = document.getElementById('codec-opus');
   const fpsOpts = document.getElementById('fps-options');
   const probeResult = document.getElementById('probe-result');
+  const form = input.closest('form');
 
   if (!input.files?.[0]) {
+    if (form instanceof HTMLFormElement) {
+      resetUploadSession(form);
+    }
     if (opts) opts.style.display = 'none';
     if (fpsOpts) fpsOpts.style.display = 'none';
+    if (probeResult) probeResult.innerHTML = '';
     return;
   }
 
-  const name = input.files[0].name.toLowerCase();
+  const selectedFile = input.files[0];
+  const selectedFingerprint = getFileFingerprint(selectedFile);
+  if (
+    form instanceof HTMLFormElement &&
+    activeUploadSession &&
+    activeUploadSession.fileFingerprint !== selectedFingerprint
+  ) {
+    resetUploadSession(form);
+  }
+
+  const name = selectedFile.name.toLowerCase();
   const videoExts = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.m4v'];
   const audioExts = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.wma', '.opus'];
   const isVideo = videoExts.some((e) => name.endsWith(e));
