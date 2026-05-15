@@ -292,12 +292,83 @@ function renderProbeResult(container, result) {
 // Chunked Upload
 // =============================================================================
 
+const FILE_FINGERPRINT_SAMPLE_BYTES = 1024 * 1024;
+
+/** @type {WeakMap<File, Promise<string>>} */
+const fileFingerprintCache = new WeakMap();
+
 /**
- * @param {File} file
+ * @param {Uint8Array} bytes
  * @returns {string}
  */
+function bytesToHex(bytes) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * @param {File} file
+ * @returns {Blob[]}
+ */
+function getFileFingerprintSources(file) {
+  if (file.size <= FILE_FINGERPRINT_SAMPLE_BYTES * 3) {
+    return [file.slice(0, file.size)];
+  }
+
+  const middleStart = Math.max(Math.floor(file.size / 2) - Math.floor(FILE_FINGERPRINT_SAMPLE_BYTES / 2), 0);
+  const endStart = Math.max(file.size - FILE_FINGERPRINT_SAMPLE_BYTES, 0);
+
+  return [
+    file.slice(0, FILE_FINGERPRINT_SAMPLE_BYTES),
+    file.slice(middleStart, middleStart + FILE_FINGERPRINT_SAMPLE_BYTES),
+    file.slice(endStart, file.size),
+  ];
+}
+
+/**
+ * @param {File} file
+ * @returns {Promise<string>}
+ */
 function getFileFingerprint(file) {
-  return [file.name, String(file.size), String(file.lastModified)].join(':');
+  const cachedFingerprint = fileFingerprintCache.get(file);
+  if (cachedFingerprint) {
+    return cachedFingerprint;
+  }
+
+  const fingerprintPromise = (async function () {
+    if (!globalThis.crypto?.subtle) {
+      throw new Error('SubtleCrypto is unavailable for upload fingerprinting');
+    }
+
+    const prefix = new TextEncoder().encode(String(file.size) + ':');
+    const sourceBuffers = await Promise.all(
+      getFileFingerprintSources(file).map(function (source) {
+        return source.arrayBuffer();
+      })
+    );
+
+    const totalLength = sourceBuffers.reduce(function (length, buffer) {
+      return length + buffer.byteLength;
+    }, prefix.byteLength);
+
+    const fingerprintBytes = new Uint8Array(totalLength);
+    fingerprintBytes.set(prefix, 0);
+
+    let offset = prefix.byteLength;
+    for (const buffer of sourceBuffers) {
+      const sourceBytes = new Uint8Array(buffer);
+      fingerprintBytes.set(sourceBytes, offset);
+      offset += sourceBytes.byteLength;
+    }
+
+    const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', fingerprintBytes);
+    return bytesToHex(new Uint8Array(hashBuffer));
+  })().catch(function (error) {
+    fileFingerprintCache.delete(file);
+    throw error;
+  });
+
+  fileFingerprintCache.set(file, fingerprintPromise);
+  return fingerprintPromise;
 }
 
 /**
@@ -382,6 +453,20 @@ function renderUploadError(result, text, fallback) {
 }
 
 /**
+ * @param {HTMLFormElement} form
+ * @param {string} message
+ */
+function showUploadPreparationError(form, message) {
+  activeUploadSession = null;
+  hideProgress();
+  setUploadSubmitButtonLabel(form, 'Upload');
+  const result = document.getElementById('result');
+  if (result instanceof HTMLElement) {
+    renderUploadError(result, '', message);
+  }
+}
+
+/**
  * Upload a single chunk with retry logic
  * @param {string} uploadId - Unique upload identifier
  * @param {number} chunkIndex - Index of this chunk
@@ -422,9 +507,17 @@ async function uploadChunk(uploadId, chunkIndex, chunk, maxRetries) {
  * @returns {Promise<boolean>} - True if successful
  */
 async function chunkedUpload(file, form) {
-  const fileFingerprint = getFileFingerprint(file);
-  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
   const result = document.getElementById('result');
+  let fileFingerprint;
+  try {
+    fileFingerprint = await getFileFingerprint(file);
+  } catch (error) {
+    console.warn('Upload fingerprinting failed during upload preparation', error);
+    showUploadPreparationError(form, 'Could not read this file for resumable upload. Re-select it and try again.');
+    return false;
+  }
+
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
   const resumableSession =
     activeUploadSession &&
@@ -554,7 +647,7 @@ function initUploadPage() {
   // File selection handler - use addEventListener instead of mutating onchange attribute
   if (!fileInput.dataset.listenerAttached) {
     fileInput.addEventListener('change', function () {
-      window.handleFileSelect(this);
+      void window.handleFileSelect(this);
     });
     fileInput.dataset.listenerAttached = 'true';
   }
@@ -595,18 +688,18 @@ function initUploadPage() {
  * Handle file selection - update codec options and probe
  * @param {HTMLInputElement} input
  */
-function handleFileSelect(input) {
+async function handleFileSelect(input) {
   const opts = document.getElementById('codec-options');
   const av1 = document.getElementById('codec-av1');
   const h264 = document.getElementById('codec-h264');
   const opus = document.getElementById('codec-opus');
   const fpsOpts = document.getElementById('fps-options');
   const probeResult = document.getElementById('probe-result');
-  const form = input.closest('form');
+  const initialForm = input.closest('form');
 
   if (!input.files?.[0]) {
-    if (form instanceof HTMLFormElement) {
-      resetUploadSession(form);
+    if (initialForm instanceof HTMLFormElement) {
+      resetUploadSession(initialForm);
     }
     if (opts) opts.style.display = 'none';
     if (fpsOpts) fpsOpts.style.display = 'none';
@@ -615,7 +708,27 @@ function handleFileSelect(input) {
   }
 
   const selectedFile = input.files[0];
-  const selectedFingerprint = getFileFingerprint(selectedFile);
+
+  let selectedFingerprint;
+  try {
+    selectedFingerprint = await getFileFingerprint(selectedFile);
+  } catch (error) {
+    if (input.files?.[0] !== selectedFile) {
+      return;
+    }
+    console.warn('Upload fingerprinting failed during file selection', error);
+    const form = input.closest('form');
+    if (form instanceof HTMLFormElement) {
+      showUploadPreparationError(form, 'Could not read this file for resumable upload. Re-select it and try again.');
+    }
+    return;
+  }
+
+  if (input.files?.[0] !== selectedFile) {
+    return;
+  }
+
+  const form = input.closest('form');
   if (
     form instanceof HTMLFormElement &&
     activeUploadSession &&
@@ -648,7 +761,7 @@ function handleFileSelect(input) {
   }
 
   if (probeResult && (isVideo || isAudio)) {
-    probeClientSide(input.files[0], probeResult);
+    probeClientSide(selectedFile, probeResult);
   } else if (probeResult) {
     probeResult.innerHTML = '';
   }
