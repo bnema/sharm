@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing v* tag to publish'
+        description: 'Existing semver tag to publish (for example v1.9.0 or v1.10.0-rc.1)'
         required: true
         type: string
 
@@ -33,30 +33,47 @@ jobs:
           set -eu
 
           tag="${INPUT_TAG:-${GITHUB_REF_NAME}}"
-          case "$tag" in
-            v*) ;;
-            *)
-              echo "Expected a v* tag, got: $tag" >&2
-              exit 1
-              ;;
-          esac
+          if ! printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "Expected a semver tag like v1.9.0 or v1.10.0-rc.1, got: $tag" >&2
+            exit 1
+          fi
 
-          git fetch --force --tags origin
+          git fetch --force origin +refs/heads/main:refs/remotes/origin/main --tags
           git switch --detach "refs/tags/$tag"
 
           image="ghcr.io/${GITHUB_REPOSITORY,,}"
           commit="$(git rev-parse HEAD)"
-          tags="${image}:${tag}"
+          if ! git merge-base --is-ancestor "$commit" refs/remotes/origin/main; then
+            echo "Refusing to publish tag $tag because $commit is not reachable from origin/main" >&2
+            exit 1
+          fi
+
+          stable_tag=false
+          latest_stable_tag=''
           case "$tag" in
             *-*) ;;
-            *) tags="${tags},${image}:latest" ;;
+            *)
+              stable_tag=true
+              latest_stable_tag="$(git tag --list 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)"
+              ;;
           esac
+
+          publish_latest=false
+          if [ "$stable_tag" = true ] && [ "$tag" = "$latest_stable_tag" ]; then
+            publish_latest=true
+          fi
+
+          tags="${image}:${tag}"
+          if [ "$publish_latest" = true ]; then
+            tags="${tags},${image}:latest"
+          fi
 
           {
             echo "tag=$tag"
             echo "image=$image"
             echo "commit=$commit"
             echo "tags=$tags"
+            echo "publish_latest=$publish_latest"
             echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
 
