@@ -26,6 +26,15 @@ var (
 	BuildTime = "unknown"
 )
 
+const (
+	loginRateLimitMaxAttempts = 5
+	loginRateLimitWindow      = 15 * time.Minute
+	loginRateLimitBlock       = 30 * time.Minute
+	backoffInitialDelay       = 500 * time.Millisecond
+	backoffMaxDelay           = 10 * time.Second
+	backoffMultiplier         = 2.0
+)
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -127,9 +136,9 @@ func newHTTPServer(cfg *config.Config, authSvc *service.AuthService, mediaSvc *s
 		Version:           Version,
 		BehindProxy:       cfg.BehindProxy,
 		TrustedProxyCIDRs: cfg.TrustedProxyCIDRs,
-		RateLimiter:       ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute),
+		RateLimiter:       ratelimit.NewLoginRateLimiter(loginRateLimitMaxAttempts, loginRateLimitWindow, loginRateLimitBlock),
 		BackoffTracker:    ratelimit.NewLoginAttemptTracker(),
-		Backoff:           ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0),
+		Backoff:           ratelimit.NewBackoff(backoffInitialDelay, backoffMaxDelay, backoffMultiplier),
 		CSRF:              middleware.NewCSRFProtection(cfg.SecretKey, HTTPAdapter.CSRFErrorHandler),
 	})
 }

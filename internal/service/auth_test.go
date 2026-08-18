@@ -69,7 +69,7 @@ func (m *mockUserStore) UpdatePassword(id int64, passwordHash string) error {
 	return nil
 }
 
-func (m *mockUserStore) IncrementSessionVersion(id int64) error {
+func (m *mockUserStore) IncrementSessionVersion(_ int64) error {
 	if m.user != nil {
 		m.user.SessionVersion++
 	}
@@ -115,14 +115,14 @@ func TestAuthService_CreateUser_SerializesSetup(t *testing.T) {
 	store := &mockUserStore{}
 	svc := NewAuthService(store, "test-secret-key")
 	results := make(chan error, 8)
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		go func() {
 			results <- svc.CreateUser("admin", "P@ssw0rd123")
 		}()
 	}
 
 	created := 0
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		if err := <-results; err == nil {
 			created++
 		}

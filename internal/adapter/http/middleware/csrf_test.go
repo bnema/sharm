@@ -36,7 +36,7 @@ func TestNewCSRFProtection(t *testing.T) {
 
 func TestCSRFMiddleware_SetsCookieOnGET(t *testing.T) {
 	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
-	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -169,7 +169,7 @@ func TestCSRFMiddleware_POSTWithValidHeaderToken(t *testing.T) {
 	}))
 
 	// First, get a token via GET request
-	getReq := httptest.NewRequest(http.MethodGet, "/", nil)
+	getReq := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	getRec := httptest.NewRecorder()
 	handler.ServeHTTP(getRec, getReq)
 
@@ -226,11 +226,11 @@ func TestCSRFMiddleware_POSTWithValidFormToken(t *testing.T) {
 
 func TestCSRFMiddleware_DoesNotParseMultipartWithoutHeaderToken(t *testing.T) {
 	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
-	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	getReq := httptest.NewRequest(http.MethodGet, "/", nil)
+	getReq := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	getRec := httptest.NewRecorder()
 	handler.ServeHTTP(getRec, getReq)
 	var token string

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -36,8 +37,8 @@ func trustedClientIP(r *http.Request, behindProxy bool, trustedProxyCIDRs []*net
 		}
 
 		forwarded := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
-		for i := len(forwarded) - 1; i >= 0; i-- {
-			if clientIP := parseIPHeader(forwarded[i]); clientIP != "" {
+		for _, value := range slices.Backward(forwarded) {
+			if clientIP := parseIPHeader(value); clientIP != "" {
 				return clientIP
 			}
 		}
@@ -143,7 +144,15 @@ func AuthMiddleware(authSvc AuthService, next http.HandlerFunc) http.HandlerFunc
 	}
 }
 
-func LoginHandler(authSvc AuthService, rateLimiter *ratelimit.LoginRateLimiter, tracker *ratelimit.LoginAttemptTracker, backoff *ratelimit.Backoff, version string, behindProxy bool, trustedProxyCIDRs []*net.IPNet) http.HandlerFunc {
+func LoginHandler(
+	authSvc AuthService,
+	rateLimiter *ratelimit.LoginRateLimiter,
+	tracker *ratelimit.LoginAttemptTracker,
+	backoff *ratelimit.Backoff,
+	version string,
+	behindProxy bool,
+	trustedProxyCIDRs []*net.IPNet,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Redirect to setup if no user exists yet
 		hasUser, err := authSvc.HasUser()
