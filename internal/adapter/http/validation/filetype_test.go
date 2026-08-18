@@ -90,11 +90,14 @@ func TestValidateMagicBytes_MP4_Allowed(t *testing.T) {
 }
 
 func TestValidateMagicBytes_UnknownMP4BrandRejected(t *testing.T) {
-	unknownBrand := []byte{0x00, 0x00, 0x00, 0x18, 'f', 't', 'y', 'p', 'x', 's', 's', '!'}
+	unknownBrand := []byte{
+		0x00, 0x00, 0x00, 0x18, 'f', 't', 'y', 'p', 'x', 's', 's', '!',
+		0x00, 0x00, 0x00, 0x00, 'm', 'p', '4', '2', 0x00, 0x00, 0x00, 0x00,
+	}
 	mime, allowed, err := ValidateMagicBytes(bytes.NewReader(unknownBrand))
 
 	require.NoError(t, err)
-	assert.NotEqual(t, "video/mp4", mime)
+	assert.Equal(t, "application/octet-stream", mime)
 	assert.False(t, allowed)
 }
 

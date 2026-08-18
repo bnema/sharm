@@ -14,6 +14,7 @@ import (
 
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockUserStore struct {
@@ -378,9 +379,9 @@ func TestAuthService_ChangePassword(t *testing.T) {
 		}
 		svc := NewAuthService(store, "test-secret-key")
 		token, err := svc.GenerateToken("admin")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		err = svc.ChangePassword("admin", "P@ssw0rd123", "N3wP@ssw0rd!")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEqual(t, string(passwordHash), store.user.PasswordHash)
 		_, err = svc.ValidateToken(token)
 		assert.ErrorIs(t, err, ErrInvalidToken)
@@ -406,12 +407,12 @@ func TestAuthService_RevokeSessions(t *testing.T) {
 	svc := NewAuthService(store, "test-secret-key")
 
 	token, err := svc.GenerateToken("admin")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = svc.ValidateToken(token)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = svc.RevokeSessions("admin")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = svc.ValidateToken(token)
 	assert.ErrorIs(t, err, ErrInvalidToken)
 }

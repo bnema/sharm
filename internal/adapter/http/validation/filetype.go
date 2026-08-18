@@ -134,7 +134,7 @@ func detectCustomMagicBytes(buf []byte) string {
 				// Unknown brands are not safe to classify as MP4. Reject them
 				// instead of allowing arbitrary content to inherit video MIME
 				// handling.
-				return ""
+				return "application/octet-stream"
 			}
 		}
 	}

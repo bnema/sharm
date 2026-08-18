@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLoginAttemptTracker_ConcurrentAccess(_ *testing.T) {
+func TestLoginAttemptTracker_ConcurrentAccess(t *testing.T) {
 	tracker := NewLoginAttemptTracker()
 	done := make(chan struct{})
 	for range 32 {
@@ -23,6 +23,7 @@ func TestLoginAttemptTracker_ConcurrentAccess(_ *testing.T) {
 	for range 32 {
 		<-done
 	}
+	assert.Equal(t, 0, tracker.GetFailedAttempts("client"))
 }
 
 func TestBackoff_Duration_Attempt0(t *testing.T) {

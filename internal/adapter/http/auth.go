@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"fmt"
+	"mime"
 	"net"
 	"net/http"
 	"slices"
@@ -16,12 +17,23 @@ import (
 )
 
 const (
-	CookieName     = "auth_token"
-	CookieMaxAge   = 7 * 24 * 60 * 60
-	CookiePath     = "/"
-	CookieSameSite = http.SameSiteLaxMode
-	HXRequestTrue  = "true"
+	CookieName        = "auth_token"
+	CookieMaxAge      = 7 * 24 * 60 * 60
+	CookiePath        = "/"
+	CookieSameSite    = http.SameSiteLaxMode
+	HXRequestTrue     = "true"
+	authFormBodyLimit = 64 << 10
 )
+
+func parseUnauthenticatedForm(w http.ResponseWriter, r *http.Request) bool {
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || !strings.EqualFold(mediaType, "application/x-www-form-urlencoded") || r.Body == nil {
+		return false
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, authFormBodyLimit)
+	return r.ParseForm() == nil
+}
 
 func getClientID(r *http.Request, behindProxy bool, trustedProxyCIDRs []*net.IPNet) string {
 	if clientIP := trustedClientIP(r, behindProxy, trustedProxyCIDRs); clientIP != "" {
@@ -165,6 +177,11 @@ func LoginHandler(
 		}
 
 		if r.Method == http.MethodPost {
+			if !parseUnauthenticatedForm(w, r) {
+				http.Error(w, "Invalid form submission", http.StatusBadRequest)
+				return
+			}
+
 			username := r.FormValue("username")
 			password := r.FormValue("password")
 
@@ -277,6 +294,11 @@ func SetupHandler(authSvc AuthService, version string, behindProxy bool) http.Ha
 		}
 
 		if r.Method == http.MethodPost {
+			if !parseUnauthenticatedForm(w, r) {
+				http.Error(w, "Invalid form submission", http.StatusBadRequest)
+				return
+			}
+
 			username := r.FormValue("username")
 			password := r.FormValue("password")
 			confirmPassword := r.FormValue("confirm_password")

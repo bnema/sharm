@@ -132,13 +132,20 @@ func (c *CSRFProtection) validateRequest(w http.ResponseWriter, r *http.Request)
 	cookieToken := cookie.Value
 
 	// Get token from request (header takes precedence)
+	mediaType, _, mediaTypeErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if mediaTypeErr == nil && strings.EqualFold(mediaType, "application/x-www-form-urlencoded") && r.Body != nil {
+		// Cap URL-encoded bodies even when the token arrives in a header. The
+		// downstream unauthenticated handlers may still call FormValue after the
+		// header bypass, while multipart upload limits belong to those handlers.
+		r.Body = http.MaxBytesReader(w, r.Body, csrfFormBodyLimit)
+	}
+
 	requestToken := r.Header.Get(csrfHeaderName)
 	if requestToken == "" {
 		// Never parse multipart bodies in global middleware. Upload handlers apply
 		// their own size limits after authentication; parsing here could let an
 		// unauthenticated request consume temporary disk first.
-		mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-		if err != nil || !strings.EqualFold(mediaType, "application/x-www-form-urlencoded") || r.Body == nil {
+		if mediaTypeErr != nil || !strings.EqualFold(mediaType, "application/x-www-form-urlencoded") || r.Body == nil {
 			return false
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, csrfFormBodyLimit)
