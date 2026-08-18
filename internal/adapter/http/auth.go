@@ -63,15 +63,6 @@ func parseIPHeader(value string) string {
 	return ""
 }
 
-func isLoopbackClient(r *http.Request, behindProxy bool, trustedProxyCIDRs []*net.IPNet) bool {
-	return isLoopbackIP(trustedClientIP(r, behindProxy, trustedProxyCIDRs))
-}
-
-func isLoopbackIP(value string) bool {
-	ip := net.ParseIP(value)
-	return ip != nil && ip.IsLoopback()
-}
-
 func isTrustedProxy(r *http.Request, trustedProxyCIDRs []*net.IPNet) bool {
 	remoteIP := net.ParseIP(remoteClientIP(r))
 	if remoteIP == nil {
@@ -267,13 +258,8 @@ func LogoutHandler(authSvc AuthService, behindProxy bool) http.HandlerFunc {
 	}
 }
 
-func SetupHandler(authSvc AuthService, version string, behindProxy bool, trustedProxyCIDRs []*net.IPNet) http.HandlerFunc {
+func SetupHandler(authSvc AuthService, version string, behindProxy bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !isLoopbackClient(r, behindProxy, trustedProxyCIDRs) {
-			http.Error(w, "Setup is only available from localhost", http.StatusNotFound)
-			return
-		}
-
 		hasUser, err := authSvc.HasUser()
 		if err != nil {
 			logger.Error.Printf("setup: failed to check user existence: %v", err)

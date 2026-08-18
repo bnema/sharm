@@ -38,7 +38,7 @@ volumes:
 docker compose up -d
 ```
 
-Point your reverse proxy at port 7890 and open `https://sharm.example.com`. On first launch, create the account from localhost (for example, with an SSH tunnel to port 7890); setup is deliberately unavailable to remote clients. Only one user can be registered. When `BEHIND_PROXY=true`, Sharm only trusts forwarded client headers from the networks listed in `TRUSTED_PROXY_CIDRS`.
+Point your reverse proxy at port 7890 and open `https://sharm.example.com`. On first launch, create the account from the deployed URL. Only one user can be registered. When `BEHIND_PROXY=true`, Sharm only trusts forwarded client headers from the networks listed in `TRUSTED_PROXY_CIDRS`.
 
 ## Configuration
 

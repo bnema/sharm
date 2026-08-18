@@ -54,67 +54,14 @@ func TestGetClientID_UsesConfiguredProxyNetwork(t *testing.T) {
 	assert.Equal(t, "198.51.100.8", getClientID(req, true, []*net.IPNet{proxyNetwork}))
 }
 
-func TestSetupHandler_OnlyAllowsLoopbackClients(t *testing.T) {
-	tests := []struct {
-		name        string
-		remoteAddr  string
-		forwardedIP string
-		behindProxy bool
-		wantStatus  int
-	}{
-		{
-			name:       "remote client",
-			remoteAddr: "198.51.100.8:4567",
-			wantStatus: http.StatusNotFound,
-		},
-		{
-			name:       "local client",
-			remoteAddr: "127.0.0.1:4567",
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:        "remote client through proxy",
-			remoteAddr:  "127.0.0.1:4567",
-			forwardedIP: "198.51.100.8",
-			behindProxy: true,
-			wantStatus:  http.StatusNotFound,
-		},
-		{
-			name:        "local client through proxy",
-			remoteAddr:  "127.0.0.1:4567",
-			forwardedIP: "127.0.0.1",
-			behindProxy: true,
-			wantStatus:  http.StatusOK,
-		},
-		{
-			name:        "local tunnel through proxy without forwarded header",
-			remoteAddr:  "127.0.0.1:4567",
-			behindProxy: true,
-			wantStatus:  http.StatusOK,
-		},
-		{
-			name:        "untrusted peer forging loopback header",
-			remoteAddr:  "198.51.100.8:4567",
-			forwardedIP: "127.0.0.1",
-			behindProxy: true,
-			wantStatus:  http.StatusNotFound,
-		},
-	}
+func TestSetupHandler_AllowsRemoteFirstRun(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/setup", http.NoBody)
+	req.RemoteAddr = "198.51.100.8:4567"
+	rec := httptest.NewRecorder()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/setup", http.NoBody)
-			req.RemoteAddr = tt.remoteAddr
-			if tt.forwardedIP != "" {
-				req.Header.Set("X-Real-IP", tt.forwardedIP)
-			}
+	SetupHandler(configTestAuthService{}, "dev", false).ServeHTTP(rec, req)
 
-			rec := httptest.NewRecorder()
-			SetupHandler(configTestAuthService{}, "dev", tt.behindProxy, loopbackProxyCIDRs()).ServeHTTP(rec, req)
-
-			assert.Equal(t, tt.wantStatus, rec.Code)
-		})
-	}
+	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
 func loopbackProxyCIDRs() []*net.IPNet {

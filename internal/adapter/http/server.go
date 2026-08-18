@@ -71,7 +71,7 @@ func NewServer(cfg ServerConfig) *Server {
 }
 
 func (s *Server) registerRoutes() {
-	setupHandler := SetupHandler(s.authSvc, s.version, s.behindProxy, s.trustedProxyCIDRs)
+	setupHandler := SetupHandler(s.authSvc, s.version, s.behindProxy)
 	s.mux.HandleFunc("GET /setup", setupHandler)
 	s.mux.HandleFunc("POST /setup", setupHandler)
 
