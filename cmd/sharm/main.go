@@ -26,6 +26,15 @@ var (
 	BuildTime = "unknown"
 )
 
+const (
+	loginRateLimitMaxAttempts = 5
+	loginRateLimitWindow      = 15 * time.Minute
+	loginRateLimitBlock       = 30 * time.Minute
+	backoffInitialDelay       = 500 * time.Millisecond
+	backoffMaxDelay           = 10 * time.Second
+	backoffMultiplier         = 2.0
+)
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -118,17 +127,18 @@ func main() {
 
 func newHTTPServer(cfg *config.Config, authSvc *service.AuthService, mediaSvc *service.MediaService, chunkSvc *service.ChunkService, eventBus *service.EventBus) *HTTPAdapter.Server {
 	return HTTPAdapter.NewServer(HTTPAdapter.ServerConfig{
-		AuthSvc:         authSvc,
-		MediaSvc:        mediaSvc,
-		ChunkSvc:        chunkSvc,
-		EventBus:        eventBus,
-		Domain:          cfg.Domain,
-		MaxUploadSizeMB: cfg.MaxUploadSizeMB,
-		Version:         Version,
-		BehindProxy:     cfg.BehindProxy,
-		RateLimiter:     ratelimit.NewLoginRateLimiter(5, 15*time.Minute, 30*time.Minute),
-		BackoffTracker:  ratelimit.NewLoginAttemptTracker(),
-		Backoff:         ratelimit.NewBackoff(500*time.Millisecond, 10*time.Second, 2.0),
-		CSRF:            middleware.NewCSRFProtection(cfg.SecretKey, HTTPAdapter.CSRFErrorHandler),
+		AuthSvc:           authSvc,
+		MediaSvc:          mediaSvc,
+		ChunkSvc:          chunkSvc,
+		EventBus:          eventBus,
+		Domain:            cfg.Domain,
+		MaxUploadSizeMB:   cfg.MaxUploadSizeMB,
+		Version:           Version,
+		BehindProxy:       cfg.BehindProxy,
+		TrustedProxyCIDRs: cfg.TrustedProxyCIDRs,
+		RateLimiter:       ratelimit.NewLoginRateLimiter(loginRateLimitMaxAttempts, loginRateLimitWindow, loginRateLimitBlock),
+		BackoffTracker:    ratelimit.NewLoginAttemptTracker(),
+		Backoff:           ratelimit.NewBackoff(backoffInitialDelay, backoffMaxDelay, backoffMultiplier),
+		CSRF:              middleware.NewCSRFProtection(cfg.SecretKey, HTTPAdapter.CSRFErrorHandler),
 	})
 }

@@ -94,11 +94,11 @@ func NewMedia(mediaType MediaType, originalName, originalPath string, retentionD
 }
 
 func generateID() string {
-	b := make([]byte, 5)
+	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
 		panic(err)
 	}
-	return base32.StdEncoding.EncodeToString(b)[:8]
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b)
 }
 
 func (m *Media) IsExpired() bool {
@@ -290,7 +290,7 @@ func (m *Media) ParseProbe() (*ProbeResult, error) {
 
 var imageExts = map[string]bool{
 	".jpg": true, ".jpeg": true, ".png": true, ".gif": true,
-	".webp": true, ".svg": true, ".bmp": true, ".ico": true,
+	".webp": true, ".bmp": true, ".ico": true,
 }
 
 var audioExts = map[string]bool{

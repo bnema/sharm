@@ -56,9 +56,10 @@ type Medium struct {
 }
 
 type User struct {
-	ID           int64
-	Username     string
-	PasswordHash string
-	CreatedAt    string
-	UpdatedAt    string
+	ID             int64
+	Username       string
+	PasswordHash   string
+	CreatedAt      string
+	UpdatedAt      string
+	SessionVersion int64
 }

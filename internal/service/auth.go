@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -107,6 +108,7 @@ func formatMissingRequirements(missing []string) string {
 type AuthService struct {
 	store     port.UserStore
 	secretKey string
+	createMu  sync.Mutex
 }
 
 func NewAuthService(store port.UserStore, secretKey string) *AuthService {
@@ -121,6 +123,9 @@ func (s *AuthService) HasUser() (bool, error) {
 }
 
 func (s *AuthService) CreateUser(username, password string) error {
+	s.createMu.Lock()
+	defer s.createMu.Unlock()
+
 	hasUser, err := s.store.HasUser()
 	if err != nil {
 		return err
@@ -168,7 +173,7 @@ func (s *AuthService) GenerateToken(username string) (string, error) {
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	userID := strconv.FormatInt(user.ID, 10)
 	mac := hmac.New(sha256.New, []byte(s.secretKey))
-	mac.Write([]byte(timestamp + ":" + userID))
+	mac.Write([]byte(timestamp + ":" + userID + ":" + strconv.FormatInt(user.SessionVersion, 10)))
 	signature := base64.URLEncoding.EncodeToString(mac.Sum(nil))
 
 	return timestamp + ":" + userID + ":" + signature, nil
@@ -193,7 +198,7 @@ func (s *AuthService) ValidateToken(token string) (*domain.User, error) {
 	}
 
 	mac := hmac.New(sha256.New, []byte(s.secretKey))
-	mac.Write([]byte(timestamp + ":" + userIDStr))
+	mac.Write([]byte(timestamp + ":" + userIDStr + ":" + strconv.FormatInt(user.SessionVersion, 10)))
 	expectedSignature := base64.URLEncoding.EncodeToString(mac.Sum(nil))
 
 	if !hmac.Equal([]byte(signature), []byte(expectedSignature)) {
@@ -234,4 +239,12 @@ func (s *AuthService) ChangePassword(username, oldPassword, newPassword string) 
 	}
 
 	return s.store.UpdatePassword(user.ID, string(passwordHash))
+}
+
+func (s *AuthService) RevokeSessions(username string) error {
+	user, err := s.store.GetUser(username)
+	if err != nil {
+		return err
+	}
+	return s.store.IncrementSessionVersion(user.ID)
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockUserStore struct {
@@ -64,6 +65,14 @@ func (m *mockUserStore) CreateUser(username, passwordHash string) error {
 func (m *mockUserStore) UpdatePassword(id int64, passwordHash string) error {
 	if m.user != nil {
 		m.user.PasswordHash = passwordHash
+		m.user.SessionVersion++
+	}
+	return nil
+}
+
+func (m *mockUserStore) IncrementSessionVersion(_ int64) error {
+	if m.user != nil {
+		m.user.SessionVersion++
 	}
 	return nil
 }
@@ -101,6 +110,25 @@ func TestAuthService_CreateUser(t *testing.T) {
 		err := svc.CreateUser("admin", "P@ssw0rd123")
 		assert.ErrorIs(t, err, ErrUserExists)
 	})
+}
+
+func TestAuthService_CreateUser_SerializesSetup(t *testing.T) {
+	store := &mockUserStore{}
+	svc := NewAuthService(store, "test-secret-key")
+	results := make(chan error, 8)
+	for range 8 {
+		go func() {
+			results <- svc.CreateUser("admin", "P@ssw0rd123")
+		}()
+	}
+
+	created := 0
+	for range 8 {
+		if err := <-results; err == nil {
+			created++
+		}
+	}
+	assert.Equal(t, 1, created)
 }
 
 func TestAuthService_ValidatePassword(t *testing.T) {
@@ -180,7 +208,7 @@ func TestAuthService_GenerateToken(t *testing.T) {
 		timestamp, userID, signature := parts[0], parts[1], parts[2]
 
 		mac := hmac.New(sha256.New, []byte(secretKey))
-		mac.Write([]byte(timestamp + ":" + userID))
+		mac.Write([]byte(timestamp + ":" + userID + ":0"))
 		expectedSignature := base64.URLEncoding.EncodeToString(mac.Sum(nil))
 
 		assert.Equal(t, expectedSignature, signature, "signature should be valid HMAC-SHA256")
@@ -285,7 +313,7 @@ func TestAuthService_ValidateToken(t *testing.T) {
 		oldTimestamp := time.Now().Add(-8 * 24 * time.Hour).Unix()
 		userID := "1"
 		mac := hmac.New(sha256.New, []byte(secretKey))
-		mac.Write([]byte(strconv.FormatInt(oldTimestamp, 10) + ":" + userID))
+		mac.Write([]byte(strconv.FormatInt(oldTimestamp, 10) + ":" + userID + ":0"))
 		signature := base64.URLEncoding.EncodeToString(mac.Sum(nil))
 		token := strconv.FormatInt(oldTimestamp, 10) + ":" + userID + ":" + signature
 
@@ -307,7 +335,7 @@ func TestAuthService_ValidateToken(t *testing.T) {
 		recentTimestamp := time.Now().Add(-6 * 24 * time.Hour).Unix()
 		userID := "1"
 		mac := hmac.New(sha256.New, []byte(secretKey))
-		mac.Write([]byte(strconv.FormatInt(recentTimestamp, 10) + ":" + userID))
+		mac.Write([]byte(strconv.FormatInt(recentTimestamp, 10) + ":" + userID + ":0"))
 		signature := base64.URLEncoding.EncodeToString(mac.Sum(nil))
 		token := strconv.FormatInt(recentTimestamp, 10) + ":" + userID + ":" + signature
 
@@ -350,9 +378,13 @@ func TestAuthService_ChangePassword(t *testing.T) {
 			},
 		}
 		svc := NewAuthService(store, "test-secret-key")
-		err := svc.ChangePassword("admin", "P@ssw0rd123", "N3wP@ssw0rd!")
-		assert.NoError(t, err)
+		token, err := svc.GenerateToken("admin")
+		require.NoError(t, err)
+		err = svc.ChangePassword("admin", "P@ssw0rd123", "N3wP@ssw0rd!")
+		require.NoError(t, err)
 		assert.NotEqual(t, string(passwordHash), store.user.PasswordHash)
+		_, err = svc.ValidateToken(token)
+		assert.ErrorIs(t, err, ErrInvalidToken)
 	})
 
 	t.Run("returns error for wrong old password", func(t *testing.T) {
@@ -367,4 +399,20 @@ func TestAuthService_ChangePassword(t *testing.T) {
 		err := svc.ChangePassword("admin", "wrongpassword", "N3wP@ssw0rd!")
 		assert.ErrorIs(t, err, ErrWrongPassword)
 	})
+}
+
+func TestAuthService_RevokeSessions(t *testing.T) {
+	passwordHash, _ := bcrypt.GenerateFromPassword([]byte("P@ssw0rd123"), bcrypt.DefaultCost)
+	store := &mockUserStore{user: &domain.User{ID: 1, Username: "admin", PasswordHash: string(passwordHash)}}
+	svc := NewAuthService(store, "test-secret-key")
+
+	token, err := svc.GenerateToken("admin")
+	require.NoError(t, err)
+	_, err = svc.ValidateToken(token)
+	require.NoError(t, err)
+
+	err = svc.RevokeSessions("admin")
+	require.NoError(t, err)
+	_, err = svc.ValidateToken(token)
+	assert.ErrorIs(t, err, ErrInvalidToken)
 }

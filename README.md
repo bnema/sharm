@@ -38,7 +38,7 @@ volumes:
 docker compose up -d
 ```
 
-Point your reverse proxy at port 7890 and open `https://sharm.example.com`. On first launch you'll be prompted to create an account. Only one user can be registered.
+Point your reverse proxy at port 7890 and open `https://sharm.example.com`. On first launch, create the account from the deployed URL. Only one user can be registered. When `BEHIND_PROXY=true`, Sharm only trusts forwarded client headers from the networks listed in `TRUSTED_PROXY_CIDRS`.
 
 ## Configuration
 
@@ -50,6 +50,7 @@ Point your reverse proxy at port 7890 and open `https://sharm.example.com`. On f
 | `DEFAULT_RETENTION_DAYS` | `7` | Days before shared links expire |
 | `DATA_DIR` | `/data` | Where uploads, converted files, and the DB live |
 | `BEHIND_PROXY` | `false` | Set to `true` when running behind a reverse proxy |
+| `TRUSTED_PROXY_CIDRS` | `127.0.0.0/8,::1/128` | Comma-separated networks allowed to supply `X-Real-IP` or `X-Forwarded-For` |
 | `SECRET_KEY` | (auto-generated) | Key for signing session tokens. Generated and persisted to `DATA_DIR/.secret_key` if not set |
 
 ### Reverse Proxy

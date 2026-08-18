@@ -44,7 +44,8 @@ func TestNewMedia(t *testing.T) {
 			media := NewMedia(tt.mediaType, tt.originalName, tt.originalPath, tt.retentionDays)
 
 			assert.NotEmpty(t, media.ID, "ID should be generated")
-			assert.Len(t, media.ID, 8, "ID should be 8 characters")
+			assert.Len(t, media.ID, 26, "ID should be 26 characters")
+			assert.Regexp(t, `^[A-Z2-7]+$`, media.ID, "ID should use unpadded Base32")
 			assert.Equal(t, tt.mediaType, media.Type, "Type should match")
 			assert.Equal(t, tt.originalName, media.OriginalName, "OriginalName should match")
 			assert.Equal(t, tt.originalPath, media.OriginalPath, "OriginalPath should match")

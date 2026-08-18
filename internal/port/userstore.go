@@ -9,4 +9,5 @@ type UserStore interface {
 	GetFirstUser() (*domain.User, error)
 	CreateUser(username, passwordHash string) error
 	UpdatePassword(id int64, passwordHash string) error
+	IncrementSessionVersion(id int64) error
 }

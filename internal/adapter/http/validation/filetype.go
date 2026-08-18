@@ -131,8 +131,10 @@ func detectCustomMagicBytes(buf []byte) string {
 			case "qt  ":
 				return "video/quicktime"
 			default:
-				// Default to MP4 for unknown ftyp brands
-				return "video/mp4"
+				// Unknown brands are not safe to classify as MP4. Reject them
+				// instead of allowing arbitrary content to inherit video MIME
+				// handling.
+				return "application/octet-stream"
 			}
 		}
 	}

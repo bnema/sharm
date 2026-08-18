@@ -69,6 +69,10 @@ func (configTestAuthService) ChangePassword(string, string, string) error {
 	return nil
 }
 
+func (configTestAuthService) RevokeSessions(string) error {
+	return nil
+}
+
 func newTestServer(authSvc AuthService, mediaSvc MediaService) *Server {
 	return NewServer(ServerConfig{
 		AuthSvc:         authSvc,

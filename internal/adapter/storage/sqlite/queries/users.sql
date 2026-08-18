@@ -14,4 +14,7 @@ SELECT COUNT(*) FROM users;
 INSERT INTO users (username, password_hash) VALUES (?, ?);
 
 -- name: UpdateUserPassword :exec
-UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?;
+UPDATE users SET password_hash = ?, session_version = session_version + 1, updated_at = datetime('now') WHERE id = ?;
+
+-- name: IncrementUserSessionVersion :exec
+UPDATE users SET session_version = session_version + 1, updated_at = datetime('now') WHERE id = ?;

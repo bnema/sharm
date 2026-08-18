@@ -5,16 +5,19 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"mime"
 	"net/http"
+	"strings"
 )
 
 const (
-	csrfCookieName = "csrf_token"
-	csrfHeaderName = "X-CSRF-Token"
-	csrfFormField  = "csrf_token"
-	csrfCookiePath = "/"
-	csrfMaxAge     = 86400 // 24 hours
-	tokenSize      = 32    // 32 bytes random data
+	csrfCookieName    = "csrf_token"
+	csrfHeaderName    = "X-CSRF-Token"
+	csrfFormField     = "csrf_token"
+	csrfCookiePath    = "/"
+	csrfMaxAge        = 86400 // 24 hours
+	tokenSize         = 32    // 32 bytes random data
+	csrfFormBodyLimit = 64 << 10
 )
 
 // CSRFErrorHandler is called when CSRF validation fails.
@@ -60,7 +63,7 @@ func (c *CSRFProtection) Middleware(next http.Handler) http.Handler {
 		}
 
 		// Unsafe methods require token validation
-		if !c.validateRequest(r) {
+		if !c.validateRequest(w, r) {
 			// Flush the bad cookie and issue a fresh token so the
 			// next request succeeds without a full page refresh.
 			newToken := c.GenerateToken()
@@ -120,7 +123,7 @@ func (c *CSRFProtection) ValidateToken(token string) bool {
 
 // validateRequest checks if the request contains a valid CSRF token
 // that matches the token in the cookie.
-func (c *CSRFProtection) validateRequest(r *http.Request) bool {
+func (c *CSRFProtection) validateRequest(w http.ResponseWriter, r *http.Request) bool {
 	// Get token from cookie
 	cookie, err := r.Cookie(csrfCookieName)
 	if err != nil {
@@ -129,10 +132,27 @@ func (c *CSRFProtection) validateRequest(r *http.Request) bool {
 	cookieToken := cookie.Value
 
 	// Get token from request (header takes precedence)
+	mediaType, _, mediaTypeErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if mediaTypeErr == nil && strings.EqualFold(mediaType, "application/x-www-form-urlencoded") && r.Body != nil {
+		// Cap URL-encoded bodies even when the token arrives in a header. The
+		// downstream unauthenticated handlers may still call FormValue after the
+		// header bypass, while multipart upload limits belong to those handlers.
+		r.Body = http.MaxBytesReader(w, r.Body, csrfFormBodyLimit)
+	}
+
 	requestToken := r.Header.Get(csrfHeaderName)
 	if requestToken == "" {
-		// Fall back to form field
-		requestToken = r.FormValue(csrfFormField)
+		// Never parse multipart bodies in global middleware. Upload handlers apply
+		// their own size limits after authentication; parsing here could let an
+		// unauthenticated request consume temporary disk first.
+		if mediaTypeErr != nil || !strings.EqualFold(mediaType, "application/x-www-form-urlencoded") || r.Body == nil {
+			return false
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, csrfFormBodyLimit)
+		if err := r.ParseForm(); err != nil {
+			return false
+		}
+		requestToken = r.PostForm.Get(csrfFormField)
 	}
 
 	if requestToken == "" {
