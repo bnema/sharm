@@ -6,8 +6,8 @@ Keep changes narrow, concrete, and verifiable.
 ## Repo Facts
 - The project is a Go application using hexagonal architecture.
 - The module path is `github.com/bnema/sharm`.
-- The Go version in `go.mod` is `1.26.2`.
-- Development expects Go 1.26.2+, FFmpeg, `sqlc`, `templ`, and `mockery`.
+- The Go version in `go.mod` is `1.26`.
+- Development expects Go 1.26+, FFmpeg, `sqlc`, `templ`, and `mockery`.
 - The current repo-local agent rules are this file and the README.
 - There is no `.cursor/rules/` directory in this repo.
 - There is no `.cursorrules` file in this repo.
