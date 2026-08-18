@@ -1,6 +1,7 @@
 package http
 
 import (
+	"net"
 	"net/http"
 
 	"github.com/bnema/sharm/internal/adapter/http/middleware"
@@ -12,33 +13,35 @@ import (
 )
 
 type Server struct {
-	mux            *http.ServeMux
-	handlers       *Handlers
-	sseHandler     *SSEHandler
-	authSvc        AuthService
-	mediaSvc       MediaService
-	rateLimiter    *ratelimit.LoginRateLimiter
-	backoffTracker *ratelimit.LoginAttemptTracker
-	backoff        *ratelimit.Backoff
-	csrf           *middleware.CSRFProtection
-	behindProxy    bool
-	version        string
+	mux               *http.ServeMux
+	handlers          *Handlers
+	sseHandler        *SSEHandler
+	authSvc           AuthService
+	mediaSvc          MediaService
+	rateLimiter       *ratelimit.LoginRateLimiter
+	backoffTracker    *ratelimit.LoginAttemptTracker
+	backoff           *ratelimit.Backoff
+	csrf              *middleware.CSRFProtection
+	behindProxy       bool
+	trustedProxyCIDRs []*net.IPNet
+	version           string
 }
 
 // ServerConfig holds all dependencies and settings needed to create an HTTP server.
 type ServerConfig struct {
-	AuthSvc         AuthService
-	MediaSvc        MediaService
-	ChunkSvc        *service.ChunkService
-	EventBus        port.EventSubscriber
-	Domain          string
-	MaxUploadSizeMB int
-	Version         string
-	BehindProxy     bool
-	RateLimiter     *ratelimit.LoginRateLimiter
-	BackoffTracker  *ratelimit.LoginAttemptTracker
-	Backoff         *ratelimit.Backoff
-	CSRF            *middleware.CSRFProtection
+	AuthSvc           AuthService
+	MediaSvc          MediaService
+	ChunkSvc          *service.ChunkService
+	EventBus          port.EventSubscriber
+	Domain            string
+	MaxUploadSizeMB   int
+	Version           string
+	BehindProxy       bool
+	TrustedProxyCIDRs []*net.IPNet
+	RateLimiter       *ratelimit.LoginRateLimiter
+	BackoffTracker    *ratelimit.LoginAttemptTracker
+	Backoff           *ratelimit.Backoff
+	CSRF              *middleware.CSRFProtection
 }
 
 func NewServer(cfg ServerConfig) *Server {
@@ -47,17 +50,18 @@ func NewServer(cfg ServerConfig) *Server {
 	sseHandler := NewSSEHandler(cfg.EventBus, cfg.MediaSvc, cfg.Domain)
 
 	s := &Server{
-		mux:            mux,
-		handlers:       handlers,
-		sseHandler:     sseHandler,
-		authSvc:        cfg.AuthSvc,
-		mediaSvc:       cfg.MediaSvc,
-		rateLimiter:    cfg.RateLimiter,
-		backoffTracker: cfg.BackoffTracker,
-		backoff:        cfg.Backoff,
-		csrf:           cfg.CSRF,
-		behindProxy:    cfg.BehindProxy,
-		version:        cfg.Version,
+		mux:               mux,
+		handlers:          handlers,
+		sseHandler:        sseHandler,
+		authSvc:           cfg.AuthSvc,
+		mediaSvc:          cfg.MediaSvc,
+		rateLimiter:       cfg.RateLimiter,
+		backoffTracker:    cfg.BackoffTracker,
+		backoff:           cfg.Backoff,
+		csrf:              cfg.CSRF,
+		behindProxy:       cfg.BehindProxy,
+		trustedProxyCIDRs: cfg.TrustedProxyCIDRs,
+		version:           cfg.Version,
 	}
 
 	s.registerRoutes()
@@ -67,15 +71,15 @@ func NewServer(cfg ServerConfig) *Server {
 }
 
 func (s *Server) registerRoutes() {
-	setupHandler := SetupHandler(s.authSvc, s.version, s.behindProxy)
+	setupHandler := SetupHandler(s.authSvc, s.version, s.behindProxy, s.trustedProxyCIDRs)
 	s.mux.HandleFunc("GET /setup", setupHandler)
 	s.mux.HandleFunc("POST /setup", setupHandler)
 
-	loginHandler := LoginHandler(s.authSvc, s.rateLimiter, s.backoffTracker, s.backoff, s.version, s.behindProxy)
+	loginHandler := LoginHandler(s.authSvc, s.rateLimiter, s.backoffTracker, s.backoff, s.version, s.behindProxy, s.trustedProxyCIDRs)
 	s.mux.HandleFunc("GET /login", loginHandler)
 	s.mux.HandleFunc("POST /login", loginHandler)
 
-	s.mux.HandleFunc("POST /logout", AuthMiddleware(s.authSvc, LogoutHandler(s.behindProxy)))
+	s.mux.HandleFunc("POST /logout", AuthMiddleware(s.authSvc, LogoutHandler(s.authSvc, s.behindProxy)))
 
 	s.mux.HandleFunc("POST /change-password", AuthMiddleware(s.authSvc, ChangePasswordHandler(s.authSvc)))
 

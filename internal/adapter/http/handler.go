@@ -627,8 +627,6 @@ func detectOriginalMIMEType(media *domain.Media) string {
 		return "image/gif"
 	case ".webp":
 		return "image/webp"
-	case ".svg":
-		return "image/svg+xml"
 	case ".jpg", ".jpeg":
 		return "image/jpeg"
 	case ".mp4", ".m4v":

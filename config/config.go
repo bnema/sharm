@@ -4,9 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -17,6 +19,7 @@ type Config struct {
 	DataDir              string
 	SecretKey            string
 	BehindProxy          bool
+	TrustedProxyCIDRs    []*net.IPNet
 }
 
 func Load() (*Config, error) {
@@ -51,6 +54,10 @@ func Load() (*Config, error) {
 	}
 
 	behindProxy := getEnv("BEHIND_PROXY", "false") == "true"
+	trustedProxyCIDRs, err := parseCIDRs(getEnv("TRUSTED_PROXY_CIDRS", "127.0.0.0/8,::1/128"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid TRUSTED_PROXY_CIDRS: %w", err)
+	}
 
 	return &Config{
 		Port:                 port,
@@ -60,7 +67,28 @@ func Load() (*Config, error) {
 		DataDir:              getEnv("DATA_DIR", "/data"),
 		SecretKey:            secretKey,
 		BehindProxy:          behindProxy,
+		TrustedProxyCIDRs:    trustedProxyCIDRs,
 	}, nil
+}
+
+func parseCIDRs(value string) ([]*net.IPNet, error) {
+	parts := strings.Split(value, ",")
+	cidrs := make([]*net.IPNet, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		_, network, err := net.ParseCIDR(part)
+		if err != nil {
+			return nil, err
+		}
+		cidrs = append(cidrs, network)
+	}
+	if len(cidrs) == 0 {
+		return nil, fmt.Errorf("at least one CIDR is required")
+	}
+	return cidrs, nil
 }
 
 func generateSecretKey() string {

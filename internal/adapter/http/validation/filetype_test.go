@@ -89,6 +89,15 @@ func TestValidateMagicBytes_MP4_Allowed(t *testing.T) {
 	assert.Equal(t, "video/mp4", mime)
 }
 
+func TestValidateMagicBytes_UnknownMP4BrandRejected(t *testing.T) {
+	unknownBrand := []byte{0x00, 0x00, 0x00, 0x18, 'f', 't', 'y', 'p', 'x', 's', 's', '!'}
+	mime, allowed, err := ValidateMagicBytes(bytes.NewReader(unknownBrand))
+
+	require.NoError(t, err)
+	assert.NotEqual(t, "video/mp4", mime)
+	assert.False(t, allowed)
+}
+
 func TestValidateMagicBytes_WebM_Allowed(t *testing.T) {
 	reader := bytes.NewReader(padBytes(webmMagic, 512))
 	mime, allowed, err := ValidateMagicBytes(reader)

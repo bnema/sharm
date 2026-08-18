@@ -2,6 +2,7 @@ package ratelimit
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -48,6 +49,7 @@ func pow(base, exp float64) float64 {
 }
 
 type LoginAttemptTracker struct {
+	mu       sync.RWMutex
 	attempts map[string]int
 }
 
@@ -58,6 +60,9 @@ func NewLoginAttemptTracker() *LoginAttemptTracker {
 }
 
 func (t *LoginAttemptTracker) GetFailedAttempts(clientID string) int {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
 	if attempts, exists := t.attempts[clientID]; exists {
 		return attempts
 	}
@@ -65,9 +70,15 @@ func (t *LoginAttemptTracker) GetFailedAttempts(clientID string) int {
 }
 
 func (t *LoginAttemptTracker) RecordFailure(clientID string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	t.attempts[clientID]++
 }
 
 func (t *LoginAttemptTracker) RecordSuccess(clientID string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	delete(t.attempts, clientID)
 }

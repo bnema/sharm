@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +13,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type readTrackingReader struct {
+	read bool
+}
+
+func (r *readTrackingReader) Read([]byte) (int, error) {
+	r.read = true
+	return 0, errors.New("body should not be read")
+}
 
 const testSecretKey = "test-secret-key-for-csrf-protection"
 
@@ -212,6 +222,36 @@ func TestCSRFMiddleware_POSTWithValidFormToken(t *testing.T) {
 	handler.ServeHTTP(postRec, postReq)
 
 	assert.Equal(t, http.StatusOK, postRec.Code)
+}
+
+func TestCSRFMiddleware_DoesNotParseMultipartWithoutHeaderToken(t *testing.T) {
+	csrf := NewCSRFProtection(testSecretKey, testCSRFErrorHandler)
+	handler := csrf.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	getReq := httptest.NewRequest(http.MethodGet, "/", nil)
+	getRec := httptest.NewRecorder()
+	handler.ServeHTTP(getRec, getReq)
+	var token string
+	for _, c := range getRec.Result().Cookies() {
+		if c.Name == csrfCookieName {
+			token = c.Value
+			break
+		}
+	}
+	require.NotEmpty(t, token)
+
+	body := &readTrackingReader{}
+	postReq := httptest.NewRequest(http.MethodPost, "/upload", body)
+	postReq.Header.Set("Content-Type", "multipart/form-data; boundary=ignored")
+	postReq.AddCookie(&http.Cookie{Name: csrfCookieName, Value: token})
+	postRec := httptest.NewRecorder()
+
+	handler.ServeHTTP(postRec, postReq)
+
+	assert.Equal(t, http.StatusForbidden, postRec.Code)
+	assert.False(t, body.read)
 }
 
 func TestCSRFMiddleware_POSTWithMismatchedTokens(t *testing.T) {

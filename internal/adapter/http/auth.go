@@ -3,7 +3,9 @@ package http
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bnema/sharm/internal/adapter/http/ratelimit"
@@ -20,12 +22,69 @@ const (
 	HXRequestTrue  = "true"
 )
 
-func getClientID(r *http.Request) string {
-	forwarded := r.Header.Get("X-Forwarded-For")
-	if forwarded != "" {
-		return forwarded
+func getClientID(r *http.Request, behindProxy bool, trustedProxyCIDRs []*net.IPNet) string {
+	if clientIP := trustedClientIP(r, behindProxy, trustedProxyCIDRs); clientIP != "" {
+		return clientIP
 	}
-	return r.RemoteAddr
+	return "unknown"
+}
+
+func trustedClientIP(r *http.Request, behindProxy bool, trustedProxyCIDRs []*net.IPNet) string {
+	if behindProxy && isTrustedProxy(r, trustedProxyCIDRs) {
+		if clientIP := parseIPHeader(r.Header.Get("X-Real-IP")); clientIP != "" {
+			return clientIP
+		}
+
+		forwarded := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
+		for i := len(forwarded) - 1; i >= 0; i-- {
+			if clientIP := parseIPHeader(forwarded[i]); clientIP != "" {
+				return clientIP
+			}
+		}
+	}
+
+	return remoteClientIP(r)
+}
+
+func remoteClientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		return host
+	}
+	return parseIPHeader(r.RemoteAddr)
+}
+
+func parseIPHeader(value string) string {
+	value = strings.TrimSpace(value)
+	if ip := net.ParseIP(value); ip != nil {
+		return ip.String()
+	}
+	return ""
+}
+
+func isLoopbackClient(r *http.Request, behindProxy bool, trustedProxyCIDRs []*net.IPNet) bool {
+	return isLoopbackIP(trustedClientIP(r, behindProxy, trustedProxyCIDRs))
+}
+
+func isLoopbackIP(value string) bool {
+	ip := net.ParseIP(value)
+	return ip != nil && ip.IsLoopback()
+}
+
+func isTrustedProxy(r *http.Request, trustedProxyCIDRs []*net.IPNet) bool {
+	remoteIP := net.ParseIP(remoteClientIP(r))
+	if remoteIP == nil {
+		return false
+	}
+	if len(trustedProxyCIDRs) == 0 {
+		return remoteIP.IsLoopback()
+	}
+	for _, network := range trustedProxyCIDRs {
+		if network.Contains(remoteIP) {
+			return true
+		}
+	}
+	return false
 }
 
 func formatDuration(d time.Duration) string {
@@ -49,6 +108,7 @@ type AuthService interface {
 	ValidateToken(token string) (*domain.User, error)
 	CreateUser(username, password string) error
 	ChangePassword(username, oldPassword, newPassword string) error
+	RevokeSessions(username string) error
 }
 
 func AuthMiddleware(authSvc AuthService, next http.HandlerFunc) http.HandlerFunc {
@@ -66,14 +126,14 @@ func AuthMiddleware(authSvc AuthService, next http.HandlerFunc) http.HandlerFunc
 
 		cookie, err := r.Cookie(CookieName)
 		if err != nil {
-			logger.Debug.Printf("auth middleware: no cookie found, path=%s", r.URL.Path)
+			logger.Debug.Printf("auth middleware: no cookie found, path=%s", logger.SanitizeForLog(r.URL.Path))
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
 
 		user, err := authSvc.ValidateToken(cookie.Value)
 		if err != nil {
-			logger.Warn.Printf("auth middleware: invalid token, error=%v, path=%s", err, r.URL.Path)
+			logger.Warn.Printf("auth middleware: invalid token, error=%v, path=%s", err, logger.SanitizeForLog(r.URL.Path))
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
@@ -83,7 +143,7 @@ func AuthMiddleware(authSvc AuthService, next http.HandlerFunc) http.HandlerFunc
 	}
 }
 
-func LoginHandler(authSvc AuthService, rateLimiter *ratelimit.LoginRateLimiter, tracker *ratelimit.LoginAttemptTracker, backoff *ratelimit.Backoff, version string, behindProxy bool) http.HandlerFunc {
+func LoginHandler(authSvc AuthService, rateLimiter *ratelimit.LoginRateLimiter, tracker *ratelimit.LoginAttemptTracker, backoff *ratelimit.Backoff, version string, behindProxy bool, trustedProxyCIDRs []*net.IPNet) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Redirect to setup if no user exists yet
 		hasUser, err := authSvc.HasUser()
@@ -97,7 +157,7 @@ func LoginHandler(authSvc AuthService, rateLimiter *ratelimit.LoginRateLimiter, 
 			return
 		}
 
-		clientID := getClientID(r)
+		clientID := getClientID(r, behindProxy, trustedProxyCIDRs)
 
 		if r.Method == http.MethodGet {
 			renderLogin(w, r, version)
@@ -170,8 +230,19 @@ func renderLogin(w http.ResponseWriter, r *http.Request, version string) {
 	_ = templates.Login("", version).Render(r.Context(), w)
 }
 
-func LogoutHandler(behindProxy bool) http.HandlerFunc {
+func LogoutHandler(authSvc AuthService, behindProxy bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := r.Context().Value(userKey).(*domain.User)
+		if !ok || user == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if err := authSvc.RevokeSessions(user.Username); err != nil {
+			logger.Error.Printf("logout: failed to revoke sessions for user %s: %v", user.Username, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
 		secure := r.TLS != nil || behindProxy
 		http.SetCookie(w, &http.Cookie{
 			Name:     CookieName,
@@ -187,8 +258,13 @@ func LogoutHandler(behindProxy bool) http.HandlerFunc {
 	}
 }
 
-func SetupHandler(authSvc AuthService, version string, behindProxy bool) http.HandlerFunc {
+func SetupHandler(authSvc AuthService, version string, behindProxy bool, trustedProxyCIDRs []*net.IPNet) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !isLoopbackClient(r, behindProxy, trustedProxyCIDRs) {
+			http.Error(w, "Setup is only available from localhost", http.StatusNotFound)
+			return
+		}
+
 		hasUser, err := authSvc.HasUser()
 		if err != nil {
 			logger.Error.Printf("setup: failed to check user existence: %v", err)

@@ -344,11 +344,12 @@ func (s *Store) GetUser(username string) (*domain.User, error) {
 		return nil, err
 	}
 	return &domain.User{
-		ID:           row.ID,
-		Username:     row.Username,
-		PasswordHash: row.PasswordHash,
-		CreatedAt:    row.CreatedAt,
-		UpdatedAt:    row.UpdatedAt,
+		ID:             row.ID,
+		Username:       row.Username,
+		PasswordHash:   row.PasswordHash,
+		SessionVersion: row.SessionVersion,
+		CreatedAt:      row.CreatedAt,
+		UpdatedAt:      row.UpdatedAt,
 	}, nil
 }
 
@@ -362,11 +363,12 @@ func (s *Store) GetFirstUser() (*domain.User, error) {
 		return nil, err
 	}
 	return &domain.User{
-		ID:           row.ID,
-		Username:     row.Username,
-		PasswordHash: row.PasswordHash,
-		CreatedAt:    row.CreatedAt,
-		UpdatedAt:    row.UpdatedAt,
+		ID:             row.ID,
+		Username:       row.Username,
+		PasswordHash:   row.PasswordHash,
+		SessionVersion: row.SessionVersion,
+		CreatedAt:      row.CreatedAt,
+		UpdatedAt:      row.UpdatedAt,
 	}, nil
 }
 
@@ -380,11 +382,12 @@ func (s *Store) GetUserByID(id int64) (*domain.User, error) {
 		return nil, err
 	}
 	return &domain.User{
-		ID:           row.ID,
-		Username:     row.Username,
-		PasswordHash: row.PasswordHash,
-		CreatedAt:    row.CreatedAt,
-		UpdatedAt:    row.UpdatedAt,
+		ID:             row.ID,
+		Username:       row.Username,
+		PasswordHash:   row.PasswordHash,
+		SessionVersion: row.SessionVersion,
+		CreatedAt:      row.CreatedAt,
+		UpdatedAt:      row.UpdatedAt,
 	}, nil
 }
 
@@ -402,6 +405,11 @@ func (s *Store) UpdatePassword(id int64, passwordHash string) error {
 		PasswordHash: passwordHash,
 		ID:           id,
 	})
+}
+
+func (s *Store) IncrementSessionVersion(id int64) error {
+	ctx := context.Background()
+	return s.queries.IncrementUserSessionVersion(ctx, id)
 }
 
 var _ port.MediaStore = (*Store)(nil)

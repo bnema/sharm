@@ -21,7 +21,7 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 }
 
 const getFirstUser = `-- name: GetFirstUser :one
-SELECT id, username, password_hash, created_at, updated_at FROM users LIMIT 1
+SELECT id, username, password_hash, created_at, updated_at, session_version FROM users LIMIT 1
 `
 
 func (q *Queries) GetFirstUser(ctx context.Context) (User, error) {
@@ -33,12 +33,13 @@ func (q *Queries) GetFirstUser(ctx context.Context) (User, error) {
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SessionVersion,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, username, password_hash, created_at, updated_at FROM users WHERE username = ? LIMIT 1
+SELECT id, username, password_hash, created_at, updated_at, session_version FROM users WHERE username = ? LIMIT 1
 `
 
 func (q *Queries) GetUser(ctx context.Context, username string) (User, error) {
@@ -50,12 +51,13 @@ func (q *Queries) GetUser(ctx context.Context, username string) (User, error) {
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SessionVersion,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password_hash, created_at, updated_at FROM users WHERE id = ? LIMIT 1
+SELECT id, username, password_hash, created_at, updated_at, session_version FROM users WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
@@ -67,8 +69,18 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SessionVersion,
 	)
 	return i, err
+}
+
+const incrementUserSessionVersion = `-- name: IncrementUserSessionVersion :exec
+UPDATE users SET session_version = session_version + 1, updated_at = datetime('now') WHERE id = ?
+`
+
+func (q *Queries) IncrementUserSessionVersion(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, incrementUserSessionVersion, id)
+	return err
 }
 
 const insertUser = `-- name: InsertUser :exec
@@ -86,7 +98,7 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) error {
 }
 
 const updateUserPassword = `-- name: UpdateUserPassword :exec
-UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?
+UPDATE users SET password_hash = ?, session_version = session_version + 1, updated_at = datetime('now') WHERE id = ?
 `
 
 type UpdateUserPasswordParams struct {
