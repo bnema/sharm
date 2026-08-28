@@ -1,9 +1,6 @@
 package domain
 
-import (
-	"database/sql"
-	"time"
-)
+import "time"
 
 type JobType string
 
@@ -31,7 +28,11 @@ type Job struct {
 	Status       JobStatus
 	ErrorMessage string
 	Attempts     int64
+	Progress     int
+	MaxAttempts  int64
 	CreatedAt    time.Time
-	StartedAt    sql.NullTime
-	CompletedAt  sql.NullTime
+	StartedAt    *time.Time
+	CompletedAt  *time.Time
+	LeaseUntil   *time.Time
+	HeartbeatAt  *time.Time
 }

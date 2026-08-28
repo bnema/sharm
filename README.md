@@ -7,7 +7,7 @@
 
 ---
 
-Upload videos, audio, and images. Get shareable links that expire. Videos are auto-converted to AV1 and H264 for broad compatibility (Discord, browsers, etc). Shared links render with Open Graph and Twitter Card tags, so previews work when pasted into chat apps and social media.
+Upload videos, audio, and images and get shareable links that expire. Compatible fast-start MP4 videos with H.264/AAC are validated and published without server-side re-encoding; other video sources fall back to FFmpeg H.264 conversion. The original video is optional and is stored separately when requested. Shared links render with Open Graph and Twitter Card tags for previews in chat apps and social media.
 
 Single-user, single-binary, single Docker container. SQLite for storage, FFmpeg for conversion.
 
@@ -93,7 +93,16 @@ Run tests:
 
 ```bash
 make test
+make test-race
 ```
+
+Run the complete browser upload flow in disposable Docker volumes:
+
+```bash
+make test-e2e
+```
+
+The end-to-end test generates H.264/AAC and WebM fixtures with FFmpeg, exercises the direct and server-fallback paths in Chromium through Playwright, and removes its containers, volumes, generated secret key, and fixtures afterward.
 
 `make help` lists all available targets.
 

@@ -8,14 +8,17 @@ templ Upload(version string) {
 			}
 			<form id="upload-form">
 				@Dropzone("file", "video/*,image/*,audio/*")
+				<div id="original-option" style="display:none;margin-top:var(--s-md);">
+					<label style="display:flex;align-items:flex-start;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;">
+						<input id="keep-original" type="checkbox" name="keep_original"/>
+						<span>Keep the original source for later variants<br/><span class="text-muted" style="font-size:var(--text-xs);">The primary H.264 copy is always kept. Originals use extra storage.</span></span>
+					</label>
+				</div>
 				<!-- Codec selection (shown dynamically based on file type) -->
 				<div id="codec-options" style="display:none;margin-top:var(--s-md);">
 					<label class="text-muted" style="display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);">Conversion formats</label>
 					<div style="display:flex;flex-direction:column;gap:var(--s-xs);">
-						<label style="display:flex;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-muted);cursor:default;">
-							<input type="checkbox" checked disabled/>
-							<span>Original (always kept)</span>
-						</label>
+						<div class="text-muted" style="font-size:var(--text-xs);">Video preparation is automatic: compatible MP4s use the direct path; other videos use the server fallback.</div>
 						<label id="codec-av1" style="display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;">
 							<input type="checkbox" name="codecs" value="av1"/>
 							<span>WebM (AV1)</span>

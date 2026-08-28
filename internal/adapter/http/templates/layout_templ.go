@@ -206,7 +206,7 @@ func Layout(props LayoutProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div><script>\n\t\t\t\tif ('serviceWorker' in navigator) {\n\t\t\t\t\tnavigator.serviceWorker.register('/static/sw.js')\n\t\t\t\t\t\t.catch(function(err) { console.error('SW registration failed:', err); });\n\t\t\t\t}\n\t\t\t</script><script src=\"/static/app.js\"></script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div><script>\n\t\t\t\tif ('serviceWorker' in navigator) {\n\t\t\t\t\tnavigator.serviceWorker.register('/static/sw.js')\n\t\t\t\t\t\t.catch(function(err) { console.error('SW registration failed:', err); });\n\t\t\t\t}\n\t\t\t</script><script src=\"/static/app.js\"></script><script src=\"/static/video-upload.js\"></script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -35,15 +35,28 @@ type MediaService interface {
 
 type Handlers struct {
 	mediaSvc  MediaService
+	uploadSvc ResumableUploadService
 	chunkSvc  *service.ChunkService
 	domain    string
 	maxSizeMB int
 	version   string
 }
 
-func NewHandlers(mediaSvc MediaService, chunkSvc *service.ChunkService, domainName string, maxSizeMB int, version string) *Handlers {
+func NewHandlers(
+	mediaSvc MediaService,
+	chunkSvc *service.ChunkService,
+	domainName string,
+	maxSizeMB int,
+	version string,
+	uploadSvcs ...ResumableUploadService,
+) *Handlers {
+	var uploadSvc ResumableUploadService
+	if len(uploadSvcs) > 0 {
+		uploadSvc = uploadSvcs[0]
+	}
 	return &Handlers{
 		mediaSvc:  mediaSvc,
+		uploadSvc: uploadSvc,
 		chunkSvc:  chunkSvc,
 		domain:    domainName,
 		maxSizeMB: maxSizeMB,

@@ -31,6 +31,7 @@ type Server struct {
 type ServerConfig struct {
 	AuthSvc           AuthService
 	MediaSvc          MediaService
+	UploadSvc         ResumableUploadService
 	ChunkSvc          *service.ChunkService
 	EventBus          port.EventSubscriber
 	Domain            string
@@ -46,7 +47,7 @@ type ServerConfig struct {
 
 func NewServer(cfg ServerConfig) *Server {
 	mux := http.NewServeMux()
-	handlers := NewHandlers(cfg.MediaSvc, cfg.ChunkSvc, cfg.Domain, cfg.MaxUploadSizeMB, cfg.Version)
+	handlers := NewHandlers(cfg.MediaSvc, cfg.ChunkSvc, cfg.Domain, cfg.MaxUploadSizeMB, cfg.Version, cfg.UploadSvc)
 	sseHandler := NewSSEHandler(cfg.EventBus, cfg.MediaSvc, cfg.Domain)
 
 	s := &Server{
@@ -89,6 +90,12 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /config", AuthMiddleware(s.authSvc, s.handlers.ConfigPage()))
 
 	s.mux.HandleFunc("POST /upload", AuthMiddleware(s.authSvc, s.handlers.Upload()))
+	s.mux.HandleFunc("POST /upload/session", AuthMiddleware(s.authSvc, s.handlers.CreateUploadSession()))
+	s.mux.HandleFunc("GET /upload/session/{sessionID}", AuthMiddleware(s.authSvc, s.handlers.GetUploadSession()))
+	s.mux.HandleFunc("DELETE /upload/session/{sessionID}", AuthMiddleware(s.authSvc, s.handlers.CancelUploadSession()))
+	uploadChunk := AuthMiddleware(s.authSvc, s.handlers.UploadSessionChunk())
+	s.mux.HandleFunc("PUT /upload/session/{sessionID}/assets/{assetID}/chunks/{index}", uploadChunk)
+	s.mux.HandleFunc("POST /upload/session/{sessionID}/assets/{assetID}/complete", AuthMiddleware(s.authSvc, s.handlers.CompleteUploadAsset()))
 	s.mux.HandleFunc("POST /upload/chunk", AuthMiddleware(s.authSvc, s.handlers.ChunkUpload()))
 	s.mux.HandleFunc("POST /upload/complete", AuthMiddleware(s.authSvc, s.handlers.CompleteUpload()))
 

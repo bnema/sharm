@@ -2,12 +2,19 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/bnema/sharm/internal/port"
+)
+
+const (
+	jobHeartbeatInterval = time.Minute
+	jobRecoveryInterval  = time.Minute
 )
 
 type WorkerPool struct {
@@ -49,6 +56,7 @@ func (wp *WorkerPool) Start(ctx context.Context) {
 		wp.log.Errorf("failed to reset stalled jobs: %v", err)
 	}
 
+	go wp.recoverStalledJobs(ctx)
 	for i := range wp.workers {
 		go wp.runWorker(ctx, i)
 	}
@@ -78,11 +86,16 @@ func (wp *WorkerPool) runWorker(ctx context.Context, id int) {
 		}
 
 		wp.log.Infof("worker %d: processing job %d (type=%s, media=%s, codec=%s)", id, job.ID, job.Type, job.MediaID, job.Codec)
-		wp.processJob(job)
+		wp.processJob(ctx, job)
 	}
 }
 
-func (wp *WorkerPool) processJob(job *domain.Job) {
+func (wp *WorkerPool) processJob(ctx context.Context, job *domain.Job) {
+	heartbeatDone := make(chan struct{})
+	heartbeatErr := make(chan error, 1)
+	go wp.heartbeatJob(ctx, job.ID, heartbeatDone, heartbeatErr)
+	defer close(heartbeatDone)
+
 	var err error
 
 	switch job.Type {
@@ -96,6 +109,12 @@ func (wp *WorkerPool) processJob(job *domain.Job) {
 		err = fmt.Errorf("unknown job type: %s", job.Type)
 	}
 
+	select {
+	case leaseErr := <-heartbeatErr:
+		wp.log.Warnf("worker lost job lease job=%d err=%v", job.ID, leaseErr)
+		return
+	default:
+	}
 	if err != nil {
 		wp.log.Errorf("job %d failed: %v", job.ID, err)
 		_ = wp.jobQueue.Fail(job.ID, err.Error())
@@ -113,6 +132,39 @@ func (wp *WorkerPool) processJob(job *domain.Job) {
 
 	_ = wp.jobQueue.Complete(job.ID)
 	wp.log.Infof("job %d completed", job.ID)
+}
+
+func (wp *WorkerPool) heartbeatJob(ctx context.Context, jobID int64, done <-chan struct{}, result chan<- error) {
+	ticker := time.NewTicker(jobHeartbeatInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-done:
+			return
+		case <-ticker.C:
+			if err := wp.jobQueue.Heartbeat(jobID); err != nil {
+				result <- err
+				return
+			}
+		}
+	}
+}
+
+func (wp *WorkerPool) recoverStalledJobs(ctx context.Context) {
+	ticker := time.NewTicker(jobRecoveryInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := wp.jobQueue.ResetStalled(); err != nil {
+				wp.log.Warnf("reset stalled jobs err=%v", err)
+			}
+		}
+	}
 }
 
 func (wp *WorkerPool) handleConvert(job *domain.Job) error {
@@ -150,7 +202,11 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 	_ = wp.store.UpdateVariantStatus(variant.ID, domain.VariantStatusProcessing, "")
 	wp.publishEvent(media.ID, "status", string(domain.MediaStatusProcessing), "")
 
-	outputPath, err := wp.converter.ConvertCodec(media.OriginalPath, convertedDir, media.ID, job.Codec, job.Fps)
+	sourcePath, transientSource, err := wp.variantSource(media, job.Codec)
+	if err != nil {
+		return err
+	}
+	outputPath, err := wp.converter.ConvertCodec(sourcePath, convertedDir, media.ID, job.Codec, job.Fps)
 	if err != nil {
 		return fmt.Errorf("convert %s: %w", job.Codec, err)
 	}
@@ -180,6 +236,8 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 	variant.FileSize = fileSize
 	variant.Width = width
 	variant.Height = height
+	variant.Origin = domain.VariantOriginServer
+	variant.Primary = variant.Codec == domain.CodecH264
 	variant.Status = domain.VariantStatusDone
 	if updateErr := wp.store.UpdateVariantDone(variant); updateErr != nil {
 		return fmt.Errorf("update variant done: %w", updateErr)
@@ -217,8 +275,38 @@ func (wp *WorkerPool) handleVariantConvert(job *domain.Job, media *domain.Media,
 	} else {
 		wp.publishEvent(media.ID, "status", string(domain.MediaStatusProcessing), "")
 	}
+	if transientSource {
+		wp.removeTransientSource(media.ID, sourcePath)
+	}
 
 	return nil
+}
+
+func (wp *WorkerPool) variantSource(media *domain.Media, codec domain.Codec) (string, bool, error) {
+	if media.OriginalPath != "" {
+		return media.OriginalPath, false, nil
+	}
+	if codec != domain.CodecH264 {
+		return "", false, fmt.Errorf("%w: original source is unavailable", domain.ErrUnsupportedMedia)
+	}
+	asset, err := wp.store.GetMediaAsset(media.ID, domain.AssetRoleSourceTransient)
+	if err != nil {
+		return "", false, fmt.Errorf("get transient conversion source: %w", err)
+	}
+	if asset.Status != domain.AssetStatusAvailable || asset.Path == "" {
+		return "", false, fmt.Errorf("%w: transient source is unavailable", domain.ErrUnsupportedMedia)
+	}
+	return asset.Path, true, nil
+}
+
+func (wp *WorkerPool) removeTransientSource(mediaID, path string) {
+	if err := wp.fs.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		wp.log.Warnf("remove transient source media=%s err=%v", mediaID, err)
+		return
+	}
+	if err := wp.store.DeleteMediaAsset(mediaID, domain.AssetRoleSourceTransient); err != nil {
+		wp.log.Warnf("delete transient source record media=%s err=%v", mediaID, err)
+	}
 }
 
 func (wp *WorkerPool) handleLegacyConvert(job *domain.Job, media *domain.Media, convertedDir string) error {

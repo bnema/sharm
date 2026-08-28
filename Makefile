@@ -165,6 +165,11 @@ benchmark:
 	$(info Running benchmarks...)
 	$(GOTEST) -bench=. -benchmem ./...
 
+## test-e2e: Run the containerized Playwright upload flow
+.PHONY: test-e2e
+test-e2e:
+	./tests/e2e/run.sh
+
 # =====================================================
 # Docker Targets
 # =====================================================

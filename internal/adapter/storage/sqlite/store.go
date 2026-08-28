@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/bnema/sharm/internal/adapter/storage/sqlite/sqlitedb"
 	"github.com/bnema/sharm/internal/domain"
@@ -127,6 +128,19 @@ func (s *Store) Get(id string) (*domain.Media, error) {
 	}
 	media.Variants = variantListFromRows(variants)
 
+	assets, err := s.queries.ListMediaAssets(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("list media assets: %w", err)
+	}
+	for i := range assets {
+		if assets[i].Role == string(domain.AssetRoleOriginal) && assets[i].Status == string(domain.AssetStatusAvailable) {
+			media.OriginalAvailable = true
+			if media.OriginalPath == "" {
+				media.OriginalPath = assets[i].Path
+			}
+		}
+	}
+
 	return media, nil
 }
 
@@ -181,6 +195,14 @@ func (s *Store) UpdateDone(m *domain.Media) error {
 	})
 }
 
+func (s *Store) UpdateOriginalPath(id, path string) error {
+	ctx := context.Background()
+	return s.queries.UpdateMediaOriginalPath(ctx, sqlitedb.UpdateMediaOriginalPathParams{
+		OriginalPath: path,
+		ID:           id,
+	})
+}
+
 func (s *Store) UpdateProbeJSON(id string, probeJSON string) error {
 	ctx := context.Background()
 	return s.queries.UpdateMediaProbeJSON(ctx, sqlitedb.UpdateMediaProbeJSONParams{
@@ -202,7 +224,80 @@ func (s *Store) SaveVariant(v *domain.Variant) error {
 	}
 	v.ID = row.ID
 	v.CreatedAt = row.CreatedAt
+	v.Status = domain.VariantStatus(row.Status)
+	v.Origin = domain.VariantOrigin(row.Origin)
 	return nil
+}
+
+func (s *Store) SavePrimaryVariant(v *domain.Variant) error {
+	ctx := context.Background()
+	row, err := insertPrimaryVariant(ctx, s.queries, v)
+	if err != nil {
+		return err
+	}
+	*v = variantFromRow(row)
+	return nil
+}
+
+func (s *Store) PublishPrimaryVariant(media *domain.Media, variant *domain.Variant, probeJSON string) error {
+	ctx := context.Background()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin primary publication: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := s.queries.WithTx(tx)
+	row, err := insertPrimaryVariant(ctx, q, variant)
+	if err != nil {
+		return fmt.Errorf("save primary variant: %w", err)
+	}
+	if probeJSON != "" {
+		if err := q.UpdateMediaProbeJSON(ctx, sqlitedb.UpdateMediaProbeJSONParams{ProbeJson: probeJSON, ID: media.ID}); err != nil {
+			return fmt.Errorf("save media probe: %w", err)
+		}
+	}
+	if err := q.UpdateMediaDone(ctx, sqlitedb.UpdateMediaDoneParams{
+		ConvertedPath: media.ConvertedPath,
+		Codec:         string(media.Codec),
+		Width:         int64(media.Width),
+		Height:        int64(media.Height),
+		ThumbPath:     media.ThumbPath,
+		FileSize:      media.FileSize,
+		ID:            media.ID,
+	}); err != nil {
+		return fmt.Errorf("publish primary media: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit primary publication: %w", err)
+	}
+	*variant = variantFromRow(row)
+	return nil
+}
+
+func insertPrimaryVariant(ctx context.Context, queries *sqlitedb.Queries, v *domain.Variant) (sqlitedb.MediaVariant, error) {
+	now := v.CreatedAt
+	if now.IsZero() {
+		now = time.Now()
+	}
+	return queries.InsertPrimaryVariant(ctx, sqlitedb.InsertPrimaryVariantParams{
+		MediaID:         v.MediaID,
+		Codec:           string(v.Codec),
+		Container:       v.Container,
+		VideoCodec:      v.VideoCodec,
+		AudioCodec:      v.AudioCodec,
+		HasAudio:        boolToInt64(v.HasAudio),
+		Profile:         v.Profile,
+		Level:           v.Level,
+		MimeType:        v.MIMEType,
+		Origin:          string(v.Origin),
+		Progress:        int64(v.Progress),
+		DurationSeconds: v.DurationSeconds,
+		Path:            v.Path,
+		FileSize:        v.FileSize,
+		Width:           int64(v.Width),
+		Height:          int64(v.Height),
+		CreatedAt:       now,
+	})
 }
 
 func (s *Store) GetVariant(id int64) (*domain.Variant, error) {
@@ -252,14 +347,26 @@ func (s *Store) UpdateVariantStatus(id int64, status domain.VariantStatus, errMs
 	})
 }
 
+func (s *Store) UpdateVariantProgress(id int64, status domain.VariantStatus, progress int, errMsg string) error {
+	ctx := context.Background()
+	return s.queries.UpdateVariantProgress(ctx, sqlitedb.UpdateVariantProgressParams{
+		Status:       string(status),
+		Progress:     int64(progress),
+		ErrorMessage: errMsg,
+		ID:           id,
+	})
+}
+
 func (s *Store) UpdateVariantDone(v *domain.Variant) error {
 	ctx := context.Background()
 	return s.queries.UpdateVariantDone(ctx, sqlitedb.UpdateVariantDoneParams{
-		Path:     v.Path,
-		FileSize: v.FileSize,
-		Width:    int64(v.Width),
-		Height:   int64(v.Height),
-		ID:       v.ID,
+		Path:      v.Path,
+		FileSize:  v.FileSize,
+		Width:     int64(v.Width),
+		Height:    int64(v.Height),
+		IsPrimary: boolToInt64(v.Primary),
+		Origin:    string(v.Origin),
+		ID:        v.ID,
 	})
 }
 
@@ -272,38 +379,57 @@ func (s *Store) DeleteVariantsByMedia(mediaID string) error {
 
 func mediumToMedia(row sqlitedb.Medium) *domain.Media {
 	return &domain.Media{
-		ID:            row.ID,
-		Type:          domain.MediaType(row.Type),
-		OriginalName:  row.OriginalName,
-		OriginalPath:  row.OriginalPath,
-		ConvertedPath: row.ConvertedPath,
-		Status:        domain.MediaStatus(row.Status),
-		Codec:         domain.Codec(row.Codec),
-		ErrorMessage:  row.ErrorMessage,
-		RetentionDays: int(row.RetentionDays),
-		FileSize:      row.FileSize,
-		Width:         int(row.Width),
-		Height:        int(row.Height),
-		ThumbPath:     row.ThumbPath,
-		CreatedAt:     row.CreatedAt,
-		ExpiresAt:     row.ExpiresAt,
-		ProbeJSON:     row.ProbeJson,
+		ID:                row.ID,
+		Type:              domain.MediaType(row.Type),
+		OriginalName:      row.OriginalName,
+		OriginalPath:      row.OriginalPath,
+		OriginalAvailable: row.OriginalPath != "",
+		ConvertedPath:     row.ConvertedPath,
+		Status:            domain.MediaStatus(row.Status),
+		Codec:             domain.Codec(row.Codec),
+		ErrorMessage:      row.ErrorMessage,
+		RetentionDays:     int(row.RetentionDays),
+		FileSize:          row.FileSize,
+		Width:             int(row.Width),
+		Height:            int(row.Height),
+		ThumbPath:         row.ThumbPath,
+		CreatedAt:         row.CreatedAt,
+		ExpiresAt:         row.ExpiresAt,
+		ProbeJSON:         row.ProbeJson,
 	}
 }
 
 func variantFromRow(row sqlitedb.MediaVariant) domain.Variant {
 	return domain.Variant{
-		ID:           row.ID,
-		MediaID:      row.MediaID,
-		Codec:        domain.Codec(row.Codec),
-		Path:         row.Path,
-		FileSize:     row.FileSize,
-		Width:        int(row.Width),
-		Height:       int(row.Height),
-		Status:       domain.VariantStatus(row.Status),
-		ErrorMessage: row.ErrorMessage,
-		CreatedAt:    row.CreatedAt,
+		ID:              row.ID,
+		MediaID:         row.MediaID,
+		Codec:           domain.Codec(row.Codec),
+		Path:            row.Path,
+		Container:       row.Container,
+		VideoCodec:      row.VideoCodec,
+		AudioCodec:      row.AudioCodec,
+		HasAudio:        row.HasAudio != 0,
+		Profile:         row.Profile,
+		Level:           row.Level,
+		MIMEType:        row.MimeType,
+		Origin:          domain.VariantOrigin(row.Origin),
+		Primary:         row.IsPrimary != 0,
+		Progress:        int(row.Progress),
+		DurationSeconds: row.DurationSeconds,
+		FileSize:        row.FileSize,
+		Width:           int(row.Width),
+		Height:          int(row.Height),
+		Status:          domain.VariantStatus(row.Status),
+		ErrorMessage:    row.ErrorMessage,
+		CreatedAt:       row.CreatedAt,
 	}
+}
+
+func boolToInt64(value bool) int64 {
+	if value {
+		return 1
+	}
+	return 0
 }
 
 func variantListFromRows(rows []sqlitedb.MediaVariant) []domain.Variant {

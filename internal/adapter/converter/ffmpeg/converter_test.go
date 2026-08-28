@@ -3,6 +3,8 @@ package ffmpeg
 import (
 	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestValidatePath(t *testing.T) {
@@ -178,6 +180,15 @@ func TestConverter_Thumbnail_PathValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCappedBufferRejectsProbeOutputBeyondLimit(t *testing.T) {
+	buffer := &cappedBuffer{max: 4}
+	written, err := buffer.Write([]byte{'1', '2', '3', '4', '5'})
+
+	assert.ErrorIs(t, err, ErrProbeOutputLimit)
+	assert.Zero(t, written)
+	assert.Empty(t, buffer.Bytes())
 }
 
 func TestConverter_Probe_PathValidation(t *testing.T) {

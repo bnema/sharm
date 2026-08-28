@@ -51,6 +51,7 @@ const THEME_MODE_KEY = 'sharm.theme.mode';
  * @property {boolean} resumeSupported
  * @property {number} totalChunks
  * @property {number} nextChunkIndex
+ * @property {string} [serverSessionID]
  * @property {UploadStatus} status
  */
 
@@ -714,7 +715,11 @@ function initUploadPage() {
     const result = document.getElementById('result');
     if (result) result.innerHTML = '';
 
-    await chunkedUpload(file, form);
+    if (isVideoFile(file)) {
+      await resumableVideoUpload(file, form);
+    } else {
+      await chunkedUpload(file, form);
+    }
 
     if (submitBtn instanceof HTMLButtonElement) {
       submitBtn.disabled = false;
@@ -737,6 +742,7 @@ async function handleFileSelect(input) {
   const h264 = document.getElementById('codec-h264');
   const opus = document.getElementById('codec-opus');
   const fpsOpts = document.getElementById('fps-options');
+  const originalOption = document.getElementById('original-option');
   const probeResult = document.getElementById('probe-result');
   const initialForm = input.closest('form');
 
@@ -746,6 +752,7 @@ async function handleFileSelect(input) {
     }
     if (opts) opts.style.display = 'none';
     if (fpsOpts) fpsOpts.style.display = 'none';
+    if (originalOption) originalOption.style.display = 'none';
     if (probeResult) probeResult.innerHTML = '';
     return;
   }
@@ -788,18 +795,21 @@ async function handleFileSelect(input) {
   const isAudio = audioExts.some((e) => name.endsWith(e));
 
   if (isVideo) {
-    if (opts) opts.style.display = 'block';
-    if (av1) av1.style.display = 'flex';
-    if (h264) h264.style.display = 'flex';
+    if (originalOption) originalOption.style.display = 'block';
+    if (opts) opts.style.display = 'none';
+    if (av1) av1.style.display = 'none';
+    if (h264) h264.style.display = 'none';
     if (opus) opus.style.display = 'none';
-    updateFpsVisibility();
+    if (fpsOpts) fpsOpts.style.display = 'none';
   } else if (isAudio) {
+    if (originalOption) originalOption.style.display = 'none';
     if (opts) opts.style.display = 'block';
     if (av1) av1.style.display = 'none';
     if (h264) h264.style.display = 'none';
     if (opus) opus.style.display = 'flex';
     if (fpsOpts) fpsOpts.style.display = 'none';
   } else {
+    if (originalOption) originalOption.style.display = 'none';
     if (opts) opts.style.display = 'none';
     if (fpsOpts) fpsOpts.style.display = 'none';
   }

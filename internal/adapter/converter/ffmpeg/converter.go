@@ -1,6 +1,7 @@
 package ffmpeg
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -16,8 +17,14 @@ import (
 
 // Path validation errors
 var (
-	ErrEmptyPath   = errors.New("empty path")
-	ErrInvalidPath = errors.New("invalid path: contains null bytes")
+	ErrEmptyPath        = errors.New("empty path")
+	ErrInvalidPath      = errors.New("invalid path: contains null bytes")
+	ErrProbeOutputLimit = errors.New("ffprobe output exceeds limit")
+)
+
+const (
+	defaultProbeTimeout = 30 * time.Second
+	maxProbeOutputBytes = 4 * 1024 * 1024
 )
 
 // validatePath checks for empty paths and null byte injection attacks
@@ -35,7 +42,7 @@ const convertTimeout = 30 * time.Minute
 
 type Converter struct{}
 
-func NewConverter() port.MediaConverter {
+func NewConverter() *Converter {
 	return &Converter{}
 }
 
@@ -188,6 +195,12 @@ func (c *Converter) Thumbnail(inputPath, outputPath string) error {
 }
 
 func (c *Converter) Probe(inputPath string) (*domain.ProbeResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultProbeTimeout)
+	defer cancel()
+	return c.ProbeContext(ctx, inputPath)
+}
+
+func (*Converter) ProbeContext(ctx context.Context, inputPath string) (*domain.ProbeResult, error) {
 	if err := validatePath(inputPath); err != nil {
 		return nil, fmt.Errorf("invalid input path: %w", err)
 	}
@@ -198,22 +211,33 @@ func (c *Converter) Probe(inputPath string) (*domain.ProbeResult, error) {
 		"-show_streams",
 		inputPath,
 	}
-	cmd := exec.Command("ffprobe", args...)
-
-	output, err := cmd.Output()
-	if err != nil {
+	//nolint:gosec // Executable is fixed; the input path is validated.
+	cmd := exec.CommandContext(ctx, "ffprobe", args...)
+	output := &cappedBuffer{max: maxProbeOutputBytes}
+	cmd.Stdout = output
+	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("ffprobe failed: %w", err)
 	}
 
-	rawJSON := string(output)
+	rawJSON := output.String()
 	var result domain.ProbeResult
-
-	if err := json.Unmarshal(output, &result); err != nil {
+	if err := json.Unmarshal(output.Bytes(), &result); err != nil {
 		return nil, fmt.Errorf("failed to parse ffprobe output: %w", err)
 	}
-
 	result.RawJSON = rawJSON
 	return &result, nil
+}
+
+type cappedBuffer struct {
+	bytes.Buffer
+	max int
+}
+
+func (b *cappedBuffer) Write(data []byte) (int, error) {
+	if len(data) > b.max-b.Len() {
+		return 0, ErrProbeOutputLimit
+	}
+	return b.Buffer.Write(data)
 }
 
 var _ port.MediaConverter = (*Converter)(nil)

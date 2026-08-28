@@ -13,14 +13,17 @@ const claimNextJob = `-- name: ClaimNextJob :one
 UPDATE jobs SET
     status = 'running',
     started_at = datetime('now'),
-    attempts = attempts + 1
+    heartbeat_at = datetime('now'),
+    lease_until = datetime('now', '+5 minutes'),
+    attempts = attempts + 1,
+    progress = CASE WHEN progress < 1 THEN 1 ELSE progress END
 WHERE id = (
     SELECT id FROM jobs
     WHERE status = 'pending'
     ORDER BY created_at ASC
     LIMIT 1
 )
-RETURNING id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps
+RETURNING id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps, progress, lease_until, heartbeat_at, max_attempts
 `
 
 func (q *Queries) ClaimNextJob(ctx context.Context) (Job, error) {
@@ -38,28 +41,40 @@ func (q *Queries) ClaimNextJob(ctx context.Context) (Job, error) {
 		&i.CompletedAt,
 		&i.Codec,
 		&i.Fps,
+		&i.Progress,
+		&i.LeaseUntil,
+		&i.HeartbeatAt,
+		&i.MaxAttempts,
 	)
 	return i, err
 }
 
-const completeJob = `-- name: CompleteJob :exec
+const completeJob = `-- name: CompleteJob :execrows
 UPDATE jobs SET
     status = 'done',
+    progress = 100,
+    lease_until = NULL,
+    heartbeat_at = NULL,
     completed_at = datetime('now')
-WHERE id = ?
+WHERE id = ? AND status = 'running'
 `
 
-func (q *Queries) CompleteJob(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, completeJob, id)
-	return err
+func (q *Queries) CompleteJob(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, completeJob, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const failJob = `-- name: FailJob :exec
+const failJob = `-- name: FailJob :execrows
 UPDATE jobs SET
     status = 'failed',
     error_message = ?,
+    lease_until = NULL,
+    heartbeat_at = NULL,
     completed_at = datetime('now')
-WHERE id = ?
+WHERE id = ? AND status = 'running'
 `
 
 type FailJobParams struct {
@@ -67,13 +82,52 @@ type FailJobParams struct {
 	ID           int64
 }
 
-func (q *Queries) FailJob(ctx context.Context, arg FailJobParams) error {
-	_, err := q.db.ExecContext(ctx, failJob, arg.ErrorMessage, arg.ID)
-	return err
+func (q *Queries) FailJob(ctx context.Context, arg FailJobParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, failJob, arg.ErrorMessage, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const getActiveJob = `-- name: GetActiveJob :one
+SELECT id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps, progress, lease_until, heartbeat_at, max_attempts FROM jobs
+WHERE media_id = ? AND type = ? AND codec = ? AND status IN ('pending', 'running')
+ORDER BY created_at ASC
+LIMIT 1
+`
+
+type GetActiveJobParams struct {
+	MediaID string
+	Type    string
+	Codec   string
+}
+
+func (q *Queries) GetActiveJob(ctx context.Context, arg GetActiveJobParams) (Job, error) {
+	row := q.db.QueryRowContext(ctx, getActiveJob, arg.MediaID, arg.Type, arg.Codec)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.MediaID,
+		&i.Type,
+		&i.Status,
+		&i.ErrorMessage,
+		&i.Attempts,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.CompletedAt,
+		&i.Codec,
+		&i.Fps,
+		&i.Progress,
+		&i.LeaseUntil,
+		&i.HeartbeatAt,
+		&i.MaxAttempts,
+	)
+	return i, err
 }
 
 const getJob = `-- name: GetJob :one
-SELECT id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps FROM jobs WHERE id = ? LIMIT 1
+SELECT id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps, progress, lease_until, heartbeat_at, max_attempts FROM jobs WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetJob(ctx context.Context, id int64) (Job, error) {
@@ -91,14 +145,31 @@ func (q *Queries) GetJob(ctx context.Context, id int64) (Job, error) {
 		&i.CompletedAt,
 		&i.Codec,
 		&i.Fps,
+		&i.Progress,
+		&i.LeaseUntil,
+		&i.HeartbeatAt,
+		&i.MaxAttempts,
 	)
 	return i, err
+}
+
+const heartbeatJob = `-- name: HeartbeatJob :execrows
+UPDATE jobs SET heartbeat_at = datetime('now'), lease_until = datetime('now', '+5 minutes')
+WHERE id = ? AND status = 'running'
+`
+
+func (q *Queries) HeartbeatJob(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, heartbeatJob, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const insertJob = `-- name: InsertJob :one
 INSERT INTO jobs (media_id, type, codec, fps, status, created_at)
 VALUES (?, ?, ?, ?, 'pending', datetime('now'))
-RETURNING id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps
+RETURNING id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps, progress, lease_until, heartbeat_at, max_attempts
 `
 
 type InsertJobParams struct {
@@ -128,12 +199,16 @@ func (q *Queries) InsertJob(ctx context.Context, arg InsertJobParams) (Job, erro
 		&i.CompletedAt,
 		&i.Codec,
 		&i.Fps,
+		&i.Progress,
+		&i.LeaseUntil,
+		&i.HeartbeatAt,
+		&i.MaxAttempts,
 	)
 	return i, err
 }
 
 const listJobsByMedia = `-- name: ListJobsByMedia :many
-SELECT id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps FROM jobs WHERE media_id = ? ORDER BY created_at ASC
+SELECT id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps, progress, lease_until, heartbeat_at, max_attempts FROM jobs WHERE media_id = ? ORDER BY created_at ASC
 `
 
 func (q *Queries) ListJobsByMedia(ctx context.Context, mediaID string) ([]Job, error) {
@@ -157,6 +232,10 @@ func (q *Queries) ListJobsByMedia(ctx context.Context, mediaID string) ([]Job, e
 			&i.CompletedAt,
 			&i.Codec,
 			&i.Fps,
+			&i.Progress,
+			&i.LeaseUntil,
+			&i.HeartbeatAt,
+			&i.MaxAttempts,
 		); err != nil {
 			return nil, err
 		}
@@ -172,7 +251,7 @@ func (q *Queries) ListJobsByMedia(ctx context.Context, mediaID string) ([]Job, e
 }
 
 const listPendingJobs = `-- name: ListPendingJobs :many
-SELECT id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps FROM jobs WHERE status = 'pending' ORDER BY created_at ASC
+SELECT id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps, progress, lease_until, heartbeat_at, max_attempts FROM jobs WHERE status = 'pending' ORDER BY created_at ASC
 `
 
 func (q *Queries) ListPendingJobs(ctx context.Context) ([]Job, error) {
@@ -196,6 +275,10 @@ func (q *Queries) ListPendingJobs(ctx context.Context) ([]Job, error) {
 			&i.CompletedAt,
 			&i.Codec,
 			&i.Fps,
+			&i.Progress,
+			&i.LeaseUntil,
+			&i.HeartbeatAt,
+			&i.MaxAttempts,
 		); err != nil {
 			return nil, err
 		}
@@ -212,12 +295,36 @@ func (q *Queries) ListPendingJobs(ctx context.Context) ([]Job, error) {
 
 const resetStalledJobs = `-- name: ResetStalledJobs :exec
 UPDATE jobs SET
-    status = 'pending',
-    started_at = NULL
+    status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'pending' END,
+    started_at = CASE WHEN attempts >= max_attempts THEN started_at ELSE NULL END,
+    progress = CASE WHEN attempts >= max_attempts THEN progress ELSE 0 END,
+    lease_until = NULL,
+    heartbeat_at = NULL,
+    error_message = CASE WHEN attempts >= max_attempts THEN 'job exceeded retry limit' ELSE error_message END,
+    completed_at = CASE WHEN attempts >= max_attempts THEN datetime('now') ELSE completed_at END
 WHERE status = 'running'
+  AND (lease_until IS NULL OR lease_until <= datetime('now'))
 `
 
 func (q *Queries) ResetStalledJobs(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, resetStalledJobs)
 	return err
+}
+
+const updateJobProgress = `-- name: UpdateJobProgress :execrows
+UPDATE jobs SET progress = ?, heartbeat_at = datetime('now'), lease_until = datetime('now', '+5 minutes')
+WHERE id = ? AND status = 'running'
+`
+
+type UpdateJobProgressParams struct {
+	Progress int64
+	ID       int64
+}
+
+func (q *Queries) UpdateJobProgress(ctx context.Context, arg UpdateJobProgressParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateJobProgress, arg.Progress, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
