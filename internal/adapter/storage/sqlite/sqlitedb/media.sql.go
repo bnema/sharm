@@ -272,6 +272,20 @@ func (q *Queries) UpdateMediaDone(ctx context.Context, arg UpdateMediaDoneParams
 	return err
 }
 
+const updateMediaOriginalPath = `-- name: UpdateMediaOriginalPath :exec
+UPDATE media SET original_path = ? WHERE id = ?
+`
+
+type UpdateMediaOriginalPathParams struct {
+	OriginalPath string
+	ID           string
+}
+
+func (q *Queries) UpdateMediaOriginalPath(ctx context.Context, arg UpdateMediaOriginalPathParams) error {
+	_, err := q.db.ExecContext(ctx, updateMediaOriginalPath, arg.OriginalPath, arg.ID)
+	return err
+}
+
 const updateMediaProbeJSON = `-- name: UpdateMediaProbeJSON :exec
 UPDATE media SET probe_json = ? WHERE id = ?
 `

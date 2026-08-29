@@ -1,0 +1,13 @@
+{
+  "name": "sharm-web-assets",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/client-video-worker.js --bundle --format=iife --platform=browser --target=chrome94,safari16.4 --minify --outfile=../static/client-video-worker.js"
+  },
+  "dependencies": {
+    "mediabunny": "1.55.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.9"
+  }
+}

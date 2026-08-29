@@ -1,0 +1,54 @@
+services:
+  fixture:
+    build:
+      context: .
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        ffmpeg -hide_banner -loglevel error \
+          -f lavfi -i testsrc2=size=320x180:rate=30 \
+          -f lavfi -i sine=frequency=1000:sample_rate=48000 \
+          -t 1 -c:v libx264 -pix_fmt yuv420p -c:a aac \
+          -movflags +frag_keyframe+empty_moov+default_base_moof -y /fixtures/h264-aac.mp4
+        ffmpeg -hide_banner -loglevel error \
+          -f lavfi -i testsrc2=size=320x180:rate=30 \
+          -f lavfi -i sine=frequency=880:sample_rate=48000 \
+          -t 1 -c:v libvpx -deadline realtime -c:a libopus -y /fixtures/client-encoding.webm
+    volumes:
+      - fixtures:/fixtures
+
+  sharm:
+    build:
+      context: .
+    environment:
+      DOMAIN: sharm:7890
+      PORT: "7890"
+      DATA_DIR: /data
+      MAX_UPLOAD_SIZE_MB: "20"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:7890/setup"]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+    volumes:
+      - data:/data
+
+  playwright:
+    build:
+      context: tests/e2e
+    network_mode: service:sharm
+    environment:
+      SHARM_BASE_URL: http://localhost:7890
+    depends_on:
+      fixture:
+        condition: service_completed_successfully
+      sharm:
+        condition: service_healthy
+    volumes:
+      - fixtures:/fixtures:ro
+
+volumes:
+  data:
+  fixtures:

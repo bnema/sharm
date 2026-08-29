@@ -7,6 +7,7 @@ package sqlitedb
 
 import (
 	"context"
+	"time"
 )
 
 const deleteVariantsByMedia = `-- name: DeleteVariantsByMedia :exec
@@ -18,8 +19,18 @@ func (q *Queries) DeleteVariantsByMedia(ctx context.Context, mediaID string) err
 	return err
 }
 
+const demotePrimaryVariants = `-- name: DemotePrimaryVariants :exec
+UPDATE media_variants SET is_primary = 0
+WHERE media_id = ? AND is_primary = 1
+`
+
+func (q *Queries) DemotePrimaryVariants(ctx context.Context, mediaID string) error {
+	_, err := q.db.ExecContext(ctx, demotePrimaryVariants, mediaID)
+	return err
+}
+
 const getVariant = `-- name: GetVariant :one
-SELECT id, media_id, codec, path, file_size, width, height, status, error_message, created_at FROM media_variants WHERE id = ? LIMIT 1
+SELECT id, media_id, codec, path, file_size, width, height, status, error_message, created_at, container, video_codec, audio_codec, has_audio, profile, level, mime_type, origin, is_primary, progress, duration_seconds FROM media_variants WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetVariant(ctx context.Context, id int64) (MediaVariant, error) {
@@ -36,12 +47,23 @@ func (q *Queries) GetVariant(ctx context.Context, id int64) (MediaVariant, error
 		&i.Status,
 		&i.ErrorMessage,
 		&i.CreatedAt,
+		&i.Container,
+		&i.VideoCodec,
+		&i.AudioCodec,
+		&i.HasAudio,
+		&i.Profile,
+		&i.Level,
+		&i.MimeType,
+		&i.Origin,
+		&i.IsPrimary,
+		&i.Progress,
+		&i.DurationSeconds,
 	)
 	return i, err
 }
 
 const getVariantByMediaAndCodec = `-- name: GetVariantByMediaAndCodec :one
-SELECT id, media_id, codec, path, file_size, width, height, status, error_message, created_at FROM media_variants WHERE media_id = ? AND codec = ? LIMIT 1
+SELECT id, media_id, codec, path, file_size, width, height, status, error_message, created_at, container, video_codec, audio_codec, has_audio, profile, level, mime_type, origin, is_primary, progress, duration_seconds FROM media_variants WHERE media_id = ? AND codec = ? LIMIT 1
 `
 
 type GetVariantByMediaAndCodecParams struct {
@@ -63,6 +85,111 @@ func (q *Queries) GetVariantByMediaAndCodec(ctx context.Context, arg GetVariantB
 		&i.Status,
 		&i.ErrorMessage,
 		&i.CreatedAt,
+		&i.Container,
+		&i.VideoCodec,
+		&i.AudioCodec,
+		&i.HasAudio,
+		&i.Profile,
+		&i.Level,
+		&i.MimeType,
+		&i.Origin,
+		&i.IsPrimary,
+		&i.Progress,
+		&i.DurationSeconds,
+	)
+	return i, err
+}
+
+const insertPrimaryVariant = `-- name: InsertPrimaryVariant :one
+INSERT INTO media_variants (
+    media_id, codec, container, video_codec, audio_codec, has_audio,
+    profile, level, mime_type, origin, is_primary, progress, duration_seconds,
+    path, file_size, width, height, status, error_message, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 'done', '', ?)
+ON CONFLICT (media_id, codec) DO UPDATE SET
+    container = excluded.container,
+    video_codec = excluded.video_codec,
+    audio_codec = excluded.audio_codec,
+    has_audio = excluded.has_audio,
+    profile = excluded.profile,
+    level = excluded.level,
+    mime_type = excluded.mime_type,
+    origin = excluded.origin,
+    is_primary = 1,
+    progress = excluded.progress,
+    duration_seconds = excluded.duration_seconds,
+    path = excluded.path,
+    file_size = excluded.file_size,
+    width = excluded.width,
+    height = excluded.height,
+    status = excluded.status,
+    error_message = excluded.error_message
+RETURNING id, media_id, codec, path, file_size, width, height, status, error_message, created_at, container, video_codec, audio_codec, has_audio, profile, level, mime_type, origin, is_primary, progress, duration_seconds
+`
+
+type InsertPrimaryVariantParams struct {
+	MediaID         string
+	Codec           string
+	Container       string
+	VideoCodec      string
+	AudioCodec      string
+	HasAudio        int64
+	Profile         string
+	Level           string
+	MimeType        string
+	Origin          string
+	Progress        int64
+	DurationSeconds float64
+	Path            string
+	FileSize        int64
+	Width           int64
+	Height          int64
+	CreatedAt       time.Time
+}
+
+func (q *Queries) InsertPrimaryVariant(ctx context.Context, arg InsertPrimaryVariantParams) (MediaVariant, error) {
+	row := q.db.QueryRowContext(ctx, insertPrimaryVariant,
+		arg.MediaID,
+		arg.Codec,
+		arg.Container,
+		arg.VideoCodec,
+		arg.AudioCodec,
+		arg.HasAudio,
+		arg.Profile,
+		arg.Level,
+		arg.MimeType,
+		arg.Origin,
+		arg.Progress,
+		arg.DurationSeconds,
+		arg.Path,
+		arg.FileSize,
+		arg.Width,
+		arg.Height,
+		arg.CreatedAt,
+	)
+	var i MediaVariant
+	err := row.Scan(
+		&i.ID,
+		&i.MediaID,
+		&i.Codec,
+		&i.Path,
+		&i.FileSize,
+		&i.Width,
+		&i.Height,
+		&i.Status,
+		&i.ErrorMessage,
+		&i.CreatedAt,
+		&i.Container,
+		&i.VideoCodec,
+		&i.AudioCodec,
+		&i.HasAudio,
+		&i.Profile,
+		&i.Level,
+		&i.MimeType,
+		&i.Origin,
+		&i.IsPrimary,
+		&i.Progress,
+		&i.DurationSeconds,
 	)
 	return i, err
 }
@@ -70,7 +197,7 @@ func (q *Queries) GetVariantByMediaAndCodec(ctx context.Context, arg GetVariantB
 const insertVariant = `-- name: InsertVariant :one
 INSERT INTO media_variants (media_id, codec, status, created_at)
 VALUES (?, ?, 'pending', datetime('now'))
-RETURNING id, media_id, codec, path, file_size, width, height, status, error_message, created_at
+RETURNING id, media_id, codec, path, file_size, width, height, status, error_message, created_at, container, video_codec, audio_codec, has_audio, profile, level, mime_type, origin, is_primary, progress, duration_seconds
 `
 
 type InsertVariantParams struct {
@@ -92,12 +219,23 @@ func (q *Queries) InsertVariant(ctx context.Context, arg InsertVariantParams) (M
 		&i.Status,
 		&i.ErrorMessage,
 		&i.CreatedAt,
+		&i.Container,
+		&i.VideoCodec,
+		&i.AudioCodec,
+		&i.HasAudio,
+		&i.Profile,
+		&i.Level,
+		&i.MimeType,
+		&i.Origin,
+		&i.IsPrimary,
+		&i.Progress,
+		&i.DurationSeconds,
 	)
 	return i, err
 }
 
 const listVariantsByMedia = `-- name: ListVariantsByMedia :many
-SELECT id, media_id, codec, path, file_size, width, height, status, error_message, created_at FROM media_variants WHERE media_id = ? ORDER BY created_at ASC
+SELECT id, media_id, codec, path, file_size, width, height, status, error_message, created_at, container, video_codec, audio_codec, has_audio, profile, level, mime_type, origin, is_primary, progress, duration_seconds FROM media_variants WHERE media_id = ? ORDER BY created_at ASC
 `
 
 func (q *Queries) ListVariantsByMedia(ctx context.Context, mediaID string) ([]MediaVariant, error) {
@@ -120,6 +258,17 @@ func (q *Queries) ListVariantsByMedia(ctx context.Context, mediaID string) ([]Me
 			&i.Status,
 			&i.ErrorMessage,
 			&i.CreatedAt,
+			&i.Container,
+			&i.VideoCodec,
+			&i.AudioCodec,
+			&i.HasAudio,
+			&i.Profile,
+			&i.Level,
+			&i.MimeType,
+			&i.Origin,
+			&i.IsPrimary,
+			&i.Progress,
+			&i.DurationSeconds,
 		); err != nil {
 			return nil, err
 		}
@@ -140,16 +289,22 @@ UPDATE media_variants SET
     path = ?,
     file_size = ?,
     width = ?,
-    height = ?
+    height = ?,
+    progress = 100,
+    error_message = '',
+    is_primary = ?,
+    origin = ?
 WHERE id = ?
 `
 
 type UpdateVariantDoneParams struct {
-	Path     string
-	FileSize int64
-	Width    int64
-	Height   int64
-	ID       int64
+	Path      string
+	FileSize  int64
+	Width     int64
+	Height    int64
+	IsPrimary int64
+	Origin    string
+	ID        int64
 }
 
 func (q *Queries) UpdateVariantDone(ctx context.Context, arg UpdateVariantDoneParams) error {
@@ -158,6 +313,33 @@ func (q *Queries) UpdateVariantDone(ctx context.Context, arg UpdateVariantDonePa
 		arg.FileSize,
 		arg.Width,
 		arg.Height,
+		arg.IsPrimary,
+		arg.Origin,
+		arg.ID,
+	)
+	return err
+}
+
+const updateVariantProgress = `-- name: UpdateVariantProgress :exec
+UPDATE media_variants SET
+    status = ?,
+    progress = ?,
+    error_message = ?
+WHERE id = ? AND status NOT IN ('done', 'failed', 'unsupported')
+`
+
+type UpdateVariantProgressParams struct {
+	Status       string
+	Progress     int64
+	ErrorMessage string
+	ID           int64
+}
+
+func (q *Queries) UpdateVariantProgress(ctx context.Context, arg UpdateVariantProgressParams) error {
+	_, err := q.db.ExecContext(ctx, updateVariantProgress,
+		arg.Status,
+		arg.Progress,
+		arg.ErrorMessage,
 		arg.ID,
 	)
 	return err

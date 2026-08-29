@@ -31,6 +31,7 @@ GOGET := $(GOCMD) get
 GOMOD := $(GOCMD) mod
 GOFMT := $(GOCMD) fmt
 GOVET := $(GOCMD) vet
+NPM ?= npm
 
 # Build variables
 LDFLAGS := -ldflags="-s -w -X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.BuildTime=$(BUILD_TIME)"
@@ -96,23 +97,29 @@ vet:
 # Build Targets
 # =====================================================
 
+## web-assets: Bundle the local client-side video encoding Worker
+.PHONY: web-assets
+web-assets:
+	$(info Building web assets...)
+	cd web && $(NPM) ci && $(NPM) run build
+
 ## build: Build the Go binary for current platform
 .PHONY: build
-build:
+build: web-assets
 	$(info Building $(BINARY_NAME)...)
 	@mkdir -p $(DIST_DIR)
 	$(GOBUILD) $(GOFLAGS) $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME) $(CMD_DIR)
 
 ## build-linux-amd64: Build for Linux AMD64
 .PHONY: build-linux-amd64
-build-linux-amd64:
+build-linux-amd64: web-assets
 	$(info Building $(BINARY_NAME) for linux/amd64...)
 	@mkdir -p $(DIST_DIR)
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) $(GOFLAGS) $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-linux-amd64 $(CMD_DIR)
 
 ## build-linux-arm64: Build for Linux ARM64
 .PHONY: build-linux-arm64
-build-linux-arm64:
+build-linux-arm64: web-assets
 	$(info Building $(BINARY_NAME) for linux/arm64...)
 	@mkdir -p $(DIST_DIR)
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(GOBUILD) $(GOFLAGS) $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-linux-arm64 $(CMD_DIR)
@@ -127,6 +134,7 @@ clean:
 	$(info Cleaning build artifacts...)
 	@rm -rf $(DIST_DIR)
 	@rm -rf $(DATA_DIR)
+	@rm -rf web/node_modules static/client-video-worker.js
 	@find . -name "*.tmp" -delete
 
 # =====================================================
@@ -164,6 +172,11 @@ test-coverage:
 benchmark:
 	$(info Running benchmarks...)
 	$(GOTEST) -bench=. -benchmem ./...
+
+## test-e2e: Run the containerized Playwright upload flow
+.PHONY: test-e2e
+test-e2e:
+	./tests/e2e/run.sh
 
 # =====================================================
 # Docker Targets
@@ -283,7 +296,7 @@ run: build
 
 ## dev: Run with hot reload using air
 .PHONY: dev
-dev:
+dev: web-assets
 	$(info Starting development server with hot reload...)
 	@command -v air >/dev/null 2>&1 || { echo "air not found. Install with: go install github.com/cosmtrek/air@latest"; exit 1; }
 	air
@@ -294,7 +307,7 @@ dev:
 
 ## install: Install the binary locally
 .PHONY: install
-install:
+install: web-assets
 	$(info Installing $(BINARY_NAME)...)
 	$(GOBUILD) $(GOFLAGS) $(LDFLAGS) -o $$GOPATH/bin/$(BINARY_NAME) $(CMD_DIR)
 

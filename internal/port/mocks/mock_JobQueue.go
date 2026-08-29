@@ -115,7 +115,7 @@ type JobQueueMock_Complete_Call struct {
 
 // Complete is a helper method to define mock.On call
 //   - jobID int64
-func (_e *JobQueueMock_Expecter) Complete(jobID interface{}) *JobQueueMock_Complete_Call {
+func (_e *JobQueueMock_Expecter) Complete(jobID any) *JobQueueMock_Complete_Call {
 	return &JobQueueMock_Complete_Call{Call: _e.mock.On("Complete", jobID)}
 }
 
@@ -180,7 +180,7 @@ type JobQueueMock_Enqueue_Call struct {
 //   - jobType domain.JobType
 //   - codec domain.Codec
 //   - fps int
-func (_e *JobQueueMock_Expecter) Enqueue(mediaID interface{}, jobType interface{}, codec interface{}, fps interface{}) *JobQueueMock_Enqueue_Call {
+func (_e *JobQueueMock_Expecter) Enqueue(mediaID any, jobType any, codec any, fps any) *JobQueueMock_Enqueue_Call {
 	return &JobQueueMock_Enqueue_Call{Call: _e.mock.On("Enqueue", mediaID, jobType, codec, fps)}
 }
 
@@ -247,7 +247,7 @@ type JobQueueMock_Fail_Call struct {
 // Fail is a helper method to define mock.On call
 //   - jobID int64
 //   - errMsg string
-func (_e *JobQueueMock_Expecter) Fail(jobID interface{}, errMsg interface{}) *JobQueueMock_Fail_Call {
+func (_e *JobQueueMock_Expecter) Fail(jobID any, errMsg any) *JobQueueMock_Fail_Call {
 	return &JobQueueMock_Fail_Call{Call: _e.mock.On("Fail", jobID, errMsg)}
 }
 
@@ -279,21 +279,157 @@ func (_c *JobQueueMock_Fail_Call) RunAndReturn(run func(jobID int64, errMsg stri
 	return _c
 }
 
+// GetActive provides a mock function for the type JobQueueMock
+func (_mock *JobQueueMock) GetActive(mediaID string, jobType domain.JobType, codec domain.Codec) (*domain.Job, error) {
+	ret := _mock.Called(mediaID, jobType, codec)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetActive")
+	}
+
+	var r0 *domain.Job
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, domain.JobType, domain.Codec) (*domain.Job, error)); ok {
+		return returnFunc(mediaID, jobType, codec)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, domain.JobType, domain.Codec) *domain.Job); ok {
+		r0 = returnFunc(mediaID, jobType, codec)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Job)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, domain.JobType, domain.Codec) error); ok {
+		r1 = returnFunc(mediaID, jobType, codec)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// JobQueueMock_GetActive_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetActive'
+type JobQueueMock_GetActive_Call struct {
+	*mock.Call
+}
+
+// GetActive is a helper method to define mock.On call
+//   - mediaID string
+//   - jobType domain.JobType
+//   - codec domain.Codec
+func (_e *JobQueueMock_Expecter) GetActive(mediaID any, jobType any, codec any) *JobQueueMock_GetActive_Call {
+	return &JobQueueMock_GetActive_Call{Call: _e.mock.On("GetActive", mediaID, jobType, codec)}
+}
+
+func (_c *JobQueueMock_GetActive_Call) Run(run func(mediaID string, jobType domain.JobType, codec domain.Codec)) *JobQueueMock_GetActive_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 domain.JobType
+		if args[1] != nil {
+			arg1 = args[1].(domain.JobType)
+		}
+		var arg2 domain.Codec
+		if args[2] != nil {
+			arg2 = args[2].(domain.Codec)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *JobQueueMock_GetActive_Call) Return(job *domain.Job, err error) *JobQueueMock_GetActive_Call {
+	_c.Call.Return(job, err)
+	return _c
+}
+
+func (_c *JobQueueMock_GetActive_Call) RunAndReturn(run func(mediaID string, jobType domain.JobType, codec domain.Codec) (*domain.Job, error)) *JobQueueMock_GetActive_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Heartbeat provides a mock function for the type JobQueueMock
+func (_mock *JobQueueMock) Heartbeat(jobID int64) error {
+	ret := _mock.Called(jobID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Heartbeat")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(int64) error); ok {
+		r0 = returnFunc(jobID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// JobQueueMock_Heartbeat_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Heartbeat'
+type JobQueueMock_Heartbeat_Call struct {
+	*mock.Call
+}
+
+// Heartbeat is a helper method to define mock.On call
+//   - jobID int64
+func (_e *JobQueueMock_Expecter) Heartbeat(jobID any) *JobQueueMock_Heartbeat_Call {
+	return &JobQueueMock_Heartbeat_Call{Call: _e.mock.On("Heartbeat", jobID)}
+}
+
+func (_c *JobQueueMock_Heartbeat_Call) Run(run func(jobID int64)) *JobQueueMock_Heartbeat_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 int64
+		if args[0] != nil {
+			arg0 = args[0].(int64)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *JobQueueMock_Heartbeat_Call) Return(err error) *JobQueueMock_Heartbeat_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *JobQueueMock_Heartbeat_Call) RunAndReturn(run func(jobID int64) error) *JobQueueMock_Heartbeat_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ResetStalled provides a mock function for the type JobQueueMock
-func (_mock *JobQueueMock) ResetStalled() error {
+func (_mock *JobQueueMock) ResetStalled() ([]domain.Job, error) {
 	ret := _mock.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for ResetStalled")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func() error); ok {
+	var r0 []domain.Job
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() ([]domain.Job, error)); ok {
+		return returnFunc()
+	}
+	if returnFunc, ok := ret.Get(0).(func() []domain.Job); ok {
 		r0 = returnFunc()
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.Job)
+		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // JobQueueMock_ResetStalled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetStalled'
@@ -313,12 +449,69 @@ func (_c *JobQueueMock_ResetStalled_Call) Run(run func()) *JobQueueMock_ResetSta
 	return _c
 }
 
-func (_c *JobQueueMock_ResetStalled_Call) Return(err error) *JobQueueMock_ResetStalled_Call {
+func (_c *JobQueueMock_ResetStalled_Call) Return(jobs []domain.Job, err error) *JobQueueMock_ResetStalled_Call {
+	_c.Call.Return(jobs, err)
+	return _c
+}
+
+func (_c *JobQueueMock_ResetStalled_Call) RunAndReturn(run func() ([]domain.Job, error)) *JobQueueMock_ResetStalled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateProgress provides a mock function for the type JobQueueMock
+func (_mock *JobQueueMock) UpdateProgress(jobID int64, progress int) error {
+	ret := _mock.Called(jobID, progress)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateProgress")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(int64, int) error); ok {
+		r0 = returnFunc(jobID, progress)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// JobQueueMock_UpdateProgress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateProgress'
+type JobQueueMock_UpdateProgress_Call struct {
+	*mock.Call
+}
+
+// UpdateProgress is a helper method to define mock.On call
+//   - jobID int64
+//   - progress int
+func (_e *JobQueueMock_Expecter) UpdateProgress(jobID any, progress any) *JobQueueMock_UpdateProgress_Call {
+	return &JobQueueMock_UpdateProgress_Call{Call: _e.mock.On("UpdateProgress", jobID, progress)}
+}
+
+func (_c *JobQueueMock_UpdateProgress_Call) Run(run func(jobID int64, progress int)) *JobQueueMock_UpdateProgress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 int64
+		if args[0] != nil {
+			arg0 = args[0].(int64)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *JobQueueMock_UpdateProgress_Call) Return(err error) *JobQueueMock_UpdateProgress_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *JobQueueMock_ResetStalled_Call) RunAndReturn(run func() error) *JobQueueMock_ResetStalled_Call {
+func (_c *JobQueueMock_UpdateProgress_Call) RunAndReturn(run func(jobID int64, progress int) error) *JobQueueMock_UpdateProgress_Call {
 	_c.Call.Return(run)
 	return _c
 }

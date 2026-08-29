@@ -21,19 +21,48 @@ type Job struct {
 	CompletedAt  sql.NullTime
 	Codec        string
 	Fps          int64
+	Progress     int64
+	LeaseUntil   sql.NullTime
+	HeartbeatAt  sql.NullTime
+	MaxAttempts  int64
 }
 
-type MediaVariant struct {
-	ID           int64
+type MediaAsset struct {
+	ID           string
 	MediaID      string
-	Codec        string
+	Role         string
+	Filename     string
 	Path         string
-	FileSize     int64
-	Width        int64
-	Height       int64
+	SizeBytes    int64
+	Sha256       string
 	Status       string
 	ErrorMessage string
 	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type MediaVariant struct {
+	ID              int64
+	MediaID         string
+	Codec           string
+	Path            string
+	FileSize        int64
+	Width           int64
+	Height          int64
+	Status          string
+	ErrorMessage    string
+	CreatedAt       time.Time
+	Container       string
+	VideoCodec      string
+	AudioCodec      string
+	HasAudio        int64
+	Profile         string
+	Level           string
+	MimeType        string
+	Origin          string
+	IsPrimary       int64
+	Progress        int64
+	DurationSeconds float64
 }
 
 type Medium struct {
@@ -53,6 +82,49 @@ type Medium struct {
 	CreatedAt     time.Time
 	ExpiresAt     time.Time
 	ProbeJson     string
+}
+
+type UploadAsset struct {
+	ID             string
+	SessionID      string
+	MediaID        string
+	Role           string
+	Filename       string
+	ExpectedSize   int64
+	ChunkSize      int64
+	TotalChunks    int64
+	ReceivedBytes  int64
+	ExpectedSha256 string
+	Sha256         string
+	Status         string
+	Path           string
+	ErrorMessage   string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	CompletedAt    sql.NullTime
+}
+
+type UploadChunk struct {
+	AssetID    string
+	ChunkIndex int64
+	SizeBytes  int64
+	Sha256     string
+	CreatedAt  time.Time
+}
+
+type UploadSession struct {
+	ID            string
+	MediaID       string
+	UserID        int64
+	Filename      string
+	RetentionDays int64
+	KeepOriginal  int64
+	ExpectedBytes int64
+	ReservedBytes int64
+	Status        string
+	ExpiresAt     time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type User struct {

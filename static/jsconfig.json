@@ -9,5 +9,5 @@
     "skipLibCheck": true
   },
   "include": ["*.js"],
-  "exclude": ["*.min.js", "sw.js"]
+  "exclude": ["*.min.js", "sw.js", "client-video-worker.js"]
 }

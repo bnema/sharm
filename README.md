@@ -7,7 +7,7 @@
 
 ---
 
-Upload videos, audio, and images. Get shareable links that expire. Videos are auto-converted to AV1 and H264 for broad compatibility (Discord, browsers, etc). Shared links render with Open Graph and Twitter Card tags, so previews work when pasted into chat apps and social media.
+Upload videos, audio, and images and get shareable links that expire. Compatible MP4 H.264/AAC videos are published directly; other video sources are encoded to H.264/AAC in the browser when WebCodecs support is complete, with an automatic FFmpeg server fallback. The original is optional: direct and fallback paths reuse the uploaded source, while a client-encoded MP4 keeps the selected source as a separate asset when requested. Shared links render with Open Graph and Twitter Card tags for previews in chat apps and social media.
 
 Single-user, single-binary, single Docker container. SQLite for storage, FFmpeg for conversion.
 
@@ -74,7 +74,7 @@ server {
 
 ## Development
 
-Requires Go 1.26+, FFmpeg, and a few code generation tools (sqlc, templ, mockery).
+Requires Go 1.26+, Node.js 24+, FFmpeg, and the code generation tools sqlc, templ, and mockery. `make build` installs the pinned browser dependencies and bundles the client video Worker locally.
 
 ```bash
 cp .env.example .env
@@ -93,7 +93,18 @@ Run tests:
 
 ```bash
 make test
+make test-race
 ```
+
+Run the complete browser upload flow in disposable Docker volumes:
+
+```bash
+make test-e2e
+```
+
+The end-to-end test generates H.264/AAC and WebM fixtures with FFmpeg. Playwright verifies direct upload, runtime WebCodecs capability selection, client H.264 encoding when the browser exposes an encoder, and the automatic server fallback otherwise. The test removes its containers, volumes, generated secret key, and fixtures afterward.
+
+Client encoding runs in a same-origin Web Worker and produces a fast-start MP4 with H.264 video and AAC audio. Its input-size limit follows the deployment's `MAX_UPLOAD_SIZE_MB` setting, duration follows the server's six-hour media limit, and output is bounded to 1920×1920 with roughly 1080p pixel count. The server remains authoritative: every result is inspected with `ffprobe`, and any unsupported browser, input codec, resource limit, or runtime failure falls back to server-side FFmpeg.
 
 `make help` lists all available targets.
 

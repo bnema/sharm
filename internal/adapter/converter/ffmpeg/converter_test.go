@@ -2,8 +2,21 @@ package ffmpeg
 
 import (
 	"errors"
+	"io"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
+
+func TestCappedBufferReadFromPreservesLimit(t *testing.T) {
+	buffer := &cappedBuffer{max: 4}
+
+	_, err := io.Copy(buffer, io.LimitReader(strings.NewReader("12345"), 5))
+
+	assert.ErrorIs(t, err, ErrProbeOutputLimit)
+	assert.LessOrEqual(t, len(buffer.Bytes()), 4)
+}
 
 func TestValidatePath(t *testing.T) {
 	tests := []struct {
@@ -176,6 +189,51 @@ func TestConverter_Thumbnail_PathValidation(t *testing.T) {
 					t.Errorf("Thumbnail() error = %v, want error containing %q", err, tt.errMsg)
 				}
 			}
+		})
+	}
+}
+
+func TestCappedBufferRejectsProbeOutputBeyondLimit(t *testing.T) {
+	tests := []struct {
+		name        string
+		writes      []string
+		wantWritten []int
+		wantErrors  []bool
+		wantBytes   string
+		wantLimit   bool
+	}{
+		{
+			name: "oversized first write", writes: []string{"12345"},
+			wantWritten: []int{0}, wantErrors: []bool{true}, wantLimit: true,
+		},
+		{
+			name: "exact capacity", writes: []string{"1234"},
+			wantWritten: []int{4}, wantErrors: []bool{false}, wantBytes: "1234",
+		},
+		{
+			name:        "subsequent write exceeds remaining capacity",
+			writes:      []string{"123", "45"},
+			wantWritten: []int{3, 0},
+			wantErrors:  []bool{false, true},
+			wantBytes:   "123",
+			wantLimit:   true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			limitReached := false
+			buffer := &cappedBuffer{max: 4, onLimit: func() { limitReached = true }}
+			for i, value := range tt.writes {
+				written, err := buffer.Write([]byte(value))
+				assert.Equal(t, tt.wantWritten[i], written)
+				if tt.wantErrors[i] {
+					assert.ErrorIs(t, err, ErrProbeOutputLimit)
+				} else {
+					assert.NoError(t, err)
+				}
+			}
+			assert.Equal(t, tt.wantBytes, buffer.String())
+			assert.Equal(t, tt.wantLimit, limitReached)
 		})
 	}
 }

@@ -89,7 +89,7 @@ func newTestServer(authSvc AuthService, mediaSvc MediaService) *Server {
 }
 
 func TestConfigPage_ReturnsRenderedConfigPage(t *testing.T) {
-	h := NewHandlers(configTestMediaService{}, nil, "example.com", 10, "dev")
+	h := NewHandlers(configTestMediaService{}, nil, "example.com", 10, "dev", nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/config", http.NoBody)
 	rr := httptest.NewRecorder()

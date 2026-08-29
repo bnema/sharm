@@ -39,57 +39,78 @@ const (
 type VariantStatus string
 
 const (
-	VariantStatusPending    VariantStatus = "pending"
-	VariantStatusProcessing VariantStatus = "processing"
-	VariantStatusDone       VariantStatus = "done"
-	VariantStatusFailed     VariantStatus = "failed"
+	VariantStatusPending     VariantStatus = "pending"
+	VariantStatusProcessing  VariantStatus = "processing"
+	VariantStatusDone        VariantStatus = "done"
+	VariantStatusFailed      VariantStatus = "failed"
+	VariantStatusUnsupported VariantStatus = "unsupported"
+)
+
+type VariantOrigin string
+
+const (
+	VariantOriginClient VariantOrigin = "client"
+	VariantOriginServer VariantOrigin = "server"
 )
 
 type Variant struct {
-	ID           int64         `json:"id"`
-	MediaID      string        `json:"media_id"`
-	Codec        Codec         `json:"codec"`
-	Path         string        `json:"path"`
-	FileSize     int64         `json:"file_size"`
-	Width        int           `json:"width"`
-	Height       int           `json:"height"`
-	Status       VariantStatus `json:"status"`
-	ErrorMessage string        `json:"error_message"`
-	CreatedAt    time.Time     `json:"created_at"`
+	ID              int64         `json:"id"`
+	MediaID         string        `json:"media_id"`
+	Codec           Codec         `json:"codec"`
+	Path            string        `json:"-"`
+	Container       string        `json:"container"`
+	VideoCodec      string        `json:"video_codec"`
+	AudioCodec      string        `json:"audio_codec"`
+	HasAudio        bool          `json:"has_audio"`
+	Profile         string        `json:"profile,omitempty"`
+	Level           string        `json:"level,omitempty"`
+	MIMEType        string        `json:"mime_type"`
+	Origin          VariantOrigin `json:"origin"`
+	Primary         bool          `json:"primary"`
+	Progress        int           `json:"progress"`
+	DurationSeconds float64       `json:"duration_seconds"`
+	FileSize        int64         `json:"file_size"`
+	Width           int           `json:"width"`
+	Height          int           `json:"height"`
+	Status          VariantStatus `json:"status"`
+	ErrorMessage    string        `json:"error_message,omitempty"`
+	CreatedAt       time.Time     `json:"created_at"`
 }
 
 type Media struct {
-	ID            string      `json:"id"`
-	Type          MediaType   `json:"type"`
-	OriginalName  string      `json:"original_name"`
-	OriginalPath  string      `json:"original_path"`
-	ConvertedPath string      `json:"converted_path"`
-	Status        MediaStatus `json:"status"`
-	Codec         Codec       `json:"codec"`
-	ErrorMessage  string      `json:"error_message"`
-	RetentionDays int         `json:"retention_days"`
-	FileSize      int64       `json:"file_size"`
-	Width         int         `json:"width"`
-	Height        int         `json:"height"`
-	ThumbPath     string      `json:"thumb_path"`
-	CreatedAt     time.Time   `json:"created_at"`
-	ExpiresAt     time.Time   `json:"expires_at"`
-	Variants      []Variant   `json:"variants"`
-	ProbeJSON     string      `json:"probe_json"`
+	ID                string      `json:"id"`
+	Type              MediaType   `json:"type"`
+	OriginalName      string      `json:"original_name"`
+	OriginalPath      string      `json:"-"`
+	OriginalAvailable bool        `json:"original_available"`
+	ConvertedPath     string      `json:"-"`
+	Status            MediaStatus `json:"status"`
+	Codec             Codec       `json:"codec"`
+	ErrorMessage      string      `json:"error_message,omitempty"`
+	RetentionDays     int         `json:"retention_days"`
+	FileSize          int64       `json:"file_size"`
+	Width             int         `json:"width"`
+	Height            int         `json:"height"`
+	ThumbPath         string      `json:"-"`
+	CreatedAt         time.Time   `json:"created_at"`
+	ExpiresAt         time.Time   `json:"expires_at"`
+	Variants          []Variant   `json:"variants"`
+	ProbeJSON         string      `json:"-"`
 }
 
 func NewMedia(mediaType MediaType, originalName, originalPath string, retentionDays int) *Media {
 	id := generateID()
 
 	return &Media{
-		ID:            id,
-		Type:          mediaType,
-		OriginalName:  originalName,
-		OriginalPath:  originalPath,
-		Status:        MediaStatusPending,
-		RetentionDays: retentionDays,
-		CreatedAt:     time.Now(),
-		ExpiresAt:     time.Now().AddDate(0, 0, retentionDays),
+		ID:                id,
+		Type:              mediaType,
+		OriginalName:      originalName,
+		OriginalPath:      originalPath,
+		OriginalAvailable: originalPath != "",
+		Status:            MediaStatusPending,
+		RetentionDays:     retentionDays,
+		CreatedAt:         time.Now(),
+		ExpiresAt:         time.Now().AddDate(0, 0, retentionDays),
 	}
 }
 
@@ -125,6 +146,15 @@ func (m *Media) MarkAsDone(convertedPath string, codec Codec, width, height int,
 	m.FileSize = fileSize
 }
 
+func (m *Media) MarkOriginalAvailable(path string) {
+	m.OriginalPath = path
+	m.OriginalAvailable = path != ""
+}
+
+func (m *Media) HasOriginal() bool {
+	return m.OriginalAvailable || m.OriginalPath != ""
+}
+
 func (m *Media) MarkAsFailed(err error) {
 	m.Status = MediaStatusFailed
 	m.ErrorMessage = err.Error()
@@ -150,8 +180,15 @@ func (m *Media) HasDoneVariant() bool {
 	return false
 }
 
-// BestVariant returns the first done variant, or nil if none.
+// BestVariant returns the primary done variant first, then the first other
+// done variant. This keeps the browser-facing path stable when a lazy variant
+// is generated later.
 func (m *Media) BestVariant() *Variant {
+	for i := range m.Variants {
+		if m.Variants[i].Status == VariantStatusDone && m.Variants[i].Primary {
+			return &m.Variants[i]
+		}
+	}
 	for i := range m.Variants {
 		if m.Variants[i].Status == VariantStatusDone {
 			return &m.Variants[i]

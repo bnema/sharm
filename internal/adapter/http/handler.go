@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -35,20 +36,43 @@ type MediaService interface {
 
 type Handlers struct {
 	mediaSvc  MediaService
+	uploadSvc ResumableUploadService
 	chunkSvc  *service.ChunkService
 	domain    string
 	maxSizeMB int
 	version   string
 }
 
-func NewHandlers(mediaSvc MediaService, chunkSvc *service.ChunkService, domainName string, maxSizeMB int, version string) *Handlers {
+func NewHandlers(
+	mediaSvc MediaService,
+	chunkSvc *service.ChunkService,
+	domainName string,
+	maxSizeMB int,
+	version string,
+	uploadSvc ResumableUploadService,
+) *Handlers {
 	return &Handlers{
 		mediaSvc:  mediaSvc,
+		uploadSvc: normalizeUploadService(uploadSvc),
 		chunkSvc:  chunkSvc,
 		domain:    domainName,
 		maxSizeMB: maxSizeMB,
 		version:   version,
 	}
+}
+
+func normalizeUploadService(uploadSvc ResumableUploadService) ResumableUploadService {
+	if uploadSvc == nil {
+		return nil
+	}
+	value := reflect.ValueOf(uploadSvc)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		if value.IsNil() {
+			return nil
+		}
+	}
+	return uploadSvc
 }
 
 func (h *Handlers) Dashboard() http.HandlerFunc {
@@ -67,7 +91,7 @@ func (h *Handlers) Dashboard() http.HandlerFunc {
 func (h *Handlers) UploadPage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = templates.Upload(h.version).Render(r.Context(), w)
+		_ = templates.Upload(h.version, h.maxSizeMB).Render(r.Context(), w)
 	}
 }
 

@@ -37,5 +37,8 @@ DELETE FROM jobs WHERE media_id = ?;
 -- name: DeleteMedia :exec
 DELETE FROM media WHERE id = ?;
 
+-- name: UpdateMediaOriginalPath :exec
+UPDATE media SET original_path = ? WHERE id = ?;
+
 -- name: UpdateMediaProbeJSON :exec
 UPDATE media SET probe_json = ? WHERE id = ?;

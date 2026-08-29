@@ -77,7 +77,7 @@ type MediaConverterMock_Convert_Call struct {
 //   - inputPath string
 //   - outputDir string
 //   - id string
-func (_e *MediaConverterMock_Expecter) Convert(inputPath interface{}, outputDir interface{}, id interface{}) *MediaConverterMock_Convert_Call {
+func (_e *MediaConverterMock_Expecter) Convert(inputPath any, outputDir any, id any) *MediaConverterMock_Convert_Call {
 	return &MediaConverterMock_Convert_Call{Call: _e.mock.On("Convert", inputPath, outputDir, id)}
 }
 
@@ -151,7 +151,7 @@ type MediaConverterMock_ConvertCodec_Call struct {
 //   - id string
 //   - codec domain.Codec
 //   - fps int
-func (_e *MediaConverterMock_Expecter) ConvertCodec(inputPath interface{}, outputDir interface{}, id interface{}, codec interface{}, fps interface{}) *MediaConverterMock_ConvertCodec_Call {
+func (_e *MediaConverterMock_Expecter) ConvertCodec(inputPath any, outputDir any, id any, codec any, fps any) *MediaConverterMock_ConvertCodec_Call {
 	return &MediaConverterMock_ConvertCodec_Call{Call: _e.mock.On("ConvertCodec", inputPath, outputDir, id, codec, fps)}
 }
 
@@ -233,7 +233,7 @@ type MediaConverterMock_Probe_Call struct {
 
 // Probe is a helper method to define mock.On call
 //   - inputPath string
-func (_e *MediaConverterMock_Expecter) Probe(inputPath interface{}) *MediaConverterMock_Probe_Call {
+func (_e *MediaConverterMock_Expecter) Probe(inputPath any) *MediaConverterMock_Probe_Call {
 	return &MediaConverterMock_Probe_Call{Call: _e.mock.On("Probe", inputPath)}
 }
 
@@ -285,7 +285,7 @@ type MediaConverterMock_Thumbnail_Call struct {
 // Thumbnail is a helper method to define mock.On call
 //   - inputPath string
 //   - outputPath string
-func (_e *MediaConverterMock_Expecter) Thumbnail(inputPath interface{}, outputPath interface{}) *MediaConverterMock_Thumbnail_Call {
+func (_e *MediaConverterMock_Expecter) Thumbnail(inputPath any, outputPath any) *MediaConverterMock_Thumbnail_Call {
 	return &MediaConverterMock_Thumbnail_Call{Call: _e.mock.On("Thumbnail", inputPath, outputPath)}
 }
 

@@ -62,7 +62,7 @@ type EventSubscriberMock_Subscribe_Call struct {
 
 // Subscribe is a helper method to define mock.On call
 //   - mediaID string
-func (_e *EventSubscriberMock_Expecter) Subscribe(mediaID interface{}) *EventSubscriberMock_Subscribe_Call {
+func (_e *EventSubscriberMock_Expecter) Subscribe(mediaID any) *EventSubscriberMock_Subscribe_Call {
 	return &EventSubscriberMock_Subscribe_Call{Call: _e.mock.On("Subscribe", mediaID)}
 }
 
@@ -103,7 +103,7 @@ type EventSubscriberMock_Unsubscribe_Call struct {
 // Unsubscribe is a helper method to define mock.On call
 //   - mediaID string
 //   - ch chan port.Event
-func (_e *EventSubscriberMock_Expecter) Unsubscribe(mediaID interface{}, ch interface{}) *EventSubscriberMock_Unsubscribe_Call {
+func (_e *EventSubscriberMock_Expecter) Unsubscribe(mediaID any, ch any) *EventSubscriberMock_Unsubscribe_Call {
 	return &EventSubscriberMock_Unsubscribe_Call{Call: _e.mock.On("Unsubscribe", mediaID, ch)}
 }
 

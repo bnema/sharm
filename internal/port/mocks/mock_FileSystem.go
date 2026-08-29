@@ -62,7 +62,7 @@ type FileSystemMock_Chmod_Call struct {
 // Chmod is a helper method to define mock.On call
 //   - path string
 //   - mode os.FileMode
-func (_e *FileSystemMock_Expecter) Chmod(path interface{}, mode interface{}) *FileSystemMock_Chmod_Call {
+func (_e *FileSystemMock_Expecter) Chmod(path any, mode any) *FileSystemMock_Chmod_Call {
 	return &FileSystemMock_Chmod_Call{Call: _e.mock.On("Chmod", path, mode)}
 }
 
@@ -129,7 +129,7 @@ type FileSystemMock_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - path string
-func (_e *FileSystemMock_Expecter) Create(path interface{}) *FileSystemMock_Create_Call {
+func (_e *FileSystemMock_Expecter) Create(path any) *FileSystemMock_Create_Call {
 	return &FileSystemMock_Create_Call{Call: _e.mock.On("Create", path)}
 }
 
@@ -192,7 +192,7 @@ type FileSystemMock_CreateTemp_Call struct {
 // CreateTemp is a helper method to define mock.On call
 //   - dir string
 //   - pattern string
-func (_e *FileSystemMock_Expecter) CreateTemp(dir interface{}, pattern interface{}) *FileSystemMock_CreateTemp_Call {
+func (_e *FileSystemMock_Expecter) CreateTemp(dir any, pattern any) *FileSystemMock_CreateTemp_Call {
 	return &FileSystemMock_CreateTemp_Call{Call: _e.mock.On("CreateTemp", dir, pattern)}
 }
 
@@ -249,7 +249,7 @@ type FileSystemMock_MkdirAll_Call struct {
 // MkdirAll is a helper method to define mock.On call
 //   - path string
 //   - perm os.FileMode
-func (_e *FileSystemMock_Expecter) MkdirAll(path interface{}, perm interface{}) *FileSystemMock_MkdirAll_Call {
+func (_e *FileSystemMock_Expecter) MkdirAll(path any, perm any) *FileSystemMock_MkdirAll_Call {
 	return &FileSystemMock_MkdirAll_Call{Call: _e.mock.On("MkdirAll", path, perm)}
 }
 
@@ -316,7 +316,7 @@ type FileSystemMock_Open_Call struct {
 
 // Open is a helper method to define mock.On call
 //   - path string
-func (_e *FileSystemMock_Expecter) Open(path interface{}) *FileSystemMock_Open_Call {
+func (_e *FileSystemMock_Expecter) Open(path any) *FileSystemMock_Open_Call {
 	return &FileSystemMock_Open_Call{Call: _e.mock.On("Open", path)}
 }
 
@@ -380,7 +380,7 @@ type FileSystemMock_OpenFile_Call struct {
 //   - path string
 //   - flag int
 //   - perm os.FileMode
-func (_e *FileSystemMock_Expecter) OpenFile(path interface{}, flag interface{}, perm interface{}) *FileSystemMock_OpenFile_Call {
+func (_e *FileSystemMock_Expecter) OpenFile(path any, flag any, perm any) *FileSystemMock_OpenFile_Call {
 	return &FileSystemMock_OpenFile_Call{Call: _e.mock.On("OpenFile", path, flag, perm)}
 }
 
@@ -441,7 +441,7 @@ type FileSystemMock_Remove_Call struct {
 
 // Remove is a helper method to define mock.On call
 //   - path string
-func (_e *FileSystemMock_Expecter) Remove(path interface{}) *FileSystemMock_Remove_Call {
+func (_e *FileSystemMock_Expecter) Remove(path any) *FileSystemMock_Remove_Call {
 	return &FileSystemMock_Remove_Call{Call: _e.mock.On("Remove", path)}
 }
 
@@ -492,7 +492,7 @@ type FileSystemMock_RemoveAll_Call struct {
 
 // RemoveAll is a helper method to define mock.On call
 //   - path string
-func (_e *FileSystemMock_Expecter) RemoveAll(path interface{}) *FileSystemMock_RemoveAll_Call {
+func (_e *FileSystemMock_Expecter) RemoveAll(path any) *FileSystemMock_RemoveAll_Call {
 	return &FileSystemMock_RemoveAll_Call{Call: _e.mock.On("RemoveAll", path)}
 }
 
@@ -544,7 +544,7 @@ type FileSystemMock_Rename_Call struct {
 // Rename is a helper method to define mock.On call
 //   - oldpath string
 //   - newpath string
-func (_e *FileSystemMock_Expecter) Rename(oldpath interface{}, newpath interface{}) *FileSystemMock_Rename_Call {
+func (_e *FileSystemMock_Expecter) Rename(oldpath any, newpath any) *FileSystemMock_Rename_Call {
 	return &FileSystemMock_Rename_Call{Call: _e.mock.On("Rename", oldpath, newpath)}
 }
 
@@ -611,7 +611,7 @@ type FileSystemMock_Stat_Call struct {
 
 // Stat is a helper method to define mock.On call
 //   - path string
-func (_e *FileSystemMock_Expecter) Stat(path interface{}) *FileSystemMock_Stat_Call {
+func (_e *FileSystemMock_Expecter) Stat(path any) *FileSystemMock_Stat_Call {
 	return &FileSystemMock_Stat_Call{Call: _e.mock.On("Stat", path)}
 }
 
@@ -664,7 +664,7 @@ type FileSystemMock_WriteFile_Call struct {
 //   - path string
 //   - data []byte
 //   - perm os.FileMode
-func (_e *FileSystemMock_Expecter) WriteFile(path interface{}, data interface{}, perm interface{}) *FileSystemMock_WriteFile_Call {
+func (_e *FileSystemMock_Expecter) WriteFile(path any, data any, perm any) *FileSystemMock_WriteFile_Call {
 	return &FileSystemMock_WriteFile_Call{Call: _e.mock.On("WriteFile", path, data, perm)}
 }
 

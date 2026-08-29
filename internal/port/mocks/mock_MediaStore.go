@@ -60,7 +60,7 @@ type MediaStoreMock_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - id string
-func (_e *MediaStoreMock_Expecter) Delete(id interface{}) *MediaStoreMock_Delete_Call {
+func (_e *MediaStoreMock_Expecter) Delete(id any) *MediaStoreMock_Delete_Call {
 	return &MediaStoreMock_Delete_Call{Call: _e.mock.On("Delete", id)}
 }
 
@@ -83,6 +83,63 @@ func (_c *MediaStoreMock_Delete_Call) Return(err error) *MediaStoreMock_Delete_C
 }
 
 func (_c *MediaStoreMock_Delete_Call) RunAndReturn(run func(id string) error) *MediaStoreMock_Delete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteMediaAsset provides a mock function for the type MediaStoreMock
+func (_mock *MediaStoreMock) DeleteMediaAsset(mediaID string, role domain.AssetRole) error {
+	ret := _mock.Called(mediaID, role)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteMediaAsset")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string, domain.AssetRole) error); ok {
+		r0 = returnFunc(mediaID, role)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MediaStoreMock_DeleteMediaAsset_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteMediaAsset'
+type MediaStoreMock_DeleteMediaAsset_Call struct {
+	*mock.Call
+}
+
+// DeleteMediaAsset is a helper method to define mock.On call
+//   - mediaID string
+//   - role domain.AssetRole
+func (_e *MediaStoreMock_Expecter) DeleteMediaAsset(mediaID any, role any) *MediaStoreMock_DeleteMediaAsset_Call {
+	return &MediaStoreMock_DeleteMediaAsset_Call{Call: _e.mock.On("DeleteMediaAsset", mediaID, role)}
+}
+
+func (_c *MediaStoreMock_DeleteMediaAsset_Call) Run(run func(mediaID string, role domain.AssetRole)) *MediaStoreMock_DeleteMediaAsset_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 domain.AssetRole
+		if args[1] != nil {
+			arg1 = args[1].(domain.AssetRole)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MediaStoreMock_DeleteMediaAsset_Call) Return(err error) *MediaStoreMock_DeleteMediaAsset_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MediaStoreMock_DeleteMediaAsset_Call) RunAndReturn(run func(mediaID string, role domain.AssetRole) error) *MediaStoreMock_DeleteMediaAsset_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -111,7 +168,7 @@ type MediaStoreMock_DeleteVariantsByMedia_Call struct {
 
 // DeleteVariantsByMedia is a helper method to define mock.On call
 //   - mediaID string
-func (_e *MediaStoreMock_Expecter) DeleteVariantsByMedia(mediaID interface{}) *MediaStoreMock_DeleteVariantsByMedia_Call {
+func (_e *MediaStoreMock_Expecter) DeleteVariantsByMedia(mediaID any) *MediaStoreMock_DeleteVariantsByMedia_Call {
 	return &MediaStoreMock_DeleteVariantsByMedia_Call{Call: _e.mock.On("DeleteVariantsByMedia", mediaID)}
 }
 
@@ -173,7 +230,7 @@ type MediaStoreMock_Get_Call struct {
 
 // Get is a helper method to define mock.On call
 //   - id string
-func (_e *MediaStoreMock_Expecter) Get(id interface{}) *MediaStoreMock_Get_Call {
+func (_e *MediaStoreMock_Expecter) Get(id any) *MediaStoreMock_Get_Call {
 	return &MediaStoreMock_Get_Call{Call: _e.mock.On("Get", id)}
 }
 
@@ -196,6 +253,74 @@ func (_c *MediaStoreMock_Get_Call) Return(media *domain.Media, err error) *Media
 }
 
 func (_c *MediaStoreMock_Get_Call) RunAndReturn(run func(id string) (*domain.Media, error)) *MediaStoreMock_Get_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMediaAsset provides a mock function for the type MediaStoreMock
+func (_mock *MediaStoreMock) GetMediaAsset(mediaID string, role domain.AssetRole) (*domain.MediaAsset, error) {
+	ret := _mock.Called(mediaID, role)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMediaAsset")
+	}
+
+	var r0 *domain.MediaAsset
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, domain.AssetRole) (*domain.MediaAsset, error)); ok {
+		return returnFunc(mediaID, role)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, domain.AssetRole) *domain.MediaAsset); ok {
+		r0 = returnFunc(mediaID, role)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.MediaAsset)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, domain.AssetRole) error); ok {
+		r1 = returnFunc(mediaID, role)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MediaStoreMock_GetMediaAsset_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMediaAsset'
+type MediaStoreMock_GetMediaAsset_Call struct {
+	*mock.Call
+}
+
+// GetMediaAsset is a helper method to define mock.On call
+//   - mediaID string
+//   - role domain.AssetRole
+func (_e *MediaStoreMock_Expecter) GetMediaAsset(mediaID any, role any) *MediaStoreMock_GetMediaAsset_Call {
+	return &MediaStoreMock_GetMediaAsset_Call{Call: _e.mock.On("GetMediaAsset", mediaID, role)}
+}
+
+func (_c *MediaStoreMock_GetMediaAsset_Call) Run(run func(mediaID string, role domain.AssetRole)) *MediaStoreMock_GetMediaAsset_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 domain.AssetRole
+		if args[1] != nil {
+			arg1 = args[1].(domain.AssetRole)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MediaStoreMock_GetMediaAsset_Call) Return(mediaAsset *domain.MediaAsset, err error) *MediaStoreMock_GetMediaAsset_Call {
+	_c.Call.Return(mediaAsset, err)
+	return _c
+}
+
+func (_c *MediaStoreMock_GetMediaAsset_Call) RunAndReturn(run func(mediaID string, role domain.AssetRole) (*domain.MediaAsset, error)) *MediaStoreMock_GetMediaAsset_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -235,7 +360,7 @@ type MediaStoreMock_GetVariant_Call struct {
 
 // GetVariant is a helper method to define mock.On call
 //   - id int64
-func (_e *MediaStoreMock_Expecter) GetVariant(id interface{}) *MediaStoreMock_GetVariant_Call {
+func (_e *MediaStoreMock_Expecter) GetVariant(id any) *MediaStoreMock_GetVariant_Call {
 	return &MediaStoreMock_GetVariant_Call{Call: _e.mock.On("GetVariant", id)}
 }
 
@@ -298,7 +423,7 @@ type MediaStoreMock_GetVariantByMediaAndCodec_Call struct {
 // GetVariantByMediaAndCodec is a helper method to define mock.On call
 //   - mediaID string
 //   - codec domain.Codec
-func (_e *MediaStoreMock_Expecter) GetVariantByMediaAndCodec(mediaID interface{}, codec interface{}) *MediaStoreMock_GetVariantByMediaAndCodec_Call {
+func (_e *MediaStoreMock_Expecter) GetVariantByMediaAndCodec(mediaID any, codec any) *MediaStoreMock_GetVariantByMediaAndCodec_Call {
 	return &MediaStoreMock_GetVariantByMediaAndCodec_Call{Call: _e.mock.On("GetVariantByMediaAndCodec", mediaID, codec)}
 }
 
@@ -475,7 +600,7 @@ type MediaStoreMock_ListVariantsByMedia_Call struct {
 
 // ListVariantsByMedia is a helper method to define mock.On call
 //   - mediaID string
-func (_e *MediaStoreMock_Expecter) ListVariantsByMedia(mediaID interface{}) *MediaStoreMock_ListVariantsByMedia_Call {
+func (_e *MediaStoreMock_Expecter) ListVariantsByMedia(mediaID any) *MediaStoreMock_ListVariantsByMedia_Call {
 	return &MediaStoreMock_ListVariantsByMedia_Call{Call: _e.mock.On("ListVariantsByMedia", mediaID)}
 }
 
@@ -498,6 +623,69 @@ func (_c *MediaStoreMock_ListVariantsByMedia_Call) Return(variants []domain.Vari
 }
 
 func (_c *MediaStoreMock_ListVariantsByMedia_Call) RunAndReturn(run func(mediaID string) ([]domain.Variant, error)) *MediaStoreMock_ListVariantsByMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// PublishPrimaryVariant provides a mock function for the type MediaStoreMock
+func (_mock *MediaStoreMock) PublishPrimaryVariant(media *domain.Media, variant *domain.Variant, probeJSON string) error {
+	ret := _mock.Called(media, variant, probeJSON)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PublishPrimaryVariant")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(*domain.Media, *domain.Variant, string) error); ok {
+		r0 = returnFunc(media, variant, probeJSON)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MediaStoreMock_PublishPrimaryVariant_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PublishPrimaryVariant'
+type MediaStoreMock_PublishPrimaryVariant_Call struct {
+	*mock.Call
+}
+
+// PublishPrimaryVariant is a helper method to define mock.On call
+//   - media *domain.Media
+//   - variant *domain.Variant
+//   - probeJSON string
+func (_e *MediaStoreMock_Expecter) PublishPrimaryVariant(media any, variant any, probeJSON any) *MediaStoreMock_PublishPrimaryVariant_Call {
+	return &MediaStoreMock_PublishPrimaryVariant_Call{Call: _e.mock.On("PublishPrimaryVariant", media, variant, probeJSON)}
+}
+
+func (_c *MediaStoreMock_PublishPrimaryVariant_Call) Run(run func(media *domain.Media, variant *domain.Variant, probeJSON string)) *MediaStoreMock_PublishPrimaryVariant_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 *domain.Media
+		if args[0] != nil {
+			arg0 = args[0].(*domain.Media)
+		}
+		var arg1 *domain.Variant
+		if args[1] != nil {
+			arg1 = args[1].(*domain.Variant)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MediaStoreMock_PublishPrimaryVariant_Call) Return(err error) *MediaStoreMock_PublishPrimaryVariant_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MediaStoreMock_PublishPrimaryVariant_Call) RunAndReturn(run func(media *domain.Media, variant *domain.Variant, probeJSON string) error) *MediaStoreMock_PublishPrimaryVariant_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -526,7 +714,7 @@ type MediaStoreMock_Save_Call struct {
 
 // Save is a helper method to define mock.On call
 //   - m *domain.Media
-func (_e *MediaStoreMock_Expecter) Save(m interface{}) *MediaStoreMock_Save_Call {
+func (_e *MediaStoreMock_Expecter) Save(m any) *MediaStoreMock_Save_Call {
 	return &MediaStoreMock_Save_Call{Call: _e.mock.On("Save", m)}
 }
 
@@ -549,6 +737,57 @@ func (_c *MediaStoreMock_Save_Call) Return(err error) *MediaStoreMock_Save_Call 
 }
 
 func (_c *MediaStoreMock_Save_Call) RunAndReturn(run func(m *domain.Media) error) *MediaStoreMock_Save_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SaveMediaAsset provides a mock function for the type MediaStoreMock
+func (_mock *MediaStoreMock) SaveMediaAsset(asset *domain.MediaAsset) error {
+	ret := _mock.Called(asset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SaveMediaAsset")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(*domain.MediaAsset) error); ok {
+		r0 = returnFunc(asset)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MediaStoreMock_SaveMediaAsset_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveMediaAsset'
+type MediaStoreMock_SaveMediaAsset_Call struct {
+	*mock.Call
+}
+
+// SaveMediaAsset is a helper method to define mock.On call
+//   - asset *domain.MediaAsset
+func (_e *MediaStoreMock_Expecter) SaveMediaAsset(asset any) *MediaStoreMock_SaveMediaAsset_Call {
+	return &MediaStoreMock_SaveMediaAsset_Call{Call: _e.mock.On("SaveMediaAsset", asset)}
+}
+
+func (_c *MediaStoreMock_SaveMediaAsset_Call) Run(run func(asset *domain.MediaAsset)) *MediaStoreMock_SaveMediaAsset_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 *domain.MediaAsset
+		if args[0] != nil {
+			arg0 = args[0].(*domain.MediaAsset)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MediaStoreMock_SaveMediaAsset_Call) Return(err error) *MediaStoreMock_SaveMediaAsset_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MediaStoreMock_SaveMediaAsset_Call) RunAndReturn(run func(asset *domain.MediaAsset) error) *MediaStoreMock_SaveMediaAsset_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -577,7 +816,7 @@ type MediaStoreMock_SaveVariant_Call struct {
 
 // SaveVariant is a helper method to define mock.On call
 //   - v *domain.Variant
-func (_e *MediaStoreMock_Expecter) SaveVariant(v interface{}) *MediaStoreMock_SaveVariant_Call {
+func (_e *MediaStoreMock_Expecter) SaveVariant(v any) *MediaStoreMock_SaveVariant_Call {
 	return &MediaStoreMock_SaveVariant_Call{Call: _e.mock.On("SaveVariant", v)}
 }
 
@@ -628,7 +867,7 @@ type MediaStoreMock_UpdateDone_Call struct {
 
 // UpdateDone is a helper method to define mock.On call
 //   - m *domain.Media
-func (_e *MediaStoreMock_Expecter) UpdateDone(m interface{}) *MediaStoreMock_UpdateDone_Call {
+func (_e *MediaStoreMock_Expecter) UpdateDone(m any) *MediaStoreMock_UpdateDone_Call {
 	return &MediaStoreMock_UpdateDone_Call{Call: _e.mock.On("UpdateDone", m)}
 }
 
@@ -651,6 +890,63 @@ func (_c *MediaStoreMock_UpdateDone_Call) Return(err error) *MediaStoreMock_Upda
 }
 
 func (_c *MediaStoreMock_UpdateDone_Call) RunAndReturn(run func(m *domain.Media) error) *MediaStoreMock_UpdateDone_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateOriginalPath provides a mock function for the type MediaStoreMock
+func (_mock *MediaStoreMock) UpdateOriginalPath(id string, path string) error {
+	ret := _mock.Called(id, path)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateOriginalPath")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = returnFunc(id, path)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MediaStoreMock_UpdateOriginalPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateOriginalPath'
+type MediaStoreMock_UpdateOriginalPath_Call struct {
+	*mock.Call
+}
+
+// UpdateOriginalPath is a helper method to define mock.On call
+//   - id string
+//   - path string
+func (_e *MediaStoreMock_Expecter) UpdateOriginalPath(id any, path any) *MediaStoreMock_UpdateOriginalPath_Call {
+	return &MediaStoreMock_UpdateOriginalPath_Call{Call: _e.mock.On("UpdateOriginalPath", id, path)}
+}
+
+func (_c *MediaStoreMock_UpdateOriginalPath_Call) Run(run func(id string, path string)) *MediaStoreMock_UpdateOriginalPath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MediaStoreMock_UpdateOriginalPath_Call) Return(err error) *MediaStoreMock_UpdateOriginalPath_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MediaStoreMock_UpdateOriginalPath_Call) RunAndReturn(run func(id string, path string) error) *MediaStoreMock_UpdateOriginalPath_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -680,7 +976,7 @@ type MediaStoreMock_UpdateProbeJSON_Call struct {
 // UpdateProbeJSON is a helper method to define mock.On call
 //   - id string
 //   - probeJSON string
-func (_e *MediaStoreMock_Expecter) UpdateProbeJSON(id interface{}, probeJSON interface{}) *MediaStoreMock_UpdateProbeJSON_Call {
+func (_e *MediaStoreMock_Expecter) UpdateProbeJSON(id any, probeJSON any) *MediaStoreMock_UpdateProbeJSON_Call {
 	return &MediaStoreMock_UpdateProbeJSON_Call{Call: _e.mock.On("UpdateProbeJSON", id, probeJSON)}
 }
 
@@ -738,7 +1034,7 @@ type MediaStoreMock_UpdateStatus_Call struct {
 //   - id string
 //   - status domain.MediaStatus
 //   - errMsg string
-func (_e *MediaStoreMock_Expecter) UpdateStatus(id interface{}, status interface{}, errMsg interface{}) *MediaStoreMock_UpdateStatus_Call {
+func (_e *MediaStoreMock_Expecter) UpdateStatus(id any, status any, errMsg any) *MediaStoreMock_UpdateStatus_Call {
 	return &MediaStoreMock_UpdateStatus_Call{Call: _e.mock.On("UpdateStatus", id, status, errMsg)}
 }
 
@@ -799,7 +1095,7 @@ type MediaStoreMock_UpdateVariantDone_Call struct {
 
 // UpdateVariantDone is a helper method to define mock.On call
 //   - v *domain.Variant
-func (_e *MediaStoreMock_Expecter) UpdateVariantDone(v interface{}) *MediaStoreMock_UpdateVariantDone_Call {
+func (_e *MediaStoreMock_Expecter) UpdateVariantDone(v any) *MediaStoreMock_UpdateVariantDone_Call {
 	return &MediaStoreMock_UpdateVariantDone_Call{Call: _e.mock.On("UpdateVariantDone", v)}
 }
 
@@ -822,6 +1118,75 @@ func (_c *MediaStoreMock_UpdateVariantDone_Call) Return(err error) *MediaStoreMo
 }
 
 func (_c *MediaStoreMock_UpdateVariantDone_Call) RunAndReturn(run func(v *domain.Variant) error) *MediaStoreMock_UpdateVariantDone_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateVariantProgress provides a mock function for the type MediaStoreMock
+func (_mock *MediaStoreMock) UpdateVariantProgress(id int64, status domain.VariantStatus, progress int, errMsg string) error {
+	ret := _mock.Called(id, status, progress, errMsg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVariantProgress")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(int64, domain.VariantStatus, int, string) error); ok {
+		r0 = returnFunc(id, status, progress, errMsg)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MediaStoreMock_UpdateVariantProgress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVariantProgress'
+type MediaStoreMock_UpdateVariantProgress_Call struct {
+	*mock.Call
+}
+
+// UpdateVariantProgress is a helper method to define mock.On call
+//   - id int64
+//   - status domain.VariantStatus
+//   - progress int
+//   - errMsg string
+func (_e *MediaStoreMock_Expecter) UpdateVariantProgress(id any, status any, progress any, errMsg any) *MediaStoreMock_UpdateVariantProgress_Call {
+	return &MediaStoreMock_UpdateVariantProgress_Call{Call: _e.mock.On("UpdateVariantProgress", id, status, progress, errMsg)}
+}
+
+func (_c *MediaStoreMock_UpdateVariantProgress_Call) Run(run func(id int64, status domain.VariantStatus, progress int, errMsg string)) *MediaStoreMock_UpdateVariantProgress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 int64
+		if args[0] != nil {
+			arg0 = args[0].(int64)
+		}
+		var arg1 domain.VariantStatus
+		if args[1] != nil {
+			arg1 = args[1].(domain.VariantStatus)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MediaStoreMock_UpdateVariantProgress_Call) Return(err error) *MediaStoreMock_UpdateVariantProgress_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MediaStoreMock_UpdateVariantProgress_Call) RunAndReturn(run func(id int64, status domain.VariantStatus, progress int, errMsg string) error) *MediaStoreMock_UpdateVariantProgress_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -852,7 +1217,7 @@ type MediaStoreMock_UpdateVariantStatus_Call struct {
 //   - id int64
 //   - status domain.VariantStatus
 //   - errMsg string
-func (_e *MediaStoreMock_Expecter) UpdateVariantStatus(id interface{}, status interface{}, errMsg interface{}) *MediaStoreMock_UpdateVariantStatus_Call {
+func (_e *MediaStoreMock_Expecter) UpdateVariantStatus(id any, status any, errMsg any) *MediaStoreMock_UpdateVariantStatus_Call {
 	return &MediaStoreMock_UpdateVariantStatus_Call{Call: _e.mock.On("UpdateVariantStatus", id, status, errMsg)}
 }
 

@@ -50,7 +50,7 @@ type EventPublisherMock_Publish_Call struct {
 // Publish is a helper method to define mock.On call
 //   - mediaID string
 //   - event port.Event
-func (_e *EventPublisherMock_Expecter) Publish(mediaID interface{}, event interface{}) *EventPublisherMock_Publish_Call {
+func (_e *EventPublisherMock_Expecter) Publish(mediaID any, event any) *EventPublisherMock_Publish_Call {
 	return &EventPublisherMock_Publish_Call{Call: _e.mock.On("Publish", mediaID, event)}
 }
 

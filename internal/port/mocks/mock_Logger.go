@@ -54,9 +54,9 @@ type LoggerMock_Debugf_Call struct {
 // Debugf is a helper method to define mock.On call
 //   - format string
 //   - args ...any
-func (_e *LoggerMock_Expecter) Debugf(format interface{}, args ...interface{}) *LoggerMock_Debugf_Call {
+func (_e *LoggerMock_Expecter) Debugf(format any, args ...any) *LoggerMock_Debugf_Call {
 	return &LoggerMock_Debugf_Call{Call: _e.mock.On("Debugf",
-		append([]interface{}{format}, args...)...)}
+		append([]any{format}, args...)...)}
 }
 
 func (_c *LoggerMock_Debugf_Call) Run(run func(format string, args ...any)) *LoggerMock_Debugf_Call {
@@ -108,9 +108,9 @@ type LoggerMock_Errorf_Call struct {
 // Errorf is a helper method to define mock.On call
 //   - format string
 //   - args ...any
-func (_e *LoggerMock_Expecter) Errorf(format interface{}, args ...interface{}) *LoggerMock_Errorf_Call {
+func (_e *LoggerMock_Expecter) Errorf(format any, args ...any) *LoggerMock_Errorf_Call {
 	return &LoggerMock_Errorf_Call{Call: _e.mock.On("Errorf",
-		append([]interface{}{format}, args...)...)}
+		append([]any{format}, args...)...)}
 }
 
 func (_c *LoggerMock_Errorf_Call) Run(run func(format string, args ...any)) *LoggerMock_Errorf_Call {
@@ -162,9 +162,9 @@ type LoggerMock_Infof_Call struct {
 // Infof is a helper method to define mock.On call
 //   - format string
 //   - args ...any
-func (_e *LoggerMock_Expecter) Infof(format interface{}, args ...interface{}) *LoggerMock_Infof_Call {
+func (_e *LoggerMock_Expecter) Infof(format any, args ...any) *LoggerMock_Infof_Call {
 	return &LoggerMock_Infof_Call{Call: _e.mock.On("Infof",
-		append([]interface{}{format}, args...)...)}
+		append([]any{format}, args...)...)}
 }
 
 func (_c *LoggerMock_Infof_Call) Run(run func(format string, args ...any)) *LoggerMock_Infof_Call {
@@ -216,9 +216,9 @@ type LoggerMock_Warnf_Call struct {
 // Warnf is a helper method to define mock.On call
 //   - format string
 //   - args ...any
-func (_e *LoggerMock_Expecter) Warnf(format interface{}, args ...interface{}) *LoggerMock_Warnf_Call {
+func (_e *LoggerMock_Expecter) Warnf(format any, args ...any) *LoggerMock_Warnf_Call {
 	return &LoggerMock_Warnf_Call{Call: _e.mock.On("Warnf",
-		append([]interface{}{format}, args...)...)}
+		append([]any{format}, args...)...)}
 }
 
 func (_c *LoggerMock_Warnf_Call) Run(run func(format string, args ...any)) *LoggerMock_Warnf_Call {

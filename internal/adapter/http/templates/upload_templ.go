@@ -8,7 +8,9 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func Upload(version string) templ.Component {
+import "strconv"
+
+func Upload(version string, maxUploadSizeMB int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -75,7 +77,20 @@ func Upload(version string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " <form id=\"upload-form\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " <form id=\"upload-form\" data-max-upload-size-mb=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var5 string
+				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(maxUploadSizeMB))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/adapter/http/templates/upload.templ`, Line: 11, Col: 81}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -83,7 +98,7 @@ func Upload(version string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<!-- Codec selection (shown dynamically based on file type) --><div id=\"codec-options\" style=\"display:none;margin-top:var(--s-md);\"><label class=\"text-muted\" style=\"display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);\">Conversion formats</label><div style=\"display:flex;flex-direction:column;gap:var(--s-xs);\"><label style=\"display:flex;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-muted);cursor:default;\"><input type=\"checkbox\" checked disabled> <span>Original (always kept)</span></label> <label id=\"codec-av1\" style=\"display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"checkbox\" name=\"codecs\" value=\"av1\"> <span>WebM (AV1)</span></label> <label id=\"codec-h264\" style=\"display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"checkbox\" name=\"codecs\" value=\"h264\"> <span>MP4 (H264)</span></label> <label id=\"codec-opus\" style=\"display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"checkbox\" name=\"codecs\" value=\"opus\"> <span>OGG (Opus)</span></label></div><div id=\"fps-options\" style=\"display:none;margin-top:var(--s-sm);\"><label class=\"text-muted\" style=\"display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);\">Frame rate</label><div style=\"display:flex;gap:var(--s-md);\"><label style=\"display:flex;align-items:center;gap:var(--s-xs);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"radio\" name=\"fps\" value=\"30\" checked> <span>30 FPS</span></label> <label style=\"display:flex;align-items:center;gap:var(--s-xs);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"radio\" name=\"fps\" value=\"60\"> <span>60 FPS</span></label></div></div></div><div class=\"mt-md\" style=\"display:flex;align-items:flex-end;gap:var(--s-sm);\"><div style=\"flex:1;\"><label class=\"text-muted\" style=\"display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);\">Retention</label> <select name=\"retention\" class=\"input\"><option value=\"1\">1 day</option> <option value=\"3\">3 days</option> <option value=\"7\" selected>7 days</option> <option value=\"14\">14 days</option> <option value=\"30\">30 days</option></select></div><button type=\"submit\" class=\"button\">Upload</button></div></form>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div id=\"original-option\" style=\"display:none;margin-top:var(--s-md);\"><label style=\"display:flex;align-items:flex-start;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input id=\"keep-original\" type=\"checkbox\" name=\"keep_original\"> <span>Keep the original source for later variants<br><span class=\"text-muted\" style=\"font-size:var(--text-xs);\">The primary H.264 copy is always kept. Originals use extra storage.</span></span></label></div><!-- Codec selection (shown dynamically based on file type) --><div id=\"codec-options\" style=\"display:none;margin-top:var(--s-md);\"><label class=\"text-muted\" style=\"display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);\">Conversion formats</label><div style=\"display:flex;flex-direction:column;gap:var(--s-xs);\"><div class=\"text-muted\" style=\"font-size:var(--text-xs);\">Video preparation is automatic: compatible MP4s upload directly; other videos are encoded to H.264/AAC on this device when supported, with a server fallback.</div><label id=\"codec-av1\" style=\"display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"checkbox\" name=\"codecs\" value=\"av1\"> <span>WebM (AV1)</span></label> <label id=\"codec-h264\" style=\"display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"checkbox\" name=\"codecs\" value=\"h264\"> <span>MP4 (H264)</span></label> <label id=\"codec-opus\" style=\"display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"checkbox\" name=\"codecs\" value=\"opus\"> <span>OGG (Opus)</span></label></div><div id=\"fps-options\" style=\"display:none;margin-top:var(--s-sm);\"><label class=\"text-muted\" style=\"display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);\">Frame rate</label><div style=\"display:flex;gap:var(--s-md);\"><label style=\"display:flex;align-items:center;gap:var(--s-xs);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"radio\" name=\"fps\" value=\"30\" checked> <span>30 FPS</span></label> <label style=\"display:flex;align-items:center;gap:var(--s-xs);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;\"><input type=\"radio\" name=\"fps\" value=\"60\"> <span>60 FPS</span></label></div></div></div><div class=\"mt-md\" style=\"display:flex;align-items:flex-end;gap:var(--s-sm);\"><div style=\"flex:1;\"><label class=\"text-muted\" style=\"display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);\">Retention</label> <select name=\"retention\" class=\"input\"><option value=\"1\">1 day</option> <option value=\"3\">3 days</option> <option value=\"7\" selected>7 days</option> <option value=\"14\">14 days</option> <option value=\"30\">30 days</option></select></div><button type=\"submit\" class=\"button\">Upload</button></div></form>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -91,7 +106,7 @@ func Upload(version string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " <div id=\"probe-result\" class=\"mt-md\"></div><div id=\"result\" class=\"mt-md\"></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " <div id=\"probe-result\" class=\"mt-md\"></div><div id=\"result\" class=\"mt-md\"></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

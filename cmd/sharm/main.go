@@ -73,8 +73,18 @@ func main() {
 	workerPool.Start(workerCtx)
 
 	chunkSvc := service.NewChunkService(os.TempDir(), log, fs)
+	uploadBlobs := osfs.NewUploadBlobs(cfg.DataDir)
+	uploadSvc := service.NewUploadService(store, store, converter, uploadBlobs, service.UploadConfig{
+		MaxAssetBytes:    int64(cfg.MaxUploadSizeMB) * 1024 * 1024,
+		MaxSessionBytes:  int64(cfg.MaxUploadSizeMB) * 2 * 1024 * 1024,
+		MaxReservedBytes: int64(cfg.MaxUploadSizeMB) * 4 * 1024 * 1024,
+	}, log, jobQueue)
 
-	server := newHTTPServer(cfg, authSvc, mediaSvc, chunkSvc, eventBus)
+	server := newHTTPServer(cfg, authSvc, mediaSvc, uploadSvc, chunkSvc, eventBus)
+
+	if err := uploadSvc.CleanupExpired(); err != nil {
+		logger.Error.Printf("upload cleanup failed: %v", err)
+	}
 
 	// Periodic cleanup of expired media
 	go func() {
@@ -85,6 +95,9 @@ func main() {
 			case <-ticker.C:
 				if err := mediaSvc.Cleanup(); err != nil {
 					logger.Error.Printf("cleanup failed: %v", err)
+				}
+				if err := uploadSvc.CleanupExpired(); err != nil {
+					logger.Error.Printf("upload cleanup failed: %v", err)
 				}
 			case <-workerCtx.Done():
 				return
@@ -125,10 +138,18 @@ func main() {
 	}
 }
 
-func newHTTPServer(cfg *config.Config, authSvc *service.AuthService, mediaSvc *service.MediaService, chunkSvc *service.ChunkService, eventBus *service.EventBus) *HTTPAdapter.Server {
+func newHTTPServer(
+	cfg *config.Config,
+	authSvc *service.AuthService,
+	mediaSvc *service.MediaService,
+	uploadSvc *service.UploadService,
+	chunkSvc *service.ChunkService,
+	eventBus *service.EventBus,
+) *HTTPAdapter.Server {
 	return HTTPAdapter.NewServer(HTTPAdapter.ServerConfig{
 		AuthSvc:           authSvc,
 		MediaSvc:          mediaSvc,
+		UploadSvc:         uploadSvc,
 		ChunkSvc:          chunkSvc,
 		EventBus:          eventBus,
 		Domain:            cfg.Domain,
