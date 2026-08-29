@@ -74,6 +74,10 @@ test('publishes direct, client-encoded, and server-fallback video uploads', asyn
   expect(clientPayload.primary_size).toBeGreaterThan(0);
   if (canEncodeClientOutput) {
     expect(clientPayload.primary_filename, preparationStatus || 'missing preparation status').toBe('client-encoding.mp4');
+    await expect.poll(
+      () => finalizePayloads.some((entry) => entry.payload?.variant),
+      { message: 'wait for primary finalize response', timeout: 60_000 },
+    ).toBe(true);
     const primaryFinalize = finalizePayloads.find((entry) => entry.payload?.variant);
     expect(primaryFinalize, 'no primary finalize response captured').toBeTruthy();
     expect(primaryFinalize.payload.variant).toMatchObject({

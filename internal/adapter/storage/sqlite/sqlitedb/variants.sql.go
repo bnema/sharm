@@ -20,7 +20,8 @@ func (q *Queries) DeleteVariantsByMedia(ctx context.Context, mediaID string) err
 }
 
 const demotePrimaryVariants = `-- name: DemotePrimaryVariants :exec
-UPDATE media_variants SET is_primary = 0 WHERE media_id = ? AND is_primary = 1
+UPDATE media_variants SET is_primary = 0
+WHERE media_id = ? AND is_primary = 1
 `
 
 func (q *Queries) DemotePrimaryVariants(ctx context.Context, mediaID string) error {

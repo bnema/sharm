@@ -129,8 +129,7 @@ func (wp *WorkerPool) processJob(ctx context.Context, job *domain.Job) {
 			wp.failVariant(job)
 		} else if job.Type == domain.JobTypeConvert {
 			// Legacy: no codec means old-style conversion
-			_ = wp.store.UpdateStatus(job.MediaID, domain.MediaStatusFailed, err.Error())
-			wp.publishEvent(job.MediaID, "status", string(domain.MediaStatusFailed), err.Error())
+			wp.failLegacyMedia(job.MediaID, err.Error())
 		}
 		return
 	}
@@ -184,10 +183,17 @@ func (wp *WorkerPool) resetStalledJobs() {
 		if job.Type == domain.JobTypeConvert && job.Codec != "" {
 			wp.failVariant(job)
 		} else if job.Type == domain.JobTypeConvert {
-			_ = wp.store.UpdateStatus(job.MediaID, domain.MediaStatusFailed, job.ErrorMessage)
-			wp.publishEvent(job.MediaID, "status", string(domain.MediaStatusFailed), job.ErrorMessage)
+			wp.failLegacyMedia(job.MediaID, job.ErrorMessage)
 		}
 	}
+}
+
+func (wp *WorkerPool) failLegacyMedia(mediaID, message string) {
+	if err := wp.store.UpdateStatus(mediaID, domain.MediaStatusFailed, message); err != nil {
+		wp.log.Errorf("failed to mark legacy conversion media failed media=%s err=%v", mediaID, err)
+		return
+	}
+	wp.publishEvent(mediaID, "status", string(domain.MediaStatusFailed), message)
 }
 
 func (wp *WorkerPool) handleConvert(job *domain.Job) error {

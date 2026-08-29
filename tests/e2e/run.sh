@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-repo_root="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
+repo_root="$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)"
 compose_file="$repo_root/docker-compose.e2e.yml"
 uid="$(id -u)"
 if [ -n "$uid" ] && { [ -z "${DOCKER_HOST:-}" ] || [ "${DOCKER_HOST:-}" = "unix:///docker.sock" ]; }; then

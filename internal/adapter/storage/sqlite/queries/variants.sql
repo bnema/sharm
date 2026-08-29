@@ -4,7 +4,8 @@ VALUES (?, ?, 'pending', datetime('now'))
 RETURNING *;
 
 -- name: DemotePrimaryVariants :exec
-UPDATE media_variants SET is_primary = 0 WHERE media_id = ? AND is_primary = 1;
+UPDATE media_variants SET is_primary = 0
+WHERE media_id = ? AND is_primary = 1;
 
 -- name: InsertPrimaryVariant :one
 INSERT INTO media_variants (
