@@ -1,20 +1,87 @@
 -- name: GetUploadSession :one
-SELECT * FROM upload_sessions
+SELECT
+    id,
+    media_id,
+    user_id,
+    filename,
+    retention_days,
+    keep_original,
+    expected_bytes,
+    reserved_bytes,
+    status,
+    expires_at,
+    created_at,
+    updated_at
+FROM upload_sessions
 WHERE id = ?
 LIMIT 1;
 
 -- name: GetUploadAssetsBySession :many
-SELECT * FROM upload_assets
+SELECT
+    id,
+    session_id,
+    media_id,
+    role,
+    filename,
+    expected_size,
+    chunk_size,
+    total_chunks,
+    received_bytes,
+    expected_sha256,
+    sha256,
+    status,
+    path,
+    error_message,
+    created_at,
+    updated_at,
+    completed_at
+FROM upload_assets
 WHERE session_id = ?
 ORDER BY created_at ASC;
 
 -- name: GetUploadAsset :one
-SELECT * FROM upload_assets
+SELECT
+    id,
+    session_id,
+    media_id,
+    role,
+    filename,
+    expected_size,
+    chunk_size,
+    total_chunks,
+    received_bytes,
+    expected_sha256,
+    sha256,
+    status,
+    path,
+    error_message,
+    created_at,
+    updated_at,
+    completed_at
+FROM upload_assets
 WHERE id = ?
 LIMIT 1;
 
 -- name: GetUploadAssetBySessionAndRole :one
-SELECT * FROM upload_assets
+SELECT
+    id,
+    session_id,
+    media_id,
+    role,
+    filename,
+    expected_size,
+    chunk_size,
+    total_chunks,
+    received_bytes,
+    expected_sha256,
+    sha256,
+    status,
+    path,
+    error_message,
+    created_at,
+    updated_at,
+    completed_at
+FROM upload_assets
 WHERE session_id = ? AND role = ?
 LIMIT 1;
 
@@ -95,7 +162,20 @@ UPDATE upload_sessions SET status = ?, updated_at = ?
 WHERE id = ?;
 
 -- name: ListExpiredUploadSessions :many
-SELECT * FROM upload_sessions
+SELECT
+    id,
+    media_id,
+    user_id,
+    filename,
+    retention_days,
+    keep_original,
+    expected_bytes,
+    reserved_bytes,
+    status,
+    expires_at,
+    created_at,
+    updated_at
+FROM upload_sessions
 WHERE expires_at <= ? AND status IN ('active', 'failed', 'expired', 'canceled');
 
 -- name: DeleteUploadSession :exec
