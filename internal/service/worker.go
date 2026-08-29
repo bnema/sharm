@@ -114,7 +114,10 @@ func (wp *WorkerPool) processJob(ctx context.Context, job *domain.Job) {
 	}
 	if err != nil {
 		wp.log.Errorf("job %d failed: %v", job.ID, err)
-		_ = wp.jobQueue.Fail(job.ID, err.Error())
+		if failErr := wp.jobQueue.Fail(job.ID, err.Error()); failErr != nil {
+			wp.log.Warnf("failed to persist job failure job=%d err=%v", job.ID, failErr)
+			return
+		}
 
 		// If this was a convert job with a codec, mark the variant as failed
 		if job.Type == domain.JobTypeConvert && job.Codec != "" {
@@ -127,7 +130,10 @@ func (wp *WorkerPool) processJob(ctx context.Context, job *domain.Job) {
 		return
 	}
 
-	_ = wp.jobQueue.Complete(job.ID)
+	if completeErr := wp.jobQueue.Complete(job.ID); completeErr != nil {
+		wp.log.Warnf("failed to complete job lease job=%d err=%v", job.ID, completeErr)
+		return
+	}
 	wp.log.Infof("job %d completed", job.ID)
 }
 

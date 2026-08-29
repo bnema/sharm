@@ -217,6 +217,9 @@ func (*Converter) ProbeContext(ctx context.Context, inputPath string) (*domain.P
 	output := &cappedBuffer{max: maxProbeOutputBytes}
 	cmd.Stdout = output
 	if err := cmd.Run(); err != nil {
+		if errors.Is(err, ErrProbeOutputLimit) {
+			return nil, ErrProbeOutputLimit
+		}
 		return nil, fmt.Errorf("ffprobe failed: %w", err)
 	}
 

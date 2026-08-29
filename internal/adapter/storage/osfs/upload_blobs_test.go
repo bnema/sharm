@@ -66,6 +66,41 @@ func TestUploadBlobsRemoveAssetDeletesCompletedChunkTree(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestUploadBlobsWriteChunkRejectsConflictingExistingChunk(t *testing.T) {
+	store := NewUploadBlobs(t.TempDir())
+	original := []byte("first")
+	_, originalDigest, err := store.WriteChunk(
+		"session-1",
+		"asset-1",
+		0,
+		int64(len(original)),
+		"",
+		bytes.NewReader(original),
+	)
+	require.NoError(t, err)
+
+	_, _, err = store.WriteChunk(
+		"session-1",
+		"asset-1",
+		0,
+		int64(len(original)),
+		"",
+		bytes.NewReader([]byte("other")),
+	)
+
+	assert.ErrorIs(t, err, domain.ErrChunkConflict)
+	_, digest, err := store.WriteChunk(
+		"session-1",
+		"asset-1",
+		0,
+		int64(len(original)),
+		"",
+		bytes.NewReader(original),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, originalDigest, digest)
+}
+
 func TestUploadBlobsWriteChunkRejectsDeclaredHashMismatchWithoutPublishing(t *testing.T) {
 	dataDir := t.TempDir()
 	store := NewUploadBlobs(dataDir)

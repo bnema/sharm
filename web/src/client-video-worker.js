@@ -101,11 +101,14 @@ async function prepare(file, maxInputBytes) {
     let outputBytes = 0;
     const target = new StreamTarget(new WritableStream({
       write(chunk) {
-        const nextSize = outputBytes + chunk.byteLength;
+        if (chunk.position !== outputBytes) {
+          throw new Error('The MP4 muxer produced a non-sequential output write.');
+        }
+        const nextSize = chunk.position + chunk.data.byteLength;
         if (Number.isFinite(maxInputBytes) && maxInputBytes > 0 && nextSize > maxInputBytes) {
           throw new Error('The client-produced MP4 exceeds the configured upload size.');
         }
-        outputChunks.push(chunk.slice());
+        outputChunks.push(chunk.data.slice());
         outputBytes = nextSize;
       },
     }));

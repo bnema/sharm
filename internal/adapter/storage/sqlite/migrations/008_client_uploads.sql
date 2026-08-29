@@ -43,7 +43,7 @@ CREATE INDEX idx_media_assets_status ON media_assets(status);
 -- Preserve the source file of every existing media as an explicit original
 -- capability. New sessions only create this row when the user opts in.
 INSERT INTO media_assets (id, media_id, role, filename, path, size_bytes, status, created_at, updated_at)
-SELECT 'legacy-' || id, id, 'original', original_name, original_path, file_size, 'available', created_at, created_at
+SELECT 'legacy-' || id, id, 'original', original_name, original_path, 0, 'available', created_at, created_at
 FROM media
 WHERE original_path <> ''
   AND NOT EXISTS (

@@ -16,6 +16,7 @@ function isVideoFile(file) {
 
 const CLIENT_VIDEO_WORKER_URL = '/static/client-video-worker.js';
 const CLIENT_VIDEO_WORKER_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+const UPLOAD_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 
 /**
  * The Worker inspects the actual tracks before choosing the direct path. Any
@@ -112,24 +113,36 @@ async function prepareVideoForUpload(file, onProgress, maxInputBytes) {
  * @returns {Promise<any>}
  */
 async function fetchUploadJSON(url, options) {
-  const response = await fetch(url, options);
-  const text = await response.text();
-  let payload = null;
-  if (text) {
-    try {
-      payload = JSON.parse(text);
-    } catch (_) {
-      payload = null;
+  const controller = options?.signal ? null : new AbortController();
+  const timeoutID = controller
+    ? setTimeout(() => controller.abort(), UPLOAD_REQUEST_TIMEOUT_MS)
+    : 0;
+  const requestOptions = controller ? { ...(options || {}), signal: controller.signal } : options;
+  try {
+    const response = await fetch(url, requestOptions);
+    const text = await response.text();
+    let payload = null;
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch (_) {
+        payload = null;
+      }
     }
-  }
-  if (!response.ok) {
-    const message = payload && typeof payload.error === 'string' ? payload.error : 'Upload request failed';
-    const error = new Error(message);
-    // @ts-ignore - status is attached for retry decisions
-    error.status = response.status;
+    if (!response.ok) {
+      const message = payload && typeof payload.error === 'string' ? payload.error : 'Upload request failed';
+      const error = new Error(message);
+      // @ts-ignore - status is attached for retry decisions
+      error.status = response.status;
+      throw error;
+    }
+    return payload;
+  } catch (error) {
+    if (controller?.signal.aborted) throw new Error('Upload request timed out.');
     throw error;
+  } finally {
+    clearTimeout(timeoutID);
   }
-  return payload;
 }
 
 /**

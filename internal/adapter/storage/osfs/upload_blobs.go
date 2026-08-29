@@ -78,7 +78,11 @@ func (s *UploadBlobs) WriteChunk(
 		return 0, "", fmt.Errorf("%w: sha256 mismatch", domain.ErrInvalidUpload)
 	}
 	chunkPath := filepath.Join(dir, fmt.Sprintf("%08d.part", index))
-	if info, statErr := os.Stat(chunkPath); statErr == nil {
+	checkExisting := func() (int64, string, error) {
+		info, statErr := os.Stat(chunkPath)
+		if statErr != nil {
+			return 0, "", fmt.Errorf("check existing upload chunk: %w", statErr)
+		}
 		if info.Size() != written {
 			return 0, "", domain.ErrChunkConflict
 		}
@@ -90,10 +94,16 @@ func (s *UploadBlobs) WriteChunk(
 			return 0, "", domain.ErrChunkConflict
 		}
 		return written, digest, nil
+	}
+	if _, statErr := os.Stat(chunkPath); statErr == nil {
+		return checkExisting()
 	} else if !errors.Is(statErr, os.ErrNotExist) {
 		return 0, "", fmt.Errorf("check upload chunk: %w", statErr)
 	}
-	if err := os.Rename(tmpPath, chunkPath); err != nil {
+	if err := os.Link(tmpPath, chunkPath); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return checkExisting()
+		}
 		return 0, "", fmt.Errorf("publish upload chunk: %w", err)
 	}
 	return written, digest, nil

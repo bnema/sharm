@@ -17,7 +17,10 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 cleanup
-docker compose --project-directory "$repo_root" -f "$compose_file" up --build --abort-on-container-exit --exit-code-from playwright playwright
+if ! docker compose --project-directory "$repo_root" -f "$compose_file" up --build --abort-on-container-exit --exit-code-from playwright playwright; then
+  docker compose --project-directory "$repo_root" -f "$compose_file" logs --no-color sharm
+  exit 1
+fi
 logs="$(docker compose --project-directory "$repo_root" -f "$compose_file" logs --no-color sharm)"
 printf '%s\n' "$logs" | grep -q 'video upload path=direct'
 printf '%s\n' "$logs" | grep -q 'video upload path=server-fallback'
