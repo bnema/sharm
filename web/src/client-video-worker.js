@@ -11,8 +11,9 @@ import {
   canEncodeVideo,
 } from 'mediabunny';
 
-const MAX_CLIENT_INPUT_BYTES = 250 * 1024 * 1024;
-const MAX_CLIENT_DURATION_SECONDS = 30 * 60;
+// Mirrors the server's media-duration validation. The deployment-specific
+// byte limit is supplied by the upload page from MAX_UPLOAD_SIZE_MB.
+const MAX_CLIENT_DURATION_SECONDS = 6 * 60 * 60;
 const MAX_OUTPUT_WIDTH = 1920;
 const MAX_OUTPUT_HEIGHT = 1920;
 const MAX_OUTPUT_PIXELS = 1920 * 1080;
@@ -41,9 +42,11 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : 'Client-side video encoding failed.';
 }
 
-async function prepare(file) {
+async function prepare(file, maxInputBytes) {
   if (!(file instanceof Blob)) throw new Error('The selected video could not be read.');
-  if (file.size > MAX_CLIENT_INPUT_BYTES) throw new Error('This video is too large for safe in-browser encoding.');
+  if (Number.isFinite(maxInputBytes) && maxInputBytes > 0 && file.size > maxInputBytes) {
+    throw new Error('This video exceeds the configured upload size.');
+  }
 
   const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
   try {
@@ -138,7 +141,7 @@ self.addEventListener('message', (event) => {
     return;
   }
   if (event.data?.type !== 'prepare') return;
-  void prepare(event.data.file).catch((error) => {
+  void prepare(event.data.file, Number(event.data.maxInputBytes)).catch((error) => {
     self.postMessage({ type: 'fallback', error: errorMessage(error) });
   });
 });

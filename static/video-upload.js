@@ -22,9 +22,10 @@ const CLIENT_VIDEO_WORKER_URL = '/static/client-video-worker.js';
  * remains authoritative and validates every produced MP4 with ffprobe.
  * @param {File} file
  * @param {(progress: number) => void} onProgress
+ * @param {number} maxInputBytes
  * @returns {Promise<{blob: Blob, filename: string, path: 'direct' | 'client-encoding' | 'server-fallback', warning: string}>}
  */
-async function prepareVideoForUpload(file, onProgress) {
+async function prepareVideoForUpload(file, onProgress, maxInputBytes) {
   if (!('Worker' in globalThis)) {
     return { blob: file, filename: file.name, path: 'server-fallback', warning: 'Web Workers are unavailable.' };
   }
@@ -71,7 +72,7 @@ async function prepareVideoForUpload(file, onProgress) {
         });
       }
     });
-    worker.postMessage({ type: 'prepare', file });
+    worker.postMessage({ type: 'prepare', file, maxInputBytes });
   });
 }
 
@@ -167,9 +168,13 @@ async function resumableVideoUpload(file, form) {
       result.textContent = 'Inspecting video and browser codec support…';
       result.className = 'text-muted';
     }
+    const configuredMaxSizeMB = Number(form.dataset.maxUploadSizeMb);
+    const maxInputBytes = Number.isFinite(configuredMaxSizeMB) && configuredMaxSizeMB > 0
+      ? configuredMaxSizeMB * 1024 * 1024
+      : Number.POSITIVE_INFINITY;
     prepared = await prepareVideoForUpload(file, (progress) => {
       updateProgress(Math.min(Math.max(progress, 0), 1) * 35, 'Encoding H.264 on this device…');
-    });
+    }, maxInputBytes);
   }
 
   if (result instanceof HTMLElement) {

@@ -2,12 +2,25 @@ package http
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/bnema/sharm/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestUploadPageExposesConfiguredClientSizeLimit(t *testing.T) {
+	handlers := NewHandlers(nil, nil, "", 768, "test")
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/upload", http.NoBody)
+
+	handlers.UploadPage().ServeHTTP(recorder, request)
+
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Contains(t, recorder.Body.String(), `data-max-upload-size-mb="768"`)
+}
 
 func TestUploadDTOsDoNotExposeStoragePathsOrDeclaredHashes(t *testing.T) {
 	session := &domain.UploadSession{Assets: []domain.UploadAsset{{

@@ -1,12 +1,14 @@
 package templates
 
-templ Upload(version string) {
+import "strconv"
+
+templ Upload(version string, maxUploadSizeMB int) {
 	@Layout(LayoutProps{Title: "Upload — Sharm", ShowNav: true, ActiveRoute: "upload", Version: version}) {
 		@Card() {
 			@CardHeader("Upload") {
 				<span class="text-muted" style="font-size:var(--text-xs);">Images, videos, audio</span>
 			}
-			<form id="upload-form">
+			<form id="upload-form" data-max-upload-size-mb={ strconv.Itoa(maxUploadSizeMB) }>
 				@Dropzone("file", "video/*,image/*,audio/*")
 				<div id="original-option" style="display:none;margin-top:var(--s-md);">
 					<label style="display:flex;align-items:flex-start;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;">

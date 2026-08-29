@@ -80,7 +80,7 @@ func (h *Handlers) Dashboard() http.HandlerFunc {
 func (h *Handlers) UploadPage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = templates.Upload(h.version).Render(r.Context(), w)
+		_ = templates.Upload(h.version, h.maxSizeMB).Render(r.Context(), w)
 	}
 }
 

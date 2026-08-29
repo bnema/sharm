@@ -104,7 +104,7 @@ make test-e2e
 
 The end-to-end test generates H.264/AAC and WebM fixtures with FFmpeg. Playwright verifies direct upload, runtime WebCodecs capability selection, client H.264 encoding when the browser exposes an encoder, and the automatic server fallback otherwise. The test removes its containers, volumes, generated secret key, and fixtures afterward.
 
-Client encoding runs in a same-origin Web Worker and produces a fast-start MP4 with H.264 video and AAC audio. It is initially limited to inputs up to 250 MiB and 30 minutes, with output bounded to 1920×1920 and roughly 1080p pixel count. The server remains authoritative: every result is inspected with `ffprobe`, and any unsupported browser, input codec, or runtime failure falls back to server-side FFmpeg.
+Client encoding runs in a same-origin Web Worker and produces a fast-start MP4 with H.264 video and AAC audio. Its input-size limit follows the deployment's `MAX_UPLOAD_SIZE_MB` setting, duration follows the server's six-hour media limit, and output is bounded to 1920×1920 with roughly 1080p pixel count. The server remains authoritative: every result is inspected with `ffprobe`, and any unsupported browser, input codec, resource limit, or runtime failure falls back to server-side FFmpeg.
 
 `make help` lists all available targets.
 
