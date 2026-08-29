@@ -78,35 +78,36 @@ func (s *UploadBlobs) WriteChunk(
 		return 0, "", fmt.Errorf("%w: sha256 mismatch", domain.ErrInvalidUpload)
 	}
 	chunkPath := filepath.Join(dir, fmt.Sprintf("%08d.part", index))
-	checkExisting := func() (int64, string, error) {
-		info, statErr := os.Stat(chunkPath)
-		if statErr != nil {
-			return 0, "", fmt.Errorf("check existing upload chunk: %w", statErr)
-		}
-		if info.Size() != written {
-			return 0, "", domain.ErrChunkConflict
-		}
-		existingDigest, hashErr := hashPath(chunkPath)
-		if hashErr != nil {
-			return 0, "", fmt.Errorf("hash existing upload chunk: %w", hashErr)
-		}
-		if existingDigest != digest {
-			return 0, "", domain.ErrChunkConflict
-		}
-		return written, digest, nil
-	}
 	if _, statErr := os.Stat(chunkPath); statErr == nil {
-		return checkExisting()
+		return verifyExistingChunk(chunkPath, written, digest)
 	} else if !errors.Is(statErr, os.ErrNotExist) {
 		return 0, "", fmt.Errorf("check upload chunk: %w", statErr)
 	}
 	if err := os.Link(tmpPath, chunkPath); err != nil {
 		if errors.Is(err, os.ErrExist) {
-			return checkExisting()
+			return verifyExistingChunk(chunkPath, written, digest)
 		}
 		return 0, "", fmt.Errorf("publish upload chunk: %w", err)
 	}
 	return written, digest, nil
+}
+
+func verifyExistingChunk(path string, expectedSize int64, expectedDigest string) (int64, string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, "", fmt.Errorf("check existing upload chunk: %w", err)
+	}
+	if info.Size() != expectedSize {
+		return 0, "", domain.ErrChunkConflict
+	}
+	digest, err := hashPath(path)
+	if err != nil {
+		return 0, "", fmt.Errorf("hash existing upload chunk: %w", err)
+	}
+	if digest != expectedDigest {
+		return 0, "", domain.ErrChunkConflict
+	}
+	return expectedSize, expectedDigest, nil
 }
 
 func (s *UploadBlobs) Stage(sessionID, assetID, mediaID string, chunks []domain.UploadChunk) (*port.StagedUpload, error) {

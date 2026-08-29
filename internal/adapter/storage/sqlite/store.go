@@ -237,8 +237,8 @@ func (s *Store) PublishPrimaryVariant(media *domain.Media, variant *domain.Varia
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := s.queries.WithTx(tx)
-	if err := q.DemotePrimaryVariants(ctx, variant.MediaID); err != nil {
-		return fmt.Errorf("demote previous primary variant: %w", err)
+	if demoteErr := q.DemotePrimaryVariants(ctx, variant.MediaID); demoteErr != nil {
+		return fmt.Errorf("demote previous primary variant: %w", demoteErr)
 	}
 	row, err := insertPrimaryVariant(ctx, q, variant)
 	if err != nil {
@@ -371,14 +371,14 @@ func (s *Store) UpdateVariantDone(v *domain.Variant) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := s.queries.WithTx(tx)
-	if err := q.DemotePrimaryVariants(ctx, v.MediaID); err != nil {
-		return fmt.Errorf("demote previous primary variant: %w", err)
+	if demoteErr := q.DemotePrimaryVariants(ctx, v.MediaID); demoteErr != nil {
+		return fmt.Errorf("demote previous primary variant: %w", demoteErr)
 	}
-	if err := q.UpdateVariantDone(ctx, params); err != nil {
-		return fmt.Errorf("complete primary variant: %w", err)
+	if updateErr := q.UpdateVariantDone(ctx, params); updateErr != nil {
+		return fmt.Errorf("complete primary variant: %w", updateErr)
 	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit primary variant completion: %w", err)
+	if commitErr := tx.Commit(); commitErr != nil {
+		return fmt.Errorf("commit primary variant completion: %w", commitErr)
 	}
 	return nil
 }
