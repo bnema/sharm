@@ -19,20 +19,39 @@ test('publishes direct, client-encoded, and server-fallback video uploads', asyn
   await expect(page.locator('body')).toContainText(/H264|h264/);
 
   await page.goto('/upload');
-  const canEncodeH264 = await page.evaluate(async () => {
-    if (!globalThis.isSecureContext || typeof VideoEncoder === 'undefined') return false;
+  const canEncodeClientOutput = await page.evaluate(async () => {
+    if (
+      !globalThis.isSecureContext ||
+      typeof VideoEncoder === 'undefined' ||
+      typeof AudioEncoder === 'undefined'
+    ) return false;
     try {
-      const support = await VideoEncoder.isConfigSupported({
-        codec: 'avc1.42001f',
-        width: 320,
-        height: 180,
-        bitrate: 1_000_000,
-        framerate: 30,
-      });
-      return support.supported === true;
+      const [videoSupport, audioSupport] = await Promise.all([
+        VideoEncoder.isConfigSupported({
+          codec: 'avc1.42001f',
+          width: 320,
+          height: 180,
+          bitrate: 1_000_000,
+          framerate: 30,
+        }),
+        AudioEncoder.isConfigSupported({
+          codec: 'mp4a.40.2',
+          sampleRate: 48_000,
+          numberOfChannels: 1,
+          bitrate: 128_000,
+        }),
+      ]);
+      return videoSupport.supported === true && audioSupport.supported === true;
     } catch (_) {
       return false;
     }
+  });
+  let finalizePayload = null;
+  await page.route('**/complete', async (route) => {
+    const response = await route.fetch();
+    const body = await response.body();
+    finalizePayload = JSON.parse(body.toString('utf8'));
+    await route.fulfill({ response, body });
   });
   await page.locator('input[name="file"]').setInputFiles('/fixtures/client-encoding.webm');
   const clientSessionRequest = page.waitForRequest(
@@ -43,8 +62,14 @@ test('publishes direct, client-encoded, and server-fallback video uploads', asyn
   const clientPayload = (await clientSessionRequest).postDataJSON();
   const preparationStatus = await page.locator('#result').textContent();
   expect(clientPayload.primary_size).toBeGreaterThan(0);
-  if (canEncodeH264) {
+  if (canEncodeClientOutput) {
     expect(clientPayload.primary_filename, preparationStatus || 'missing preparation status').toBe('client-encoding.mp4');
+    expect(finalizePayload.variant).toMatchObject({
+      origin: 'client',
+      video_codec: 'h264',
+      audio_codec: 'aac',
+      status: 'done',
+    });
   } else {
     expect(clientPayload.primary_filename).toBe('client-encoding.webm');
     expect(preparationStatus).toContain('using the server fallback');
@@ -52,13 +77,11 @@ test('publishes direct, client-encoded, and server-fallback video uploads', asyn
   await expect(page).toHaveURL(/\/$/, { timeout: 60_000 });
   await expect(page.getByRole('link', { name: 'client-encoding.webm' })).toBeVisible({ timeout: 60_000 });
 
-  if (canEncodeH264) {
-    await page.route('**/client-video-worker.js', (route) => route.abort());
-    await page.goto('/upload');
-    await page.locator('input[name="file"]').setInputFiles('/fixtures/client-encoding.webm');
-    await page.getByRole('button', { name: 'Upload' }).click();
+  await page.route('**/client-video-worker.js', (route) => route.abort());
+  await page.goto('/upload');
+  await page.locator('input[name="file"]').setInputFiles('/fixtures/client-encoding.webm');
+  await page.getByRole('button', { name: 'Upload' }).click();
 
-    await expect(page).toHaveURL(/\/$/, { timeout: 60_000 });
-    await expect(page.getByRole('link', { name: 'client-encoding.webm' })).toHaveCount(2);
-  }
+  await expect(page).toHaveURL(/\/$/, { timeout: 60_000 });
+  await expect(page.getByRole('link', { name: 'client-encoding.webm' })).toHaveCount(2);
 });

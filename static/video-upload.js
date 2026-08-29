@@ -15,6 +15,7 @@ function isVideoFile(file) {
 }
 
 const CLIENT_VIDEO_WORKER_URL = '/static/client-video-worker.js';
+const CLIENT_VIDEO_WORKER_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 
 /**
  * The Worker inspects the actual tracks before choosing the direct path. Any
@@ -32,18 +33,33 @@ async function prepareVideoForUpload(file, onProgress, maxInputBytes) {
 
   return new Promise((resolve) => {
     let settled = false;
-    const worker = new Worker(CLIENT_VIDEO_WORKER_URL);
+    let worker;
+    try {
+      worker = new Worker(CLIENT_VIDEO_WORKER_URL);
+    } catch (_) {
+      resolve({ blob: file, filename: file.name, path: 'server-fallback', warning: 'Client encoding could not start.' });
+      return;
+    }
+    let watchdogID = 0;
     /** @param {PreparedVideo} prepared */
     const finish = (prepared) => {
       if (settled) return;
       settled = true;
+      clearTimeout(watchdogID);
       worker.terminate();
       resolve(prepared);
+    };
+    const resetWatchdog = () => {
+      clearTimeout(watchdogID);
+      watchdogID = setTimeout(() => {
+        finish({ blob: file, filename: file.name, path: 'server-fallback', warning: 'Client encoding stopped responding.' });
+      }, CLIENT_VIDEO_WORKER_IDLE_TIMEOUT_MS);
     };
     worker.addEventListener('error', () => {
       finish({ blob: file, filename: file.name, path: 'server-fallback', warning: 'Client encoding could not start.' });
     });
     worker.addEventListener('message', (event) => {
+      resetWatchdog();
       const message = event.data;
       if (message?.type === 'progress') {
         onProgress(Number(message.progress) || 0);
@@ -53,10 +69,19 @@ async function prepareVideoForUpload(file, onProgress, maxInputBytes) {
         finish({ blob: file, filename: file.name, path: 'direct', warning: '' });
         return;
       }
-      if (message?.type === 'encoded' && message.buffer instanceof ArrayBuffer) {
+      if (message?.type === 'encoded' && message.blob instanceof Blob) {
+        if (Number.isFinite(maxInputBytes) && message.blob.size > maxInputBytes) {
+          finish({
+            blob: file,
+            filename: file.name,
+            path: 'server-fallback',
+            warning: 'The client-produced MP4 exceeds the configured upload size.',
+          });
+          return;
+        }
         const basename = file.name.replace(/\.[^.]+$/, '') || 'video';
         finish({
-          blob: new Blob([message.buffer], { type: 'video/mp4' }),
+          blob: message.blob,
           filename: basename + '.mp4',
           path: 'client-encoding',
           warning: '',
@@ -72,7 +97,12 @@ async function prepareVideoForUpload(file, onProgress, maxInputBytes) {
         });
       }
     });
-    worker.postMessage({ type: 'prepare', file, maxInputBytes });
+    resetWatchdog();
+    try {
+      worker.postMessage({ type: 'prepare', file, maxInputBytes });
+    } catch (_) {
+      finish({ blob: file, filename: file.name, path: 'server-fallback', warning: 'The video could not be sent to the client encoder.' });
+    }
   });
 }
 
@@ -147,6 +177,15 @@ async function resumableVideoUpload(file, form) {
     return false;
   }
 
+  const configuredMaxSizeMB = Number(form.dataset.maxUploadSizeMb);
+  const maxInputBytes = Number.isFinite(configuredMaxSizeMB) && configuredMaxSizeMB > 0
+    ? configuredMaxSizeMB * 1024 * 1024
+    : Number.POSITIVE_INFINITY;
+  if (file.size > maxInputBytes) {
+    showUploadPreparationError(form, 'This video exceeds the configured upload size.');
+    return false;
+  }
+
   /** @type {PreparedVideo} */
   let prepared;
   if (
@@ -168,10 +207,6 @@ async function resumableVideoUpload(file, form) {
       result.textContent = 'Inspecting video and browser codec support…';
       result.className = 'text-muted';
     }
-    const configuredMaxSizeMB = Number(form.dataset.maxUploadSizeMb);
-    const maxInputBytes = Number.isFinite(configuredMaxSizeMB) && configuredMaxSizeMB > 0
-      ? configuredMaxSizeMB * 1024 * 1024
-      : Number.POSITIVE_INFINITY;
     prepared = await prepareVideoForUpload(file, (progress) => {
       updateProgress(Math.min(Math.max(progress, 0), 1) * 35, 'Encoding H.264 on this device…');
     }, maxInputBytes);

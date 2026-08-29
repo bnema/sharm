@@ -1,12 +1,12 @@
 import {
   ALL_FORMATS,
   BlobSource,
-  BufferTarget,
   Conversion,
   Input,
   Mp4OutputFormat,
   Output,
   Quality,
+  StreamTarget,
   canEncodeAudio,
   canEncodeVideo,
 } from 'mediabunny';
@@ -94,9 +94,20 @@ async function prepare(file, maxInputBytes) {
       throw new Error('This browser cannot encode the required H.264/AAC output.');
     }
 
-    const target = new BufferTarget();
+    const outputChunks = [];
+    let outputBytes = 0;
+    const target = new StreamTarget(new WritableStream({
+      write(chunk) {
+        const nextSize = outputBytes + chunk.byteLength;
+        if (Number.isFinite(maxInputBytes) && maxInputBytes > 0 && nextSize > maxInputBytes) {
+          throw new Error('The client-produced MP4 exceeds the configured upload size.');
+        }
+        outputChunks.push(chunk.slice());
+        outputBytes = nextSize;
+      },
+    }));
     const output = new Output({
-      format: new Mp4OutputFormat({ fastStart: 'in-memory' }),
+      format: new Mp4OutputFormat({ fastStart: 'fragmented' }),
       target,
     });
     const conversion = await Conversion.init({
@@ -127,8 +138,8 @@ async function prepare(file, maxInputBytes) {
     activeConversion = conversion;
     conversion.onProgress = (progress) => self.postMessage({ type: 'progress', progress });
     await conversion.execute();
-    if (!(target.buffer instanceof ArrayBuffer)) throw new Error('The browser produced no MP4 output.');
-    self.postMessage({ type: 'encoded', buffer: target.buffer }, [target.buffer]);
+    if (outputBytes === 0) throw new Error('The browser produced no MP4 output.');
+    self.postMessage({ type: 'encoded', blob: new Blob(outputChunks, { type: 'video/mp4' }) });
   } finally {
     activeConversion = null;
     input.dispose();
