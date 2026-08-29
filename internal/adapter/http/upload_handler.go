@@ -28,7 +28,7 @@ type createUploadRequest struct {
 }
 
 type ResumableUploadService interface {
-	ChunkSize() int64
+	GetChunkSize() int64
 	CreateSession(service.CreateUploadInput) (*domain.UploadSession, error)
 	GetSession(userID int64, sessionID string) (*domain.UploadSession, error)
 	WriteChunk(userID int64, sessionID, assetID string, index int, expectedSHA256 string, body io.Reader) (*domain.UploadChunk, error)
@@ -186,7 +186,7 @@ func (h *Handlers) UploadSessionChunk() http.HandlerFunc {
 			writeUploadError(w, r, domain.ErrInvalidUpload)
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, h.uploadSvc.ChunkSize()+1)
+		r.Body = http.MaxBytesReader(w, r.Body, h.uploadSvc.GetChunkSize()+1)
 		chunk, err := h.uploadSvc.WriteChunk(
 			user.ID,
 			r.PathValue("sessionID"),

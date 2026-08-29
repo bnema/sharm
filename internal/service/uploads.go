@@ -122,7 +122,7 @@ func NewUploadService(
 	}
 }
 
-func (s *UploadService) ChunkSize() int64 {
+func (s *UploadService) GetChunkSize() int64 {
 	return s.chunkSize
 }
 
@@ -446,20 +446,22 @@ func (s *UploadService) CancelSession(userID int64, sessionID string) error {
 	if err != nil {
 		return err
 	}
-	if session.Status != domain.UploadSessionStatusActive {
+	if session.Status != domain.UploadSessionStatusActive && session.Status != domain.UploadSessionStatusCanceled {
 		return nil
 	}
-	if err := s.uploads.UpdateUploadSessionStatus(session.ID, domain.UploadSessionStatusCanceled, s.now()); err != nil {
-		return err
+	if session.Status == domain.UploadSessionStatusActive {
+		if err := s.uploads.UpdateUploadSessionStatus(session.ID, domain.UploadSessionStatusCanceled, s.now()); err != nil {
+			return err
+		}
 	}
 	if err := s.blobs.RemoveSession(session.ID); err != nil {
 		return fmt.Errorf("remove canceled upload: %w", err)
 	}
-	if err := s.media.Delete(session.MediaID); err != nil && !errors.Is(err, domain.ErrNotFound) {
-		return fmt.Errorf("delete canceled upload media: %w", err)
-	}
 	if err := s.blobs.RemoveMedia(session.MediaID); err != nil {
 		return fmt.Errorf("remove canceled media files: %w", err)
+	}
+	if err := s.media.Delete(session.MediaID); err != nil && !errors.Is(err, domain.ErrNotFound) {
+		return fmt.Errorf("delete canceled upload media: %w", err)
 	}
 	return nil
 }
@@ -473,6 +475,11 @@ func (s *UploadService) CleanupExpired() error {
 		session := &sessions[i]
 		if err := s.blobs.RemoveSession(session.ID); err != nil {
 			s.log.Warnf("remove expired upload files session=%s err=%v", session.ID, err)
+			continue
+		}
+		if err := s.blobs.RemoveMedia(session.MediaID); err != nil {
+			s.log.Warnf("remove expired media files media=%s err=%v", session.MediaID, err)
+			continue
 		}
 		if err := s.uploads.DeleteUploadSession(session.ID); err != nil {
 			s.log.Warnf("delete expired upload session session=%s err=%v", session.ID, err)
@@ -480,10 +487,6 @@ func (s *UploadService) CleanupExpired() error {
 		}
 		if err := s.media.Delete(session.MediaID); err != nil && !errors.Is(err, domain.ErrNotFound) {
 			s.log.Warnf("delete expired upload media media=%s err=%v", session.MediaID, err)
-			continue
-		}
-		if err := s.blobs.RemoveMedia(session.MediaID); err != nil {
-			s.log.Warnf("remove expired media files media=%s err=%v", session.MediaID, err)
 		}
 	}
 	return nil

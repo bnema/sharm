@@ -19,7 +19,7 @@ type uploadHandlerTestService struct {
 	chunkSize int64
 }
 
-func (s *uploadHandlerTestService) ChunkSize() int64 { return s.chunkSize }
+func (s *uploadHandlerTestService) GetChunkSize() int64 { return s.chunkSize }
 func (*uploadHandlerTestService) CreateSession(service.CreateUploadInput) (*domain.UploadSession, error) {
 	return nil, domain.ErrInvalidUpload
 }
