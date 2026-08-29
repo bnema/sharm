@@ -14,7 +14,7 @@ services:
           -movflags +faststart -y /fixtures/h264-aac.mp4
         ffmpeg -hide_banner -loglevel error \
           -f lavfi -i testsrc2=size=320x180:rate=30 \
-          -t 1 -c:v libvpx-vp9 -an -y /fixtures/server-fallback.webm
+          -t 1 -c:v libvpx -deadline realtime -an -y /fixtures/client-encoding.webm
     volumes:
       - fixtures:/fixtures
 
@@ -37,8 +37,9 @@ services:
   playwright:
     build:
       context: tests/e2e
+    network_mode: service:sharm
     environment:
-      SHARM_BASE_URL: http://sharm:7890
+      SHARM_BASE_URL: http://localhost:7890
     depends_on:
       fixture:
         condition: service_completed_successfully

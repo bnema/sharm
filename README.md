@@ -74,7 +74,7 @@ server {
 
 ## Development
 
-Requires Go 1.26+, FFmpeg, and a few code generation tools (sqlc, templ, mockery).
+Requires Go 1.26+, Node.js 24+, FFmpeg, and the code generation tools sqlc, templ, and mockery. `make build` installs the pinned browser dependencies and bundles the client video Worker locally.
 
 ```bash
 cp .env.example .env
@@ -102,7 +102,9 @@ Run the complete browser upload flow in disposable Docker volumes:
 make test-e2e
 ```
 
-The end-to-end test generates H.264/AAC and WebM fixtures with FFmpeg, exercises the direct and server-fallback paths in Chromium through Playwright, and removes its containers, volumes, generated secret key, and fixtures afterward.
+The end-to-end test generates H.264/AAC and WebM fixtures with FFmpeg. Playwright verifies direct upload, runtime WebCodecs capability selection, client H.264 encoding when the browser exposes an encoder, and the automatic server fallback otherwise. The test removes its containers, volumes, generated secret key, and fixtures afterward.
+
+Client encoding runs in a same-origin Web Worker and produces a fast-start MP4 with H.264 video and AAC audio. It is initially limited to inputs up to 250 MiB and 30 minutes, with output bounded to 1920×1920 and roughly 1080p pixel count. The server remains authoritative: every result is inspected with `ffprobe`, and any unsupported browser, input codec, or runtime failure falls back to server-side FFmpeg.
 
 `make help` lists all available targets.
 

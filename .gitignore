@@ -23,6 +23,10 @@ profile.cov
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+web/node_modules/
+
+# Generated browser bundle
+static/client-video-worker.js
 
 # Go workspace file
 go.work

@@ -1,5 +1,15 @@
 # =============================================================
-# Stage 1: Fetch Go modules (cached layer)
+# Stage 1: Bundle browser assets
+# =============================================================
+FROM node:24-alpine AS web-stage
+WORKDIR /app/web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/src ./src
+RUN npm run build
+
+# =============================================================
+# Stage 2: Fetch Go modules (cached layer)
 # =============================================================
 FROM golang:1.26-bookworm AS fetch-stage
 WORKDIR /app
@@ -7,12 +17,13 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # =============================================================
-# Stage 2: Build Go binary
+# Stage 3: Build Go binary
 # =============================================================
 FROM golang:1.26-bookworm AS build-stage
 WORKDIR /app
 COPY --from=fetch-stage /go/pkg/mod /go/pkg/mod
 COPY . .
+COPY --from=web-stage /app/static/client-video-worker.js ./static/client-video-worker.js
 
 ARG VERSION=dev
 ARG COMMIT=unknown
@@ -23,7 +34,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false \
     -o /sharm ./cmd/sharm
 
 # =============================================================
-# Stage 3: Final runtime image (Alpine Linux)
+# Stage 4: Final runtime image (Alpine Linux)
 # =============================================================
 FROM alpine:3.23
 

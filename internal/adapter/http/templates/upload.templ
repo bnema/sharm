@@ -18,7 +18,7 @@ templ Upload(version string) {
 				<div id="codec-options" style="display:none;margin-top:var(--s-md);">
 					<label class="text-muted" style="display:block;font-size:var(--text-xs);margin-bottom:var(--s-xs);">Conversion formats</label>
 					<div style="display:flex;flex-direction:column;gap:var(--s-xs);">
-						<div class="text-muted" style="font-size:var(--text-xs);">Video preparation is automatic: compatible MP4s use the direct path; other videos use the server fallback.</div>
+						<div class="text-muted" style="font-size:var(--text-xs);">Video preparation is automatic: compatible MP4s upload directly; other videos are encoded to H.264/AAC on this device when supported, with a server fallback.</div>
 						<label id="codec-av1" style="display:none;align-items:center;gap:var(--s-sm);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;">
 							<input type="checkbox" name="codecs" value="av1"/>
 							<span>WebM (AV1)</span>

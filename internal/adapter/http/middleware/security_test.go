@@ -95,6 +95,20 @@ func TestSecurityHeaders_CSP_ScriptSrc(t *testing.T) {
 	assert.Contains(t, csp, "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net")
 }
 
+func TestSecurityHeaders_CSP_WorkerSrc(t *testing.T) {
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	csp := rec.Header().Get("Content-Security-Policy")
+	assert.Contains(t, csp, "worker-src 'self'")
+}
+
 func TestSecurityHeaders_CSP_StyleSrc(t *testing.T) {
 	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -332,6 +346,7 @@ func TestSecurityHeaders_CSP_AllDirectives(t *testing.T) {
 	directives := []string{
 		"default-src",
 		"script-src",
+		"worker-src",
 		"style-src",
 		"font-src",
 		"img-src",

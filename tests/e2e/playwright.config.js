@@ -8,6 +8,7 @@ module.exports = defineConfig({
   use: {
     baseURL: process.env.SHARM_BASE_URL || 'http://sharm:7890',
     browserName: 'chromium',
+    serviceWorkers: 'block',
     trace: 'retain-on-failure',
   },
 });

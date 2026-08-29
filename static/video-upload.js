@@ -1,4 +1,12 @@
 /**
+ * @typedef {Object} PreparedVideo
+ * @property {Blob} blob
+ * @property {string} filename
+ * @property {'direct' | 'client-encoding' | 'server-fallback'} path
+ * @property {string} warning
+ */
+
+/**
  * @param {File} file
  * @returns {boolean}
  */
@@ -6,17 +14,65 @@ function isVideoFile(file) {
   return file.type.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|flv|wmv|m4v)$/i.test(file.name);
 }
 
+const CLIENT_VIDEO_WORKER_URL = '/static/client-video-worker.js';
+
 /**
- * The browser fast path is deliberately conservative. The server still
- * validates the actual container and codecs with ffprobe before publishing.
+ * The Worker inspects the actual tracks before choosing the direct path. Any
+ * unsupported input or codec capability falls back to the server. The server
+ * remains authoritative and validates every produced MP4 with ffprobe.
  * @param {File} file
- * @returns {'direct' | 'server-fallback'}
+ * @param {(progress: number) => void} onProgress
+ * @returns {Promise<{blob: Blob, filename: string, path: 'direct' | 'client-encoding' | 'server-fallback', warning: string}>}
  */
-function chooseVideoPreparationPath(file) {
-  if (!isVideoFile(file)) return 'server-fallback';
-  const canPlayH264 = document.createElement('video').canPlayType('video/mp4; codecs="avc1.4d401f, mp4a.40.2"');
-  if (file.type === 'video/mp4' && canPlayH264 !== '') return 'direct';
-  return 'server-fallback';
+async function prepareVideoForUpload(file, onProgress) {
+  if (!('Worker' in globalThis)) {
+    return { blob: file, filename: file.name, path: 'server-fallback', warning: 'Web Workers are unavailable.' };
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const worker = new Worker(CLIENT_VIDEO_WORKER_URL);
+    /** @param {PreparedVideo} prepared */
+    const finish = (prepared) => {
+      if (settled) return;
+      settled = true;
+      worker.terminate();
+      resolve(prepared);
+    };
+    worker.addEventListener('error', () => {
+      finish({ blob: file, filename: file.name, path: 'server-fallback', warning: 'Client encoding could not start.' });
+    });
+    worker.addEventListener('message', (event) => {
+      const message = event.data;
+      if (message?.type === 'progress') {
+        onProgress(Number(message.progress) || 0);
+        return;
+      }
+      if (message?.type === 'direct') {
+        finish({ blob: file, filename: file.name, path: 'direct', warning: '' });
+        return;
+      }
+      if (message?.type === 'encoded' && message.buffer instanceof ArrayBuffer) {
+        const basename = file.name.replace(/\.[^.]+$/, '') || 'video';
+        finish({
+          blob: new Blob([message.buffer], { type: 'video/mp4' }),
+          filename: basename + '.mp4',
+          path: 'client-encoding',
+          warning: '',
+        });
+        return;
+      }
+      if (message?.type === 'fallback') {
+        finish({
+          blob: file,
+          filename: file.name,
+          path: 'server-fallback',
+          warning: typeof message.error === 'string' ? message.error : 'Client encoding is unavailable.',
+        });
+      }
+    });
+    worker.postMessage({ type: 'prepare', file });
+  });
 }
 
 /**
@@ -82,21 +138,49 @@ async function cancelServerUploadSession(sessionID) {
  */
 async function resumableVideoUpload(file, form) {
   const result = document.getElementById('result');
-  const preparationPath = chooseVideoPreparationPath(file);
-  if (result instanceof HTMLElement) {
-    result.textContent =
-      preparationPath === 'direct'
-        ? 'Preparing the direct H.264-compatible MP4 path…'
-        : 'Preparing the server fallback path…';
-    result.className = 'text-muted';
-  }
-
   let fingerprint;
   try {
     fingerprint = await getFileFingerprint(file);
   } catch (_) {
     showUploadPreparationError(form, 'Could not read this file for resumable upload. Re-select it and try again.');
     return false;
+  }
+
+  /** @type {PreparedVideo} */
+  let prepared;
+  if (
+    activeUploadSession?.status === 'paused' &&
+    activeUploadSession.fileFingerprint === fingerprint.value &&
+    activeUploadSession.preparedPrimary &&
+    activeUploadSession.preparationPath
+  ) {
+    prepared = {
+      blob: activeUploadSession.preparedPrimary,
+      filename: activeUploadSession.preparationPath === 'client-encoding'
+        ? (file.name.replace(/\.[^.]+$/, '') || 'video') + '.mp4'
+        : file.name,
+      path: activeUploadSession.preparationPath,
+      warning: '',
+    };
+  } else {
+    if (result instanceof HTMLElement) {
+      result.textContent = 'Inspecting video and browser codec support…';
+      result.className = 'text-muted';
+    }
+    prepared = await prepareVideoForUpload(file, (progress) => {
+      updateProgress(Math.min(Math.max(progress, 0), 1) * 35, 'Encoding H.264 on this device…');
+    });
+  }
+
+  if (result instanceof HTMLElement) {
+    if (prepared.path === 'direct') {
+      result.textContent = 'The video is already H.264/AAC and will be uploaded directly.';
+    } else if (prepared.path === 'client-encoding') {
+      result.textContent = 'Client-side H.264 encoding complete. Uploading the optimized MP4…';
+    } else {
+      result.textContent = 'Client encoding unavailable; using the server fallback. ' + prepared.warning;
+    }
+    result.className = 'text-muted';
   }
 
   const keepOriginalInput = form.querySelector('[name="keep_original"]');
@@ -127,8 +211,8 @@ async function resumableVideoUpload(file, form) {
           headers: { ...getUploadHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify({
             filename: file.name,
-            primary_filename: file.name,
-            primary_size: file.size,
+            primary_filename: prepared.filename,
+            primary_size: prepared.blob.size,
             primary_sha256: '',
             original_filename: keepOriginal ? file.name : '',
             original_size: keepOriginal ? file.size : 0,
@@ -157,23 +241,27 @@ async function resumableVideoUpload(file, form) {
     resumeSupported: fingerprint.resumeSupported,
     totalChunks: 0,
     nextChunkIndex: 0,
+    preparedPrimary: prepared.blob,
+    preparationPath: prepared.path,
     status: 'uploading',
   };
   activeUploadSession = clientSession;
 
-  const totalBytes = session.assets.reduce((sum, asset) => sum + Number(asset.expected_size || 0), 0);
-  let completedBytes = session.assets.reduce((sum, asset) => sum + Number(asset.received_bytes || 0), 0);
+  const sessionAssets = /** @type {Array<any>} */ (session.assets);
+  const totalBytes = sessionAssets.reduce((sum, asset) => sum + Number(asset.expected_size || 0), 0);
+  let completedBytes = sessionAssets.reduce((sum, asset) => sum + Number(asset.received_bytes || 0), 0);
 
-  for (const asset of session.assets) {
-    const chunks = Array.isArray(asset.chunks) ? asset.chunks : [];
+  for (const asset of sessionAssets) {
+    const assetBlob = asset.role === 'original' ? file : prepared.blob;
+    const chunks = /** @type {Array<any>} */ (Array.isArray(asset.chunks) ? asset.chunks : []);
     const uploadedChunks = new Set(chunks.map((chunk) => Number(chunk.index)));
     const chunkSize = Number(asset.chunk_size || CHUNK_SIZE);
-    const totalChunks = Number(asset.total_chunks || Math.ceil(file.size / chunkSize));
+    const totalChunks = Number(asset.total_chunks || Math.ceil(assetBlob.size / chunkSize));
     for (let index = 0; index < totalChunks; index++) {
       if (uploadedChunks.has(index)) continue;
       const start = index * chunkSize;
-      const end = Math.min(start + chunkSize, file.size);
-      const chunk = file.slice(start, end);
+      const end = Math.min(start + chunkSize, assetBlob.size);
+      const chunk = assetBlob.slice(start, end);
       const chunkHash = await hashBlob(chunk);
       let uploaded = false;
       let permanentFailure = false;

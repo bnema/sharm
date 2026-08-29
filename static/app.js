@@ -52,6 +52,8 @@ const THEME_MODE_KEY = 'sharm.theme.mode';
  * @property {number} totalChunks
  * @property {number} nextChunkIndex
  * @property {string} [serverSessionID]
+ * @property {Blob} [preparedPrimary]
+ * @property {'direct' | 'client-encoding' | 'server-fallback'} [preparationPath]
  * @property {UploadStatus} status
  */
 
