@@ -146,7 +146,8 @@ async function hashBlob(blob) {
 function isPermanentUploadError(error) {
   // @ts-ignore - status is attached by fetchUploadJSON
   const status = error && error.status;
-  return status >= 400 && status < 500 && status !== 409;
+  if (status === 408 || status === 409 || status === 429) return false;
+  return status >= 400 && status < 500;
 }
 
 /** @param {string} sessionID */

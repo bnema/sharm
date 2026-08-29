@@ -229,16 +229,6 @@ func (s *Store) SaveVariant(v *domain.Variant) error {
 	return nil
 }
 
-func (s *Store) SavePrimaryVariant(v *domain.Variant) error {
-	ctx := context.Background()
-	row, err := insertPrimaryVariant(ctx, s.queries, v)
-	if err != nil {
-		return err
-	}
-	*v = variantFromRow(row)
-	return nil
-}
-
 func (s *Store) PublishPrimaryVariant(media *domain.Media, variant *domain.Variant, probeJSON string) error {
 	ctx := context.Background()
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -247,6 +237,9 @@ func (s *Store) PublishPrimaryVariant(media *domain.Media, variant *domain.Varia
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := s.queries.WithTx(tx)
+	if err := q.DemotePrimaryVariants(ctx, variant.MediaID); err != nil {
+		return fmt.Errorf("demote previous primary variant: %w", err)
+	}
 	row, err := insertPrimaryVariant(ctx, q, variant)
 	if err != nil {
 		return fmt.Errorf("save primary variant: %w", err)
@@ -359,7 +352,7 @@ func (s *Store) UpdateVariantProgress(id int64, status domain.VariantStatus, pro
 
 func (s *Store) UpdateVariantDone(v *domain.Variant) error {
 	ctx := context.Background()
-	return s.queries.UpdateVariantDone(ctx, sqlitedb.UpdateVariantDoneParams{
+	params := sqlitedb.UpdateVariantDoneParams{
 		Path:      v.Path,
 		FileSize:  v.FileSize,
 		Width:     int64(v.Width),
@@ -367,7 +360,27 @@ func (s *Store) UpdateVariantDone(v *domain.Variant) error {
 		IsPrimary: boolToInt64(v.Primary),
 		Origin:    string(v.Origin),
 		ID:        v.ID,
-	})
+	}
+	if !v.Primary {
+		return s.queries.UpdateVariantDone(ctx, params)
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin primary variant completion: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := s.queries.WithTx(tx)
+	if err := q.DemotePrimaryVariants(ctx, v.MediaID); err != nil {
+		return fmt.Errorf("demote previous primary variant: %w", err)
+	}
+	if err := q.UpdateVariantDone(ctx, params); err != nil {
+		return fmt.Errorf("complete primary variant: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit primary variant completion: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) DeleteVariantsByMedia(mediaID string) error {

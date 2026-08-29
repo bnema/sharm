@@ -10,5 +10,5 @@ type JobQueue interface {
 	Fail(jobID int64, errMsg string) error
 	UpdateProgress(jobID int64, progress int) error
 	Heartbeat(jobID int64) error
-	ResetStalled() error
+	ResetStalled() ([]domain.Job, error)
 }

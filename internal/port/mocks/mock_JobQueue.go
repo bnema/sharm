@@ -405,20 +405,31 @@ func (_c *JobQueueMock_Heartbeat_Call) RunAndReturn(run func(jobID int64) error)
 }
 
 // ResetStalled provides a mock function for the type JobQueueMock
-func (_mock *JobQueueMock) ResetStalled() error {
+func (_mock *JobQueueMock) ResetStalled() ([]domain.Job, error) {
 	ret := _mock.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for ResetStalled")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func() error); ok {
+	var r0 []domain.Job
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() ([]domain.Job, error)); ok {
+		return returnFunc()
+	}
+	if returnFunc, ok := ret.Get(0).(func() []domain.Job); ok {
 		r0 = returnFunc()
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.Job)
+		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // JobQueueMock_ResetStalled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetStalled'
@@ -438,12 +449,12 @@ func (_c *JobQueueMock_ResetStalled_Call) Run(run func()) *JobQueueMock_ResetSta
 	return _c
 }
 
-func (_c *JobQueueMock_ResetStalled_Call) Return(err error) *JobQueueMock_ResetStalled_Call {
-	_c.Call.Return(err)
+func (_c *JobQueueMock_ResetStalled_Call) Return(jobs []domain.Job, err error) *JobQueueMock_ResetStalled_Call {
+	_c.Call.Return(jobs, err)
 	return _c
 }
 
-func (_c *JobQueueMock_ResetStalled_Call) RunAndReturn(run func() error) *JobQueueMock_ResetStalled_Call {
+func (_c *JobQueueMock_ResetStalled_Call) RunAndReturn(run func() ([]domain.Job, error)) *JobQueueMock_ResetStalled_Call {
 	_c.Call.Return(run)
 	return _c
 }

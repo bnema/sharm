@@ -60,6 +60,12 @@ UPDATE jobs SET
     completed_at = datetime('now')
 WHERE id = ? AND status = 'running';
 
+-- name: ListExhaustedStalledJobs :many
+SELECT * FROM jobs
+WHERE status = 'running'
+  AND attempts >= max_attempts
+  AND (lease_until IS NULL OR lease_until <= datetime('now'));
+
 -- name: ResetStalledJobs :exec
 UPDATE jobs SET
     status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'pending' END,

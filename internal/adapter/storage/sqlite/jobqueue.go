@@ -12,11 +12,13 @@ import (
 )
 
 type JobQueue struct {
+	db      *sql.DB
 	queries *sqlitedb.Queries
 }
 
 func NewJobQueue(store *Store) *JobQueue {
 	return &JobQueue{
+		db:      store.db,
 		queries: store.queries,
 	}
 }
@@ -135,9 +137,32 @@ func (q *JobQueue) Fail(jobID int64, errMsg string) error {
 	return nil
 }
 
-func (q *JobQueue) ResetStalled() error {
+func (q *JobQueue) ResetStalled() ([]domain.Job, error) {
 	ctx := context.Background()
-	return q.queries.ResetStalledJobs(ctx)
+	tx, err := q.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	queries := q.queries.WithTx(tx)
+	rows, err := queries.ListExhaustedStalledJobs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := queries.ResetStalledJobs(ctx); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	exhausted := make([]domain.Job, 0, len(rows))
+	for i := range rows {
+		job := jobFromRow(rows[i])
+		job.Status = domain.JobStatusFailed
+		job.ErrorMessage = "job exceeded retry limit"
+		exhausted = append(exhausted, *job)
+	}
+	return exhausted, nil
 }
 
 func jobFromRow(row sqlitedb.Job) *domain.Job {

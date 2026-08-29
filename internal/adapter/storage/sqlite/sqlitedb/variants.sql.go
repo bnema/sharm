@@ -19,6 +19,15 @@ func (q *Queries) DeleteVariantsByMedia(ctx context.Context, mediaID string) err
 	return err
 }
 
+const demotePrimaryVariants = `-- name: DemotePrimaryVariants :exec
+UPDATE media_variants SET is_primary = 0 WHERE media_id = ? AND is_primary = 1
+`
+
+func (q *Queries) DemotePrimaryVariants(ctx context.Context, mediaID string) error {
+	_, err := q.db.ExecContext(ctx, demotePrimaryVariants, mediaID)
+	return err
+}
+
 const getVariant = `-- name: GetVariant :one
 SELECT id, media_id, codec, path, file_size, width, height, status, error_message, created_at, container, video_codec, audio_codec, has_audio, profile, level, mime_type, origin, is_primary, progress, duration_seconds FROM media_variants WHERE id = ? LIMIT 1
 `

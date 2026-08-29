@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -229,15 +230,31 @@ func (*Converter) ProbeContext(ctx context.Context, inputPath string) (*domain.P
 }
 
 type cappedBuffer struct {
-	bytes.Buffer
-	max int
+	buffer bytes.Buffer
+	max    int
 }
 
 func (b *cappedBuffer) Write(data []byte) (int, error) {
-	if len(data) > b.max-b.Len() {
+	if len(data) > b.max-b.buffer.Len() {
 		return 0, ErrProbeOutputLimit
 	}
-	return b.Buffer.Write(data)
+	return b.buffer.Write(data)
+}
+
+func (b *cappedBuffer) ReadFrom(reader io.Reader) (int64, error) {
+	return io.Copy(writerOnly{Writer: b}, reader)
+}
+
+func (b *cappedBuffer) Bytes() []byte {
+	return b.buffer.Bytes()
+}
+
+func (b *cappedBuffer) String() string {
+	return b.buffer.String()
+}
+
+type writerOnly struct {
+	io.Writer
 }
 
 var _ port.MediaConverter = (*Converter)(nil)

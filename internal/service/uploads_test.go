@@ -55,8 +55,8 @@ func (*uploadTestJobQueue) Fail(int64, string) error    { return nil }
 func (*uploadTestJobQueue) UpdateProgress(int64, int) error {
 	return nil
 }
-func (*uploadTestJobQueue) Heartbeat(int64) error { return nil }
-func (*uploadTestJobQueue) ResetStalled() error   { return nil }
+func (*uploadTestJobQueue) Heartbeat(int64) error               { return nil }
+func (*uploadTestJobQueue) ResetStalled() ([]domain.Job, error) { return nil, nil }
 
 func newUploadIntegrationService(t *testing.T, probe *domain.ProbeResult, jobs ...*uploadTestJobQueue) (*UploadService, *sqlite.Store) {
 	t.Helper()

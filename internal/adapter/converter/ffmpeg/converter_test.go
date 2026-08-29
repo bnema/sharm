@@ -2,10 +2,21 @@ package ffmpeg
 
 import (
 	"errors"
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestCappedBufferReadFromPreservesLimit(t *testing.T) {
+	buffer := &cappedBuffer{max: 4}
+
+	_, err := io.Copy(buffer, io.LimitReader(strings.NewReader("12345"), 5))
+
+	assert.ErrorIs(t, err, ErrProbeOutputLimit)
+	assert.LessOrEqual(t, len(buffer.Bytes()), 4)
+}
 
 func TestValidatePath(t *testing.T) {
 	tests := []struct {

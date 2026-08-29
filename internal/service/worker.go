@@ -51,10 +51,7 @@ func NewWorkerPool(
 }
 
 func (wp *WorkerPool) Start(ctx context.Context) {
-	// Reset any stalled jobs from previous runs
-	if err := wp.jobQueue.ResetStalled(); err != nil {
-		wp.log.Errorf("failed to reset stalled jobs: %v", err)
-	}
+	wp.resetStalledJobs()
 
 	go wp.recoverStalledJobs(ctx)
 	for i := range wp.workers {
@@ -160,9 +157,24 @@ func (wp *WorkerPool) recoverStalledJobs(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := wp.jobQueue.ResetStalled(); err != nil {
-				wp.log.Warnf("reset stalled jobs err=%v", err)
-			}
+			wp.resetStalledJobs()
+		}
+	}
+}
+
+func (wp *WorkerPool) resetStalledJobs() {
+	exhausted, err := wp.jobQueue.ResetStalled()
+	if err != nil {
+		wp.log.Warnf("reset stalled jobs err=%v", err)
+		return
+	}
+	for i := range exhausted {
+		job := &exhausted[i]
+		if job.Type == domain.JobTypeConvert && job.Codec != "" {
+			wp.failVariant(job)
+		} else if job.Type == domain.JobTypeConvert {
+			_ = wp.store.UpdateStatus(job.MediaID, domain.MediaStatusFailed, job.ErrorMessage)
+			wp.publishEvent(job.MediaID, "status", string(domain.MediaStatusFailed), job.ErrorMessage)
 		}
 	}
 }

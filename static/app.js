@@ -791,9 +791,8 @@ async function handleFileSelect(input) {
   }
 
   const name = selectedFile.name.toLowerCase();
-  const videoExts = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.m4v'];
   const audioExts = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.wma', '.opus'];
-  const isVideo = videoExts.some((e) => name.endsWith(e));
+  const isVideo = isVideoFile(selectedFile);
   const isAudio = audioExts.some((e) => name.endsWith(e));
 
   if (isVideo) {

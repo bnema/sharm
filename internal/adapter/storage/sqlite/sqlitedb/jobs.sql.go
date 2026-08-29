@@ -207,6 +207,52 @@ func (q *Queries) InsertJob(ctx context.Context, arg InsertJobParams) (Job, erro
 	return i, err
 }
 
+const listExhaustedStalledJobs = `-- name: ListExhaustedStalledJobs :many
+SELECT id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps, progress, lease_until, heartbeat_at, max_attempts FROM jobs
+WHERE status = 'running'
+  AND attempts >= max_attempts
+  AND (lease_until IS NULL OR lease_until <= datetime('now'))
+`
+
+func (q *Queries) ListExhaustedStalledJobs(ctx context.Context) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, listExhaustedStalledJobs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Job
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.MediaID,
+			&i.Type,
+			&i.Status,
+			&i.ErrorMessage,
+			&i.Attempts,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.Codec,
+			&i.Fps,
+			&i.Progress,
+			&i.LeaseUntil,
+			&i.HeartbeatAt,
+			&i.MaxAttempts,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listJobsByMedia = `-- name: ListJobsByMedia :many
 SELECT id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps, progress, lease_until, heartbeat_at, max_attempts FROM jobs WHERE media_id = ? ORDER BY created_at ASC
 `

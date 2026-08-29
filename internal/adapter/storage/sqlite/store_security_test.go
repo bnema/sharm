@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bnema/sharm/internal/domain"
 	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,4 +72,34 @@ func TestStoreEnforcesSingleUserAndSessionVersion(t *testing.T) {
 	user, err = store.GetUser("admin")
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), user.SessionVersion)
+}
+
+func TestUpdateVariantDonePromotesOnlyOnePrimary(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+	media := domain.NewMedia(domain.MediaTypeVideo, "fixture.mp4", "opaque-path", 1)
+	require.NoError(t, store.Save(media))
+	h264 := &domain.Variant{MediaID: media.ID, Codec: domain.CodecH264}
+	av1 := &domain.Variant{MediaID: media.ID, Codec: domain.CodecAV1}
+	require.NoError(t, store.SaveVariant(h264))
+	require.NoError(t, store.SaveVariant(av1))
+	h264.Primary = true
+	h264.Origin = domain.VariantOriginServer
+	require.NoError(t, store.UpdateVariantDone(h264))
+	av1.Primary = true
+	av1.Origin = domain.VariantOriginServer
+
+	require.NoError(t, store.UpdateVariantDone(av1))
+
+	variants, err := store.ListVariantsByMedia(media.ID)
+	require.NoError(t, err)
+	primaries := make([]domain.Variant, 0, 1)
+	for i := range variants {
+		if variants[i].Primary {
+			primaries = append(primaries, variants[i])
+		}
+	}
+	require.Len(t, primaries, 1)
+	assert.Equal(t, domain.CodecAV1, primaries[0].Codec)
 }

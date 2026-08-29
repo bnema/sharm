@@ -46,11 +46,17 @@ test('publishes direct, client-encoded, and server-fallback video uploads', asyn
       return false;
     }
   });
-  let finalizePayload = null;
-  await page.route('**/complete', async (route) => {
+  const finalizePayloads = [];
+  await page.route('**/upload/session/*/assets/*/complete', async (route) => {
     const response = await route.fetch();
     const body = await response.body();
-    finalizePayload = JSON.parse(body.toString('utf8'));
+    let payload = null;
+    try {
+      payload = JSON.parse(body.toString('utf8'));
+    } catch (_) {
+      // The assertion below reports a missing payload without breaking delivery to the page.
+    }
+    finalizePayloads.push({ url: route.request().url(), payload });
     await route.fulfill({ response, body });
   });
   await page.locator('input[name="file"]').setInputFiles('/fixtures/client-encoding.webm');
@@ -64,7 +70,9 @@ test('publishes direct, client-encoded, and server-fallback video uploads', asyn
   expect(clientPayload.primary_size).toBeGreaterThan(0);
   if (canEncodeClientOutput) {
     expect(clientPayload.primary_filename, preparationStatus || 'missing preparation status').toBe('client-encoding.mp4');
-    expect(finalizePayload.variant).toMatchObject({
+    const primaryFinalize = finalizePayloads.find((entry) => entry.payload?.variant);
+    expect(primaryFinalize, 'no primary finalize response captured').toBeTruthy();
+    expect(primaryFinalize.payload.variant).toMatchObject({
       origin: 'client',
       video_codec: 'h264',
       audio_codec: 'aac',

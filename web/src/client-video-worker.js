@@ -26,6 +26,9 @@ function even(value) {
 }
 
 function boundedDimensions(width, height) {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    throw new Error('The selected video reports invalid dimensions.');
+  }
   const scale = Math.min(
     1,
     MAX_OUTPUT_WIDTH / width,
