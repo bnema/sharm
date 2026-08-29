@@ -84,12 +84,6 @@ type Medium struct {
 	ProbeJson     string
 }
 
-type Migration008DuplicateJob struct {
-}
-
-type Migration008DuplicateVariant struct {
-}
-
 type UploadAsset struct {
 	ID             string
 	SessionID      string

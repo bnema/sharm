@@ -55,6 +55,19 @@ func TestUploadBlobsStageRejectsMalformedMP4Boxes(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrInvalidUpload)
 }
 
+func TestUploadBlobsRemoveMediaDeletesPublishedTree(t *testing.T) {
+	dataDir := t.TempDir()
+	store := NewUploadBlobs(dataDir)
+	mediaDir := filepath.Join(dataDir, "media", "media-1")
+	require.NoError(t, os.MkdirAll(mediaDir, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(mediaDir, "video.mp4"), []byte("fixture"), 0o600))
+
+	require.NoError(t, store.RemoveMedia("media-1"))
+
+	_, err := os.Stat(mediaDir)
+	assert.ErrorIs(t, err, os.ErrNotExist)
+}
+
 func TestUploadBlobsRemoveAssetDeletesCompletedChunkTree(t *testing.T) {
 	store := NewUploadBlobs(t.TempDir())
 	data := []byte("chunk")

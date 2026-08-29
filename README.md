@@ -7,7 +7,7 @@
 
 ---
 
-Upload videos, audio, and images and get shareable links that expire. Compatible fast-start MP4 videos with H.264/AAC are validated and published without server-side re-encoding; other video sources fall back to FFmpeg H.264 conversion. The original video is optional and is stored separately when requested. Shared links render with Open Graph and Twitter Card tags for previews in chat apps and social media.
+Upload videos, audio, and images and get shareable links that expire. Compatible MP4 H.264/AAC videos are published directly; other video sources are encoded to H.264/AAC in the browser when WebCodecs support is complete, with an automatic FFmpeg server fallback. The original is optional: direct and fallback paths reuse the uploaded source, while a client-encoded MP4 keeps the selected source as a separate asset when requested. Shared links render with Open Graph and Twitter Card tags for previews in chat apps and social media.
 
 Single-user, single-binary, single Docker container. SQLite for storage, FFmpeg for conversion.
 

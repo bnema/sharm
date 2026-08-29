@@ -1,8 +1,12 @@
 -- name: GetMediaAssetByMediaAndRole :one
-SELECT * FROM media_assets WHERE media_id = ? AND role = ? LIMIT 1;
+SELECT * FROM media_assets
+WHERE media_id = ? AND role = ?
+LIMIT 1;
 
 -- name: ListMediaAssets :many
-SELECT * FROM media_assets WHERE media_id = ? ORDER BY created_at ASC, id ASC;
+SELECT * FROM media_assets
+WHERE media_id = ?
+ORDER BY created_at ASC, id ASC;
 
 -- name: InsertMediaAsset :one
 INSERT INTO media_assets (
@@ -35,7 +39,9 @@ ON CONFLICT (media_id, role) DO UPDATE SET
     updated_at = excluded.updated_at;
 
 -- name: DeleteMediaAssetByRole :exec
-DELETE FROM media_assets WHERE media_id = ? AND role = ?;
+DELETE FROM media_assets
+WHERE media_id = ? AND role = ?;
 
 -- name: DeleteMediaAssetsByMedia :exec
-DELETE FROM media_assets WHERE media_id = ?;
+DELETE FROM media_assets
+WHERE media_id = ?;

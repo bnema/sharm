@@ -82,6 +82,10 @@ func main() {
 
 	server := newHTTPServer(cfg, authSvc, mediaSvc, uploadSvc, chunkSvc, eventBus)
 
+	if err := uploadSvc.CleanupExpired(); err != nil {
+		logger.Error.Printf("upload cleanup failed: %v", err)
+	}
+
 	// Periodic cleanup of expired media
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)

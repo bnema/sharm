@@ -221,6 +221,54 @@ func TestUploadServiceKeepsOriginalIndependently(t *testing.T) {
 	assert.Equal(t, domain.UploadSessionStatusCompleted, final.Status)
 }
 
+func TestUploadServiceReusesDirectPrimaryAsOriginal(t *testing.T) {
+	service, store := newUploadIntegrationService(t, h264Probe())
+	data := mp4Fixture(nil)
+	session, err := service.CreateSession(CreateUploadInput{
+		UserID:                 1,
+		Filename:               "clip.mp4",
+		PrimarySize:            int64(len(data)),
+		KeepOriginal:           true,
+		ReusePrimaryAsOriginal: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, session.Assets, 1)
+
+	uploadPrimary(t, service, session, data)
+
+	media, err := store.Get(session.MediaID)
+	require.NoError(t, err)
+	assert.True(t, media.OriginalAvailable)
+	assert.Equal(t, media.ConvertedPath, media.OriginalPath)
+	final, err := service.GetSession(1, session.ID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.UploadSessionStatusCompleted, final.Status)
+}
+
+func TestUploadServiceCancellationRemovesPublishedMediaFiles(t *testing.T) {
+	service, store := newUploadIntegrationService(t, h264Probe())
+	data := mp4Fixture(nil)
+	session, err := service.CreateSession(CreateUploadInput{
+		UserID:        1,
+		Filename:      "clip.mp4",
+		PrimarySize:   int64(len(data)),
+		OriginalSize:  int64(len(data)),
+		KeepOriginal:  true,
+		RetentionDays: 7,
+	})
+	require.NoError(t, err)
+	uploadPrimary(t, service, session, data)
+	media, err := store.Get(session.MediaID)
+	require.NoError(t, err)
+	require.FileExists(t, media.ConvertedPath)
+
+	require.NoError(t, service.CancelSession(1, session.ID))
+
+	assert.NoFileExists(t, media.ConvertedPath)
+	_, err = store.Get(session.MediaID)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+}
+
 func TestUploadServiceReservesQuotaAtomicallyAcrossServiceInstances(t *testing.T) {
 	first, _ := newUploadIntegrationService(t, h264Probe())
 	second := *first
@@ -299,7 +347,7 @@ func (failingUploadProbe) ProbeContext(context.Context, string) (*domain.ProbeRe
 func TestUploadServiceFallsBackToServerConversion(t *testing.T) {
 	jobs := &uploadTestJobQueue{}
 	probe := &domain.ProbeResult{
-		Format:  domain.ProbeFormat{FormatName: "matroska,webm", Duration: "1"},
+		Format:  domain.ProbeFormat{FormatName: uploadWebMFormat, Duration: "1"},
 		Streams: []domain.ProbeStream{{CodecType: "video", CodecName: "hevc", Width: 640, Height: 360}},
 	}
 	service, store := newUploadIntegrationService(t, probe, jobs)
@@ -322,4 +370,33 @@ func TestUploadServiceFallsBackToServerConversion(t *testing.T) {
 	variant, err := store.GetVariantByMediaAndCodec(session.MediaID, domain.CodecH264)
 	require.NoError(t, err)
 	assert.Equal(t, domain.VariantStatusPending, variant.Status)
+}
+
+func TestUploadServiceReusesFallbackSourceAsOriginal(t *testing.T) {
+	jobs := &uploadTestJobQueue{}
+	probe := &domain.ProbeResult{
+		Format:  domain.ProbeFormat{FormatName: uploadWebMFormat, Duration: "1"},
+		Streams: []domain.ProbeStream{{CodecType: "video", CodecName: "hevc", Width: 640, Height: 360}},
+	}
+	service, store := newUploadIntegrationService(t, probe, jobs)
+	data := append([]byte{0x1a, 0x45, 0xdf, 0xa3}, []byte("webm-source")...)
+	session, err := service.CreateSession(CreateUploadInput{
+		UserID:                 1,
+		Filename:               "source.webm",
+		PrimarySize:            int64(len(data)),
+		KeepOriginal:           true,
+		ReusePrimaryAsOriginal: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, session.Assets, 1)
+
+	uploadPrimary(t, service, session, data)
+
+	media, err := store.Get(session.MediaID)
+	require.NoError(t, err)
+	assert.True(t, media.OriginalAvailable)
+	assert.NotEmpty(t, media.OriginalPath)
+	_, err = store.GetMediaAsset(session.MediaID, domain.AssetRoleSourceTransient)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+	assert.Equal(t, 1, jobs.enqueued)
 }

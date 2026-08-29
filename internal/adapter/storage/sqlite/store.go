@@ -132,14 +132,7 @@ func (s *Store) Get(id string) (*domain.Media, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list media assets: %w", err)
 	}
-	for i := range assets {
-		if assets[i].Role == string(domain.AssetRoleOriginal) && assets[i].Status == string(domain.AssetStatusAvailable) {
-			media.OriginalAvailable = true
-			if media.OriginalPath == "" {
-				media.OriginalPath = assets[i].Path
-			}
-		}
-	}
+	applyOriginalAvailability(media, assets)
 
 	return media, nil
 }
@@ -396,7 +389,7 @@ func mediumToMedia(row sqlitedb.Medium) *domain.Media {
 		Type:              domain.MediaType(row.Type),
 		OriginalName:      row.OriginalName,
 		OriginalPath:      row.OriginalPath,
-		OriginalAvailable: row.OriginalPath != "",
+		OriginalAvailable: false,
 		ConvertedPath:     row.ConvertedPath,
 		Status:            domain.MediaStatus(row.Status),
 		Codec:             domain.Codec(row.Codec),
@@ -462,9 +455,28 @@ func (s *Store) mediaListWithVariants(ctx context.Context, rows []sqlitedb.Mediu
 			return nil, fmt.Errorf("list variants for %s: %w", media.ID, err)
 		}
 		media.Variants = variantListFromRows(variants)
+		assets, err := s.queries.ListMediaAssets(ctx, media.ID)
+		if err != nil {
+			return nil, fmt.Errorf("list media assets for %s: %w", media.ID, err)
+		}
+		applyOriginalAvailability(media, assets)
 		result[i] = media
 	}
 	return result, nil
+}
+
+func applyOriginalAvailability(media *domain.Media, assets []sqlitedb.MediaAsset) {
+	media.OriginalAvailable = false
+	for i := range assets {
+		if assets[i].Role != string(domain.AssetRoleOriginal) || assets[i].Status != string(domain.AssetStatusAvailable) {
+			continue
+		}
+		media.OriginalAvailable = true
+		if media.OriginalPath == "" {
+			media.OriginalPath = assets[i].Path
+		}
+		return
+	}
 }
 
 func (s *Store) HasUser() (bool, error) {

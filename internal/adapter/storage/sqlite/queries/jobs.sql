@@ -18,6 +18,7 @@ INSERT INTO jobs (media_id, type, codec, fps, status, created_at)
 VALUES (?, ?, ?, ?, 'pending', datetime('now'))
 RETURNING *;
 
+-- The five-minute lease must remain longer than service.jobHeartbeatInterval.
 -- name: ClaimNextJob :one
 UPDATE jobs SET
     status = 'running',

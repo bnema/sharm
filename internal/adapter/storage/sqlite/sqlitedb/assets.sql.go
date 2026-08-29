@@ -11,7 +11,8 @@ import (
 )
 
 const deleteMediaAssetByRole = `-- name: DeleteMediaAssetByRole :exec
-DELETE FROM media_assets WHERE media_id = ? AND role = ?
+DELETE FROM media_assets
+WHERE media_id = ? AND role = ?
 `
 
 type DeleteMediaAssetByRoleParams struct {
@@ -25,7 +26,8 @@ func (q *Queries) DeleteMediaAssetByRole(ctx context.Context, arg DeleteMediaAss
 }
 
 const deleteMediaAssetsByMedia = `-- name: DeleteMediaAssetsByMedia :exec
-DELETE FROM media_assets WHERE media_id = ?
+DELETE FROM media_assets
+WHERE media_id = ?
 `
 
 func (q *Queries) DeleteMediaAssetsByMedia(ctx context.Context, mediaID string) error {
@@ -34,7 +36,9 @@ func (q *Queries) DeleteMediaAssetsByMedia(ctx context.Context, mediaID string) 
 }
 
 const getMediaAssetByMediaAndRole = `-- name: GetMediaAssetByMediaAndRole :one
-SELECT id, media_id, role, filename, path, size_bytes, sha256, status, error_message, created_at, updated_at FROM media_assets WHERE media_id = ? AND role = ? LIMIT 1
+SELECT id, media_id, role, filename, path, size_bytes, sha256, status, error_message, created_at, updated_at FROM media_assets
+WHERE media_id = ? AND role = ?
+LIMIT 1
 `
 
 type GetMediaAssetByMediaAndRoleParams struct {
@@ -114,7 +118,9 @@ func (q *Queries) InsertMediaAsset(ctx context.Context, arg InsertMediaAssetPara
 }
 
 const listMediaAssets = `-- name: ListMediaAssets :many
-SELECT id, media_id, role, filename, path, size_bytes, sha256, status, error_message, created_at, updated_at FROM media_assets WHERE media_id = ? ORDER BY created_at ASC, id ASC
+SELECT id, media_id, role, filename, path, size_bytes, sha256, status, error_message, created_at, updated_at FROM media_assets
+WHERE media_id = ?
+ORDER BY created_at ASC, id ASC
 `
 
 func (q *Queries) ListMediaAssets(ctx context.Context, mediaID string) ([]MediaAsset, error) {

@@ -247,7 +247,7 @@ func (s *Store) CompleteUploadAsset(id, path, sha256 string, receivedBytes int64
 		return err
 	}
 	if rows == 0 {
-		return domain.ErrNotFound
+		return s.uploadAssetTransitionError(id)
 	}
 	return nil
 }
@@ -262,9 +262,16 @@ func (s *Store) FailUploadAsset(id, errMsg string, now time.Time) error {
 		return err
 	}
 	if rows == 0 {
-		return domain.ErrNotFound
+		return s.uploadAssetTransitionError(id)
 	}
 	return nil
+}
+
+func (s *Store) uploadAssetTransitionError(id string) error {
+	if _, err := s.GetUploadAsset(id); err != nil {
+		return err
+	}
+	return domain.ErrInvalidUpload
 }
 
 func (s *Store) UpdateUploadSessionStatus(id string, status domain.UploadSessionStatus, now time.Time) error {

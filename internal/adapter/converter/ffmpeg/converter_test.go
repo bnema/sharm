@@ -194,12 +194,48 @@ func TestConverter_Thumbnail_PathValidation(t *testing.T) {
 }
 
 func TestCappedBufferRejectsProbeOutputBeyondLimit(t *testing.T) {
-	buffer := &cappedBuffer{max: 4}
-	written, err := buffer.Write([]byte{'1', '2', '3', '4', '5'})
-
-	assert.ErrorIs(t, err, ErrProbeOutputLimit)
-	assert.Zero(t, written)
-	assert.Empty(t, buffer.Bytes())
+	tests := []struct {
+		name        string
+		writes      []string
+		wantWritten []int
+		wantErrors  []bool
+		wantBytes   string
+		wantLimit   bool
+	}{
+		{
+			name: "oversized first write", writes: []string{"12345"},
+			wantWritten: []int{0}, wantErrors: []bool{true}, wantLimit: true,
+		},
+		{
+			name: "exact capacity", writes: []string{"1234"},
+			wantWritten: []int{4}, wantErrors: []bool{false}, wantBytes: "1234",
+		},
+		{
+			name:        "subsequent write exceeds remaining capacity",
+			writes:      []string{"123", "45"},
+			wantWritten: []int{3, 0},
+			wantErrors:  []bool{false, true},
+			wantBytes:   "123",
+			wantLimit:   true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			limitReached := false
+			buffer := &cappedBuffer{max: 4, onLimit: func() { limitReached = true }}
+			for i, value := range tt.writes {
+				written, err := buffer.Write([]byte(value))
+				assert.Equal(t, tt.wantWritten[i], written)
+				if tt.wantErrors[i] {
+					assert.ErrorIs(t, err, ErrProbeOutputLimit)
+				} else {
+					assert.NoError(t, err)
+				}
+			}
+			assert.Equal(t, tt.wantBytes, buffer.String())
+			assert.Equal(t, tt.wantLimit, limitReached)
+		})
+	}
 }
 
 func TestConverter_Probe_PathValidation(t *testing.T) {

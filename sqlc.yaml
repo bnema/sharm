@@ -7,3 +7,4 @@ sql:
       go:
         package: "sqlitedb"
         out: "internal/adapter/storage/sqlite/sqlitedb"
+        omit_unused_structs: true

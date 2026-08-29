@@ -89,9 +89,12 @@ func (wp *WorkerPool) runWorker(ctx context.Context, id int) {
 
 func (wp *WorkerPool) processJob(ctx context.Context, job *domain.Job) {
 	heartbeatDone := make(chan struct{})
+	heartbeatStopped := make(chan struct{})
 	heartbeatErr := make(chan error, 1)
-	go wp.heartbeatJob(ctx, job.ID, heartbeatDone, heartbeatErr)
-	defer close(heartbeatDone)
+	go func() {
+		defer close(heartbeatStopped)
+		wp.heartbeatJob(ctx, job.ID, heartbeatDone, heartbeatErr)
+	}()
 
 	var err error
 
@@ -106,6 +109,8 @@ func (wp *WorkerPool) processJob(ctx context.Context, job *domain.Job) {
 		err = fmt.Errorf("unknown job type: %s", job.Type)
 	}
 
+	close(heartbeatDone)
+	<-heartbeatStopped
 	select {
 	case leaseErr := <-heartbeatErr:
 		wp.log.Warnf("worker lost job lease job=%d err=%v", job.ID, leaseErr)

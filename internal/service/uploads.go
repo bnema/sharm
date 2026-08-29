@@ -23,6 +23,7 @@ const (
 	DefaultUploadReservedBytes   = int64(40 * 1024 * 1024 * 1024)
 	uploadMP4MIME                = "video/mp4"
 	uploadMP4Container           = "mp4"
+	uploadWebMFormat             = "matroska,webm"
 	probeVideoStream             = "video"
 	serverFallbackFPS            = 30
 	uploadProbeTimeout           = 30 * time.Second
@@ -37,16 +38,17 @@ type UploadConfig struct {
 }
 
 type CreateUploadInput struct {
-	UserID           int64
-	Filename         string
-	PrimaryFilename  string
-	PrimarySize      int64
-	PrimarySHA256    string
-	OriginalFilename string
-	OriginalSize     int64
-	OriginalSHA256   string
-	KeepOriginal     bool
-	RetentionDays    int
+	UserID                 int64
+	Filename               string
+	PrimaryFilename        string
+	PrimarySize            int64
+	PrimarySHA256          string
+	OriginalFilename       string
+	OriginalSize           int64
+	OriginalSHA256         string
+	KeepOriginal           bool
+	ReusePrimaryAsOriginal bool
+	RetentionDays          int
 }
 
 type FinalizeUploadResult struct {
@@ -120,6 +122,10 @@ func NewUploadService(
 	}
 }
 
+func (s *UploadService) ChunkSize() int64 {
+	return s.chunkSize
+}
+
 func (s *UploadService) CreateSession(input CreateUploadInput) (*domain.UploadSession, error) {
 	if input.UserID <= 0 {
 		return nil, domain.ErrPermission
@@ -157,7 +163,7 @@ func (s *UploadService) CreateSession(input CreateUploadInput) (*domain.UploadSe
 	assets := []domain.UploadAsset{
 		newUploadAsset(session, domain.AssetRolePrimaryH264, input.PrimaryFilename, input.PrimarySize, input.PrimarySHA256, s.chunkSize, now),
 	}
-	if input.KeepOriginal {
+	if input.KeepOriginal && !input.ReusePrimaryAsOriginal {
 		assets = append(assets, newUploadAsset(
 			session,
 			domain.AssetRoleOriginal,
@@ -195,7 +201,7 @@ func (s *UploadService) validateCreateUploadInput(input *CreateUploadInput) (int
 	if input.PrimarySize <= 0 || input.PrimarySize > s.maxAsset {
 		return 0, domain.ErrQuotaExceeded
 	}
-	if input.KeepOriginal {
+	if input.KeepOriginal && !input.ReusePrimaryAsOriginal {
 		if input.OriginalFilename == "" {
 			input.OriginalFilename = input.Filename
 		}
@@ -212,7 +218,7 @@ func (s *UploadService) validateCreateUploadInput(input *CreateUploadInput) (int
 		input.RetentionDays = 7
 	}
 	total := input.PrimarySize
-	if input.KeepOriginal {
+	if input.KeepOriginal && !input.ReusePrimaryAsOriginal {
 		total += input.OriginalSize
 	}
 	if total <= 0 || total > s.maxTotal {
@@ -364,7 +370,7 @@ func (s *UploadService) finalizeBytes(
 	if err != nil {
 		return "", "", err
 	}
-	if publishErr := s.publishAsset(asset, publishedPath, staged.SHA256, validation); publishErr != nil {
+	if publishErr := s.publishAsset(session, asset, publishedPath, staged.SHA256, validation); publishErr != nil {
 		_ = s.blobs.Discard(publishedPath)
 		return "", "", publishErr
 	}
@@ -452,6 +458,9 @@ func (s *UploadService) CancelSession(userID int64, sessionID string) error {
 	if err := s.media.Delete(session.MediaID); err != nil && !errors.Is(err, domain.ErrNotFound) {
 		return fmt.Errorf("delete canceled upload media: %w", err)
 	}
+	if err := s.blobs.RemoveMedia(session.MediaID); err != nil {
+		return fmt.Errorf("remove canceled media files: %w", err)
+	}
 	return nil
 }
 
@@ -471,6 +480,10 @@ func (s *UploadService) CleanupExpired() error {
 		}
 		if err := s.media.Delete(session.MediaID); err != nil && !errors.Is(err, domain.ErrNotFound) {
 			s.log.Warnf("delete expired upload media media=%s err=%v", session.MediaID, err)
+			continue
+		}
+		if err := s.blobs.RemoveMedia(session.MediaID); err != nil {
+			s.log.Warnf("remove expired media files media=%s err=%v", session.MediaID, err)
 		}
 	}
 	return nil
@@ -530,13 +543,19 @@ func (s *UploadService) validateMedia(path, mime string, fastStart bool, role do
 	return &uploadValidation{probe: probe, primaryReady: primaryReady}, nil
 }
 
-func (s *UploadService) publishAsset(asset *domain.UploadAsset, path, sha256sum string, validation *uploadValidation) error {
+func (s *UploadService) publishAsset(
+	session *domain.UploadSession,
+	asset *domain.UploadAsset,
+	path, sha256sum string,
+	validation *uploadValidation,
+) error {
 	now := s.now()
 	if asset.Role == domain.AssetRoleOriginal {
 		return s.media.SaveMediaAsset(availableMediaAsset(asset, asset.Role, path, sha256sum, now))
 	}
+	reuseAsOriginal := sessionReusesPrimaryAsOriginal(session)
 	if !validation.primaryReady {
-		return s.publishTransientSource(asset, path, sha256sum, now)
+		return s.publishTransientSource(asset, path, sha256sum, now, reuseAsOriginal)
 	}
 	probe := validation.probe
 	video := probe.VideoStream()
@@ -572,29 +591,41 @@ func (s *UploadService) publishAsset(asset *domain.UploadAsset, path, sha256sum 
 		return fmt.Errorf("load media for primary publication: %w", err)
 	}
 	media.MarkAsDone(path, domain.CodecH264, video.Width, video.Height, media.ThumbPath, asset.ExpectedSize)
+	if reuseAsOriginal {
+		if err := s.saveRetainedOriginal(asset, path, sha256sum, now); err != nil {
+			return err
+		}
+	}
 	if err := s.media.PublishPrimaryVariant(media, variant, probe.RawJSON); err != nil {
+		if reuseAsOriginal {
+			return s.rollbackRetainedOriginal(asset.MediaID, err)
+		}
 		return err
 	}
 	s.log.Infof("video upload path=direct media=%s codec=h264", asset.MediaID)
 	return nil
 }
 
-func (s *UploadService) publishTransientSource(asset *domain.UploadAsset, path, sha256sum string, now time.Time) error {
+func (s *UploadService) publishTransientSource(
+	asset *domain.UploadAsset,
+	path, sha256sum string,
+	now time.Time,
+	retainAsOriginal bool,
+) error {
 	if s.jobs == nil {
 		return fmt.Errorf("%w: server fallback is unavailable", domain.ErrUnsupportedMedia)
 	}
-	saveErr := s.media.SaveMediaAsset(availableMediaAsset(
-		asset,
-		domain.AssetRoleSourceTransient,
-		path,
-		sha256sum,
-		now,
-	))
-	if saveErr != nil {
-		return fmt.Errorf("save source-transient asset: %w", saveErr)
+	sourceRole := domain.AssetRoleSourceTransient
+	if retainAsOriginal {
+		sourceRole = domain.AssetRoleOriginal
+		if err := s.saveRetainedOriginal(asset, path, sha256sum, now); err != nil {
+			return err
+		}
+	} else if err := s.media.SaveMediaAsset(availableMediaAsset(asset, sourceRole, path, sha256sum, now)); err != nil {
+		return fmt.Errorf("save source-transient asset: %w", err)
 	}
 	if err := s.media.UpdateStatus(asset.MediaID, domain.MediaStatusProcessing, ""); err != nil {
-		return s.rollbackTransientSetup(asset.MediaID, fmt.Errorf("mark server fallback processing: %w", err))
+		return s.rollbackFallbackSetup(asset.MediaID, sourceRole, fmt.Errorf("mark server fallback processing: %w", err))
 	}
 	variant, err := s.media.GetVariantByMediaAndCodec(asset.MediaID, domain.CodecH264)
 	if errors.Is(err, domain.ErrNotFound) {
@@ -608,10 +639,10 @@ func (s *UploadService) publishTransientSource(asset *domain.UploadAsset, path, 
 			CreatedAt: now,
 		}
 		if saveErr := s.media.SaveVariant(variant); saveErr != nil {
-			return s.rollbackTransientSetup(asset.MediaID, fmt.Errorf("save server fallback variant: %w", saveErr))
+			return s.rollbackFallbackSetup(asset.MediaID, sourceRole, fmt.Errorf("save server fallback variant: %w", saveErr))
 		}
 	} else if err != nil {
-		return s.rollbackTransientSetup(asset.MediaID, fmt.Errorf("get server fallback variant: %w", err))
+		return s.rollbackFallbackSetup(asset.MediaID, sourceRole, fmt.Errorf("get server fallback variant: %w", err))
 	}
 	if variant.Status == domain.VariantStatusDone {
 		return nil
@@ -619,23 +650,61 @@ func (s *UploadService) publishTransientSource(asset *domain.UploadAsset, path, 
 	if _, err := s.jobs.GetActive(asset.MediaID, domain.JobTypeConvert, domain.CodecH264); err == nil {
 		return nil
 	} else if !errors.Is(err, domain.ErrNotFound) {
-		return s.rollbackTransientSetup(asset.MediaID, fmt.Errorf("check server fallback conversion: %w", err))
+		return s.rollbackFallbackSetup(asset.MediaID, sourceRole, fmt.Errorf("check server fallback conversion: %w", err))
 	}
 	if _, err := s.jobs.Enqueue(asset.MediaID, domain.JobTypeConvert, domain.CodecH264, serverFallbackFPS); err != nil {
-		return s.rollbackTransientSetup(asset.MediaID, fmt.Errorf("enqueue server fallback conversion: %w", err))
+		return s.rollbackFallbackSetup(asset.MediaID, sourceRole, fmt.Errorf("enqueue server fallback conversion: %w", err))
 	}
 	s.log.Infof("video upload path=server-fallback media=%s", asset.MediaID)
 	return nil
 }
 
-func (s *UploadService) rollbackTransientSetup(mediaID string, cause error) error {
-	if err := s.media.DeleteMediaAsset(mediaID, domain.AssetRoleSourceTransient); err != nil {
-		s.log.Warnf("rollback transient source record media=%s err=%v", mediaID, err)
+func (s *UploadService) rollbackFallbackSetup(mediaID string, sourceRole domain.AssetRole, cause error) error {
+	if err := s.media.DeleteMediaAsset(mediaID, sourceRole); err != nil {
+		s.log.Warnf("rollback fallback source record media=%s err=%v", mediaID, err)
+	}
+	if sourceRole == domain.AssetRoleOriginal {
+		if err := s.media.UpdateOriginalPath(mediaID, ""); err != nil {
+			s.log.Warnf("rollback fallback original path media=%s err=%v", mediaID, err)
+		}
 	}
 	if err := s.media.UpdateStatus(mediaID, domain.MediaStatusPending, ""); err != nil {
-		s.log.Warnf("rollback transient media status media=%s err=%v", mediaID, err)
+		s.log.Warnf("rollback fallback media status media=%s err=%v", mediaID, err)
 	}
 	return cause
+}
+
+func (s *UploadService) saveRetainedOriginal(asset *domain.UploadAsset, path, sha256sum string, now time.Time) error {
+	if err := s.media.SaveMediaAsset(availableMediaAsset(asset, domain.AssetRoleOriginal, path, sha256sum, now)); err != nil {
+		return fmt.Errorf("save retained original asset: %w", err)
+	}
+	if err := s.media.UpdateOriginalPath(asset.MediaID, path); err != nil {
+		_ = s.media.DeleteMediaAsset(asset.MediaID, domain.AssetRoleOriginal)
+		return fmt.Errorf("save retained original path: %w", err)
+	}
+	return nil
+}
+
+func (s *UploadService) rollbackRetainedOriginal(mediaID string, cause error) error {
+	if err := s.media.DeleteMediaAsset(mediaID, domain.AssetRoleOriginal); err != nil {
+		s.log.Warnf("rollback retained original media=%s err=%v", mediaID, err)
+	}
+	if err := s.media.UpdateOriginalPath(mediaID, ""); err != nil {
+		s.log.Warnf("rollback retained original path media=%s err=%v", mediaID, err)
+	}
+	return cause
+}
+
+func sessionReusesPrimaryAsOriginal(session *domain.UploadSession) bool {
+	if !session.KeepOriginal {
+		return false
+	}
+	for i := range session.Assets {
+		if session.Assets[i].Role == domain.AssetRoleOriginal {
+			return false
+		}
+	}
+	return true
 }
 
 func availableMediaAsset(
@@ -774,7 +843,7 @@ func allowedOriginalMIME(mime string) bool {
 func allowedOriginalFormat(formats []string) bool {
 	for _, format := range formats {
 		switch strings.TrimSpace(format) {
-		case "mp4", "mov", "matroska,webm", "webm", "mpeg", "mp3", "ogg", "wav", "flac":
+		case "mp4", "mov", uploadWebMFormat, "webm", "mpeg", "mp3", "ogg", "wav", "flac":
 			return true
 		}
 	}

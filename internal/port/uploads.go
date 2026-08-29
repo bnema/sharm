@@ -31,6 +31,7 @@ type UploadBlobStore interface {
 	Discard(path string) error
 	RemoveAsset(sessionID, assetID string) error
 	RemoveSession(sessionID string) error
+	RemoveMedia(mediaID string) error
 }
 
 // UploadStore persists resumable upload metadata and state transitions.

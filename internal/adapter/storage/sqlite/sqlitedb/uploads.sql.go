@@ -66,7 +66,8 @@ func (q *Queries) CompleteUploadAsset(ctx context.Context, arg CompleteUploadAss
 }
 
 const deleteUploadSession = `-- name: DeleteUploadSession :exec
-DELETE FROM upload_sessions WHERE id = ?
+DELETE FROM upload_sessions
+WHERE id = ?
 `
 
 func (q *Queries) DeleteUploadSession(ctx context.Context, id string) error {
@@ -97,7 +98,9 @@ func (q *Queries) FailUploadAsset(ctx context.Context, arg FailUploadAssetParams
 }
 
 const getUploadAsset = `-- name: GetUploadAsset :one
-SELECT id, session_id, media_id, role, filename, expected_size, chunk_size, total_chunks, received_bytes, expected_sha256, sha256, status, path, error_message, created_at, updated_at, completed_at FROM upload_assets WHERE id = ? LIMIT 1
+SELECT id, session_id, media_id, role, filename, expected_size, chunk_size, total_chunks, received_bytes, expected_sha256, sha256, status, path, error_message, created_at, updated_at, completed_at FROM upload_assets
+WHERE id = ?
+LIMIT 1
 `
 
 func (q *Queries) GetUploadAsset(ctx context.Context, id string) (UploadAsset, error) {
@@ -126,7 +129,9 @@ func (q *Queries) GetUploadAsset(ctx context.Context, id string) (UploadAsset, e
 }
 
 const getUploadAssetBySessionAndRole = `-- name: GetUploadAssetBySessionAndRole :one
-SELECT id, session_id, media_id, role, filename, expected_size, chunk_size, total_chunks, received_bytes, expected_sha256, sha256, status, path, error_message, created_at, updated_at, completed_at FROM upload_assets WHERE session_id = ? AND role = ? LIMIT 1
+SELECT id, session_id, media_id, role, filename, expected_size, chunk_size, total_chunks, received_bytes, expected_sha256, sha256, status, path, error_message, created_at, updated_at, completed_at FROM upload_assets
+WHERE session_id = ? AND role = ?
+LIMIT 1
 `
 
 type GetUploadAssetBySessionAndRoleParams struct {
@@ -160,7 +165,9 @@ func (q *Queries) GetUploadAssetBySessionAndRole(ctx context.Context, arg GetUpl
 }
 
 const getUploadAssetsBySession = `-- name: GetUploadAssetsBySession :many
-SELECT id, session_id, media_id, role, filename, expected_size, chunk_size, total_chunks, received_bytes, expected_sha256, sha256, status, path, error_message, created_at, updated_at, completed_at FROM upload_assets WHERE session_id = ? ORDER BY created_at ASC
+SELECT id, session_id, media_id, role, filename, expected_size, chunk_size, total_chunks, received_bytes, expected_sha256, sha256, status, path, error_message, created_at, updated_at, completed_at FROM upload_assets
+WHERE session_id = ?
+ORDER BY created_at ASC
 `
 
 func (q *Queries) GetUploadAssetsBySession(ctx context.Context, sessionID string) ([]UploadAsset, error) {
@@ -205,7 +212,9 @@ func (q *Queries) GetUploadAssetsBySession(ctx context.Context, sessionID string
 }
 
 const getUploadChunk = `-- name: GetUploadChunk :one
-SELECT asset_id, chunk_index, size_bytes, sha256, created_at FROM upload_chunks WHERE asset_id = ? AND chunk_index = ? LIMIT 1
+SELECT asset_id, chunk_index, size_bytes, sha256, created_at FROM upload_chunks
+WHERE asset_id = ? AND chunk_index = ?
+LIMIT 1
 `
 
 type GetUploadChunkParams struct {
@@ -227,7 +236,9 @@ func (q *Queries) GetUploadChunk(ctx context.Context, arg GetUploadChunkParams) 
 }
 
 const getUploadSession = `-- name: GetUploadSession :one
-SELECT id, media_id, user_id, filename, retention_days, keep_original, expected_bytes, reserved_bytes, status, expires_at, created_at, updated_at FROM upload_sessions WHERE id = ? LIMIT 1
+SELECT id, media_id, user_id, filename, retention_days, keep_original, expected_bytes, reserved_bytes, status, expires_at, created_at, updated_at FROM upload_sessions
+WHERE id = ?
+LIMIT 1
 `
 
 func (q *Queries) GetUploadSession(ctx context.Context, id string) (UploadSession, error) {
@@ -433,7 +444,9 @@ func (q *Queries) ListExpiredUploadSessions(ctx context.Context, expiresAt time.
 }
 
 const listUploadChunks = `-- name: ListUploadChunks :many
-SELECT asset_id, chunk_index, size_bytes, sha256, created_at FROM upload_chunks WHERE asset_id = ? ORDER BY chunk_index ASC
+SELECT asset_id, chunk_index, size_bytes, sha256, created_at FROM upload_chunks
+WHERE asset_id = ?
+ORDER BY chunk_index ASC
 `
 
 func (q *Queries) ListUploadChunks(ctx context.Context, assetID string) ([]UploadChunk, error) {
@@ -485,7 +498,8 @@ func (q *Queries) ReleaseUploadAssetFinalization(ctx context.Context, arg Releas
 }
 
 const updateUploadSessionStatus = `-- name: UpdateUploadSessionStatus :exec
-UPDATE upload_sessions SET status = ?, updated_at = ? WHERE id = ?
+UPDATE upload_sessions SET status = ?, updated_at = ?
+WHERE id = ?
 `
 
 type UpdateUploadSessionStatusParams struct {

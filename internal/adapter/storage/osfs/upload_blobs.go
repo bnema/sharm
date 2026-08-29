@@ -193,6 +193,13 @@ func (s *UploadBlobs) RemoveSession(sessionID string) error {
 	return os.RemoveAll(filepath.Join(s.dataDir, "uploads", sessionID))
 }
 
+func (s *UploadBlobs) RemoveMedia(mediaID string) error {
+	if !safeSegment(mediaID) {
+		return domain.ErrInvalidUpload
+	}
+	return os.RemoveAll(filepath.Join(s.dataDir, "media", mediaID))
+}
+
 func (s *UploadBlobs) assetDir(sessionID, assetID string) string {
 	return filepath.Join(s.dataDir, "uploads", sessionID, assetID)
 }

@@ -53,11 +53,19 @@ async function prepareVideoForUpload(file, onProgress, maxInputBytes) {
     const resetWatchdog = () => {
       clearTimeout(watchdogID);
       watchdogID = setTimeout(() => {
+        try {
+          worker.postMessage({ type: 'cancel' });
+        } catch (_) {
+          // The fallback below also terminates an unreachable Worker.
+        }
         finish({ blob: file, filename: file.name, path: 'server-fallback', warning: 'Client encoding stopped responding.' });
       }, CLIENT_VIDEO_WORKER_IDLE_TIMEOUT_MS);
     };
     worker.addEventListener('error', () => {
       finish({ blob: file, filename: file.name, path: 'server-fallback', warning: 'Client encoding could not start.' });
+    });
+    worker.addEventListener('messageerror', () => {
+      finish({ blob: file, filename: file.name, path: 'server-fallback', warning: 'Client encoding returned an unreadable response.' });
     });
     worker.addEventListener('message', (event) => {
       resetWatchdog();
@@ -239,6 +247,7 @@ async function resumableVideoUpload(file, form) {
 
   const keepOriginalInput = form.querySelector('[name="keep_original"]');
   const keepOriginal = keepOriginalInput instanceof HTMLInputElement && keepOriginalInput.checked;
+  const uploadOriginalSeparately = keepOriginal && prepared.path === 'client-encoding';
   const retentionInput = form.querySelector('[name="retention"]');
   const retentionDays = retentionInput instanceof HTMLSelectElement ? Number(retentionInput.value) : 7;
   let session = null;
@@ -268,10 +277,11 @@ async function resumableVideoUpload(file, form) {
             primary_filename: prepared.filename,
             primary_size: prepared.blob.size,
             primary_sha256: '',
-            original_filename: keepOriginal ? file.name : '',
-            original_size: keepOriginal ? file.size : 0,
+            original_filename: uploadOriginalSeparately ? file.name : '',
+            original_size: uploadOriginalSeparately ? file.size : 0,
             original_sha256: '',
             keep_original: keepOriginal,
+            reuse_primary_as_original: keepOriginal && !uploadOriginalSeparately,
             retention_days: retentionDays,
           }),
         })

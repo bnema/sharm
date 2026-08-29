@@ -63,10 +63,14 @@ test('publishes direct, client-encoded, and server-fallback video uploads', asyn
   const clientSessionRequest = page.waitForRequest(
     (request) => request.method() === 'POST' && request.url().endsWith('/upload/session'),
   );
+  const preparationStatusPromise = page.waitForFunction(() => {
+    const text = document.querySelector('#result')?.textContent || '';
+    return /uploaded directly|Client-side H\.264 encoding complete|using the server fallback/.test(text) ? text : false;
+  });
   await page.getByRole('button', { name: 'Upload' }).click();
 
   const clientPayload = (await clientSessionRequest).postDataJSON();
-  const preparationStatus = await page.locator('#result').textContent();
+  const preparationStatus = await (await preparationStatusPromise).jsonValue();
   expect(clientPayload.primary_size).toBeGreaterThan(0);
   if (canEncodeClientOutput) {
     expect(clientPayload.primary_filename, preparationStatus || 'missing preparation status').toBe('client-encoding.mp4');
@@ -88,8 +92,18 @@ test('publishes direct, client-encoded, and server-fallback video uploads', asyn
   await page.route('**/client-video-worker.js', (route) => route.abort());
   await page.goto('/upload');
   await page.locator('input[name="file"]').setInputFiles('/fixtures/client-encoding.webm');
+  await page.locator('#keep-original').check();
+  const fallbackSessionRequest = page.waitForRequest(
+    (request) => request.method() === 'POST' && request.url().endsWith('/upload/session'),
+  );
   await page.getByRole('button', { name: 'Upload' }).click();
 
+  const fallbackPayload = (await fallbackSessionRequest).postDataJSON();
+  expect(fallbackPayload).toMatchObject({
+    keep_original: true,
+    reuse_primary_as_original: true,
+    original_size: 0,
+  });
   await expect(page).toHaveURL(/\/$/, { timeout: 60_000 });
   await expect(page.getByRole('link', { name: 'client-encoding.webm' })).toHaveCount(2);
 });

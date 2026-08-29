@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/bnema/sharm/internal/domain"
@@ -212,12 +213,14 @@ func (*Converter) ProbeContext(ctx context.Context, inputPath string) (*domain.P
 		"-show_streams",
 		inputPath,
 	}
+	probeCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	//nolint:gosec // Executable is fixed; the input path is validated.
-	cmd := exec.CommandContext(ctx, "ffprobe", args...)
-	output := &cappedBuffer{max: maxProbeOutputBytes}
+	cmd := exec.CommandContext(probeCtx, "ffprobe", args...)
+	output := &cappedBuffer{max: maxProbeOutputBytes, onLimit: cancel}
 	cmd.Stdout = output
 	if err := cmd.Run(); err != nil {
-		if errors.Is(err, ErrProbeOutputLimit) {
+		if output.limitExceeded.Load() || errors.Is(err, ErrProbeOutputLimit) {
 			return nil, ErrProbeOutputLimit
 		}
 		return nil, fmt.Errorf("ffprobe failed: %w", err)
@@ -233,12 +236,18 @@ func (*Converter) ProbeContext(ctx context.Context, inputPath string) (*domain.P
 }
 
 type cappedBuffer struct {
-	buffer bytes.Buffer
-	max    int
+	buffer        bytes.Buffer
+	max           int
+	onLimit       func()
+	limitExceeded atomic.Bool
 }
 
 func (b *cappedBuffer) Write(data []byte) (int, error) {
 	if len(data) > b.max-b.buffer.Len() {
+		b.limitExceeded.Store(true)
+		if b.onLimit != nil {
+			b.onLimit()
+		}
 		return 0, ErrProbeOutputLimit
 	}
 	return b.buffer.Write(data)

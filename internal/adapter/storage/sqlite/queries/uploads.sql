@@ -1,20 +1,32 @@
 -- name: GetUploadSession :one
-SELECT * FROM upload_sessions WHERE id = ? LIMIT 1;
+SELECT * FROM upload_sessions
+WHERE id = ?
+LIMIT 1;
 
 -- name: GetUploadAssetsBySession :many
-SELECT * FROM upload_assets WHERE session_id = ? ORDER BY created_at ASC;
+SELECT * FROM upload_assets
+WHERE session_id = ?
+ORDER BY created_at ASC;
 
 -- name: GetUploadAsset :one
-SELECT * FROM upload_assets WHERE id = ? LIMIT 1;
+SELECT * FROM upload_assets
+WHERE id = ?
+LIMIT 1;
 
 -- name: GetUploadAssetBySessionAndRole :one
-SELECT * FROM upload_assets WHERE session_id = ? AND role = ? LIMIT 1;
+SELECT * FROM upload_assets
+WHERE session_id = ? AND role = ?
+LIMIT 1;
 
 -- name: GetUploadChunk :one
-SELECT * FROM upload_chunks WHERE asset_id = ? AND chunk_index = ? LIMIT 1;
+SELECT * FROM upload_chunks
+WHERE asset_id = ? AND chunk_index = ?
+LIMIT 1;
 
 -- name: ListUploadChunks :many
-SELECT * FROM upload_chunks WHERE asset_id = ? ORDER BY chunk_index ASC;
+SELECT * FROM upload_chunks
+WHERE asset_id = ?
+ORDER BY chunk_index ASC;
 
 -- name: InsertUploadSession :execrows
 INSERT INTO upload_sessions (
@@ -79,11 +91,13 @@ UPDATE upload_assets SET
 WHERE id = ? AND status IN ('uploading', 'finalizing');
 
 -- name: UpdateUploadSessionStatus :exec
-UPDATE upload_sessions SET status = ?, updated_at = ? WHERE id = ?;
+UPDATE upload_sessions SET status = ?, updated_at = ?
+WHERE id = ?;
 
 -- name: ListExpiredUploadSessions :many
 SELECT * FROM upload_sessions
 WHERE expires_at <= ? AND status IN ('active', 'failed', 'expired', 'canceled');
 
 -- name: DeleteUploadSession :exec
-DELETE FROM upload_sessions WHERE id = ?;
+DELETE FROM upload_sessions
+WHERE id = ?;

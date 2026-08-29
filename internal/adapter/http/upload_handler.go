@@ -15,18 +15,20 @@ import (
 )
 
 type createUploadRequest struct {
-	Filename         string `json:"filename"`
-	PrimaryFilename  string `json:"primary_filename"`
-	PrimarySize      int64  `json:"primary_size"`
-	PrimarySHA256    string `json:"primary_sha256"`
-	OriginalFilename string `json:"original_filename"`
-	OriginalSize     int64  `json:"original_size"`
-	OriginalSHA256   string `json:"original_sha256"`
-	KeepOriginal     bool   `json:"keep_original"`
-	RetentionDays    int    `json:"retention_days"`
+	Filename               string `json:"filename"`
+	PrimaryFilename        string `json:"primary_filename"`
+	PrimarySize            int64  `json:"primary_size"`
+	PrimarySHA256          string `json:"primary_sha256"`
+	OriginalFilename       string `json:"original_filename"`
+	OriginalSize           int64  `json:"original_size"`
+	OriginalSHA256         string `json:"original_sha256"`
+	KeepOriginal           bool   `json:"keep_original"`
+	ReusePrimaryAsOriginal bool   `json:"reuse_primary_as_original"`
+	RetentionDays          int    `json:"retention_days"`
 }
 
 type ResumableUploadService interface {
+	ChunkSize() int64
 	CreateSession(service.CreateUploadInput) (*domain.UploadSession, error)
 	GetSession(userID int64, sessionID string) (*domain.UploadSession, error)
 	WriteChunk(userID int64, sessionID, assetID string, index int, expectedSHA256 string, body io.Reader) (*domain.UploadChunk, error)
@@ -128,16 +130,17 @@ func (h *Handlers) CreateUploadSession() http.HandlerFunc {
 			return
 		}
 		session, err := h.uploadSvc.CreateSession(service.CreateUploadInput{
-			UserID:           user.ID,
-			Filename:         request.Filename,
-			PrimaryFilename:  request.PrimaryFilename,
-			PrimarySize:      request.PrimarySize,
-			PrimarySHA256:    request.PrimarySHA256,
-			OriginalFilename: request.OriginalFilename,
-			OriginalSize:     request.OriginalSize,
-			OriginalSHA256:   request.OriginalSHA256,
-			KeepOriginal:     request.KeepOriginal,
-			RetentionDays:    request.RetentionDays,
+			UserID:                 user.ID,
+			Filename:               request.Filename,
+			PrimaryFilename:        request.PrimaryFilename,
+			PrimarySize:            request.PrimarySize,
+			PrimarySHA256:          request.PrimarySHA256,
+			OriginalFilename:       request.OriginalFilename,
+			OriginalSize:           request.OriginalSize,
+			OriginalSHA256:         request.OriginalSHA256,
+			KeepOriginal:           request.KeepOriginal,
+			ReusePrimaryAsOriginal: request.ReusePrimaryAsOriginal,
+			RetentionDays:          request.RetentionDays,
 		})
 		if err != nil {
 			writeUploadError(w, r, err)
@@ -183,7 +186,7 @@ func (h *Handlers) UploadSessionChunk() http.HandlerFunc {
 			writeUploadError(w, r, domain.ErrInvalidUpload)
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, service.DefaultUploadChunkSize+1)
+		r.Body = http.MaxBytesReader(w, r.Body, h.uploadSvc.ChunkSize()+1)
 		chunk, err := h.uploadSvc.WriteChunk(
 			user.ID,
 			r.PathValue("sessionID"),
@@ -339,7 +342,11 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 func writeUploadError(w http.ResponseWriter, r *http.Request, err error) {
 	status := http.StatusInternalServerError
 	message := "upload failed"
+	var maxBytesErr *http.MaxBytesError
 	switch {
+	case errors.As(err, &maxBytesErr):
+		status = http.StatusRequestEntityTooLarge
+		message = "upload chunk exceeds the configured limit"
 	case errors.Is(err, domain.ErrPermission), errors.Is(err, domain.ErrUploadOwnership):
 		status = http.StatusNotFound
 		message = "upload not found"

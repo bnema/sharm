@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -48,20 +49,30 @@ func NewHandlers(
 	domainName string,
 	maxSizeMB int,
 	version string,
-	uploadSvcs ...ResumableUploadService,
+	uploadSvc ResumableUploadService,
 ) *Handlers {
-	var uploadSvc ResumableUploadService
-	if len(uploadSvcs) > 0 {
-		uploadSvc = uploadSvcs[0]
-	}
 	return &Handlers{
 		mediaSvc:  mediaSvc,
-		uploadSvc: uploadSvc,
+		uploadSvc: normalizeUploadService(uploadSvc),
 		chunkSvc:  chunkSvc,
 		domain:    domainName,
 		maxSizeMB: maxSizeMB,
 		version:   version,
 	}
+}
+
+func normalizeUploadService(uploadSvc ResumableUploadService) ResumableUploadService {
+	if uploadSvc == nil {
+		return nil
+	}
+	value := reflect.ValueOf(uploadSvc)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		if value.IsNil() {
+			return nil
+		}
+	}
+	return uploadSvc
 }
 
 func (h *Handlers) Dashboard() http.HandlerFunc {

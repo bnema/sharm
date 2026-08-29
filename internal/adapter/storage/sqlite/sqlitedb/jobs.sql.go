@@ -26,6 +26,7 @@ WHERE id = (
 RETURNING id, media_id, type, status, error_message, attempts, created_at, started_at, completed_at, codec, fps, progress, lease_until, heartbeat_at, max_attempts
 `
 
+// The five-minute lease must remain longer than service.jobHeartbeatInterval.
 func (q *Queries) ClaimNextJob(ctx context.Context) (Job, error) {
 	row := q.db.QueryRowContext(ctx, claimNextJob)
 	var i Job
