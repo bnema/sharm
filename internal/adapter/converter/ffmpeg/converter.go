@@ -27,6 +27,11 @@ var (
 const (
 	defaultProbeTimeout = 30 * time.Second
 	maxProbeOutputBytes = 4 * 1024 * 1024
+	// maxFFmpegStderrBytes bounds how much ffmpeg stderr is kept for error reports.
+	maxFFmpegStderrBytes = 8 * 1024
+	// evenDimensionScale rounds odd widths/heights down to encoder-compatible even values.
+	// Encoders like libx264 and libsvtav1 reject odd dimensions for 4:2:0 output.
+	evenDimensionScale = "scale=trunc(iw/2)*2:trunc(ih/2)*2"
 )
 
 // validatePath checks for empty paths and null byte injection attacks
@@ -111,6 +116,7 @@ func (c *Converter) convertAV1(inputPath, outputPath string, fps int) error {
 	args := []string{
 		"-nostdin", // Security: prevent stdin-based attacks
 		"-i", inputPath,
+		"-vf", evenDimensionScale,
 		"-c:v", "libsvtav1",
 		"-crf", "30",
 		"-preset", "6",
@@ -124,7 +130,7 @@ func (c *Converter) convertAV1(inputPath, outputPath string, fps int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), convertTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
-	return cmd.Run()
+	return runFFmpeg(ctx, cmd)
 }
 
 func (c *Converter) convertH264(inputPath, outputPath string, fps int) error {
@@ -137,6 +143,7 @@ func (c *Converter) convertH264(inputPath, outputPath string, fps int) error {
 	args := []string{
 		"-nostdin", // Security: prevent stdin-based attacks
 		"-i", inputPath,
+		"-vf", evenDimensionScale,
 		"-c:v", "libx264",
 		"-crf", "23",
 		"-preset", "medium",
@@ -151,7 +158,7 @@ func (c *Converter) convertH264(inputPath, outputPath string, fps int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), convertTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
-	return cmd.Run()
+	return runFFmpeg(ctx, cmd)
 }
 
 func (c *Converter) convertOpus(inputPath, outputPath string) error {
@@ -173,7 +180,7 @@ func (c *Converter) convertOpus(inputPath, outputPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), convertTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
-	return cmd.Run()
+	return runFFmpeg(ctx, cmd)
 }
 
 func (c *Converter) Thumbnail(inputPath, outputPath string) error {
@@ -193,7 +200,28 @@ func (c *Converter) Thumbnail(inputPath, outputPath string) error {
 		outputPath,
 	}
 	cmd := exec.Command("ffmpeg", args...)
-	return cmd.Run()
+	return runFFmpeg(context.Background(), cmd)
+}
+
+// runFFmpeg runs an ffmpeg command and includes bounded stderr in failures so logs
+// show the actionable diagnostic instead of only an exit status.
+func runFFmpeg(ctx context.Context, cmd *exec.Cmd) error {
+	stderr := &cappedBuffer{max: maxFFmpegStderrBytes}
+	cmd.Stderr = stderr
+	if err := cmd.Run(); err != nil {
+		detail := strings.TrimSpace(stderr.String())
+		if ctx.Err() == context.DeadlineExceeded {
+			if detail == "" {
+				return fmt.Errorf("ffmpeg timed out: %w", err)
+			}
+			return fmt.Errorf("ffmpeg timed out: %w: %s", err, detail)
+		}
+		if detail == "" {
+			return fmt.Errorf("ffmpeg failed: %w", err)
+		}
+		return fmt.Errorf("ffmpeg failed: %w: %s", err, detail)
+	}
+	return nil
 }
 
 func (c *Converter) Probe(inputPath string) (*domain.ProbeResult, error) {
