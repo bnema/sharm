@@ -1,0 +1,68 @@
+# Deploys a tagged release to Gordon: builds the image, pushes it to Gordon's
+# CI host with this job's OIDC identity and runs exactly that digest in one
+# service. No Gordon secret is stored in the repository: Gordon accepts only
+# the subject repo:bnema/sharm:environment:production, for this app, service
+# and image repository.
+name: Deploy
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    # Tags are mirrored to GitHub; only ermite deploys.
+    if: github.server_url != 'https://github.com'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GORDON_VERSION: v3.6.0
+      # gordon_linux_amd64.tar.gz in the checksums.txt of that gordon release.
+      GORDON_SHA256: 3eae9ef79a6b0dcc4fb42f4a1bd745d6a2857a474a0dab07f17e976f7aa75a40
+      GORDON_REMOTE: https://ci.bnema.dev
+      GORDON_OIDC_AUDIENCE: https://ci.bnema.dev
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install gordon
+        run: |
+          set -euo pipefail
+          archive=gordon_linux_amd64.tar.gz
+          curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://git.bnema.dev/gordon/releases/download/$GORDON_VERSION/$archive"
+          echo "$GORDON_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" gordon
+          sudo install -m 0755 "$RUNNER_TEMP/gordon" /usr/local/bin/gordon
+          gordon version | head -1
+      # gordon reads ACTIONS_ID_TOKEN_REQUEST_URL/TOKEN itself and exchanges
+      # the ID token at the CI host. Only the repository and digest are logged.
+      - name: Build and push
+        id: push
+        run: |
+          set -euo pipefail
+          gordon images push sharm --build --build-arg VERSION="$GITHUB_REF_NAME" --build-arg COMMIT="$GITHUB_SHA" --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --tag "$GITHUB_REF_NAME" \
+            --remote "$GORDON_REMOTE" --json >push.json
+          jq -e '.digest | test("^sha256:[0-9a-f]{64}$")' push.json >/dev/null
+          echo "image=$(jq -r .image push.json)" >>"$GITHUB_OUTPUT"
+          jq '{repository, tag, digest}' push.json
+      - name: Set image
+        env:
+          IMAGE: ${{ steps.push.outputs.image }}
+        run: |
+          set -euo pipefail
+          gordon apps set-image sharm --service web --image "$IMAGE" \
+            --remote "$GORDON_REMOTE" --json >set-image.json
+          jq '{op, app, status, outcome}' set-image.json
+          jq -e '.outcome == "success"' set-image.json >/dev/null
